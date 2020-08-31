@@ -63,12 +63,7 @@ impl Default for Window {
 pub struct PluginSettings {
     /// The name of the plugin.
     pub name: String,
-
-
-
     // Whatever else we need here
-
-
 }
 
 impl Default for PluginSettings {

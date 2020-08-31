@@ -22,7 +22,5 @@ pub use iced_graphics::Viewport;
 pub struct HostSettings {
     pub sample_rate: f64,
     pub buffer_size: f64,
-
     // whatever else is needed
-    
 }

@@ -1,10 +1,8 @@
 //! Create interactive, native cross-platform plugin applications.
 
 use crate::{
-    mouse, Clipboard, Color, Command, Debug, Executor,
-    Runtime, Settings, Size, Subscription,
+    mouse, Clipboard, Color, Command, Debug, Executor, Runtime, Settings, Size, Subscription,
 };
-
 
 use iced_native::program::Program;
 
@@ -65,7 +63,6 @@ pub trait Application: Program {
         1.0
     }
 }
-
 
 /*  Implementation of `Program` from
 https://github.com/hecrj/iced/blob/master/native/src/program.rs:
