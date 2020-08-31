@@ -63,7 +63,7 @@ impl Default for Window {
 pub struct PluginSettings {
     /// The name of the plugin.
     pub name: String,
-    // Whatever else we need here
+    // Whatever else we need here. Maybe we need to poll metadata instead?
 }
 
 impl Default for PluginSettings {

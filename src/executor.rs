@@ -200,9 +200,6 @@ where
                 self.mouse_interaction = new_mouse_interaction;
             }
             */
-
-            // TODO: Handle animations!
-            // Maybe we can use `ControlFlow::WaitUntil` for this.
         }
 
         self.debug.render_finished();
