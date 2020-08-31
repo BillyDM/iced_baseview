@@ -3,7 +3,19 @@ name = "iced_baseview"
 version = "0.1.0"
 authors = ["Billy Messenger <BillyDM@protonmail.com>"]
 edition = "2018"
+description = "A baseview runtime for Iced"
+license = "MIT"
+repository = "https://github.com/BillyDM/iced_baseview"
+documentation = "https://docs.rs/iced_baseview"
+keywords = ["gui", "ui", "graphics", "interface", "widgets"]
+categories = ["gui"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+debug = ["iced_native/debug"]
+
 [dependencies]
+iced_native = { git = "https://github.com/hecrj/iced", version = "0.2" }
+iced_graphics = { git = "https://github.com/hecrj/iced", version = "0.1" }
+raw-window-handle = "0.3"
