@@ -9,6 +9,7 @@ repository = "https://github.com/BillyDM/iced_baseview"
 documentation = "https://docs.rs/iced_baseview"
 keywords = ["gui", "ui", "graphics", "interface", "widgets"]
 categories = ["gui"]
+publish = "false"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
