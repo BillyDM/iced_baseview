@@ -1,15 +1,14 @@
 [package]
 name = "iced_baseview"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Billy Messenger <BillyDM@protonmail.com>"]
 edition = "2018"
-description = "A baseview runtime for Iced"
+description = "A baseview runtime for Iced (WIP)"
 license = "MIT"
 repository = "https://github.com/BillyDM/iced_baseview"
 documentation = "https://docs.rs/iced_baseview"
 keywords = ["gui", "ui", "graphics", "interface", "widgets"]
 categories = ["gui"]
-publish = "false"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
