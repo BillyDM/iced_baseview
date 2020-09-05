@@ -1,7 +1,6 @@
 use iced_native::{Command, Element, Program};
 
 pub trait Application: Sized {
-    type Flags;
     type AudioToGuiMessage;
     type Message: std::fmt::Debug + Send;
 
@@ -18,7 +17,7 @@ pub trait Application: Sized {
     /// [`Application`]: trait.Application.html
     /// [`run`]: #method.run.html
     /// [`Settings`]: ../settings/struct.Settings.html
-    fn new(flags: &Self::Flags) -> (Self, Command<Self::Message>);
+    fn new() -> (Self, Command<Self::Message>);
 
     /// Handles a __message__ and updates the state of the [`Program`].
     ///

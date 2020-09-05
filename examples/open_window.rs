@@ -1,5 +1,3 @@
-use std::sync::mpsc;
-
 use iced_native::{Column, Command, Container, Element};
 
 fn main() {
@@ -13,22 +11,19 @@ fn main() {
         },
     };
 
-    let flags = ();
-
-    iced_baseview::Executor::<MyProgram>::run(settings, flags);
+    iced_baseview::Executor::<MyProgram>::run(settings);
 }
 struct MyProgram {}
 
 impl iced_baseview::Application for MyProgram {
-    type Flags = ();
     type AudioToGuiMessage = ();
     type Message = ();
 
-    fn new(flags: &Self::Flags) -> (Self, Command<Self::Message>) {
+    fn new() -> (Self, Command<Self::Message>) {
         (Self {}, Command::none())
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
         Command::none()
     }
 

@@ -40,12 +40,11 @@ struct State<A: Application + 'static> {
 }
 
 pub struct Executor<A: Application + 'static> {
-    flags: A::Flags,
-    state: Option<State<A>>,
+    state: State<A>,
 }
 
 impl<A: Application + 'static> Executor<A> {
-    pub fn run(settings: Settings, flags: A::Flags) {
+    pub fn run(settings: Settings) {
         let window_open_options = baseview::WindowOpenOptions {
             title: settings.window.title.as_str(),
             width: settings.window.size.0 as usize,
@@ -53,16 +52,13 @@ impl<A: Application + 'static> Executor<A> {
             parent: baseview::Parent::None,
         };
 
-        let executor = Self { flags, state: None };
-
         // Create channel for sending messages from audio to GUI.
         let (_app_message_tx, app_message_rx) =
             mpsc::channel::<A::AudioToGuiMessage>();
 
         // Run the baseview window with the executor.
-        let _ = baseview::Window::open(
+        let _ = baseview::Window::<Executor<A>>::open(
             window_open_options,
-            executor,
             app_message_rx,
         );
     }
@@ -71,11 +67,10 @@ impl<A: Application + 'static> Executor<A> {
 impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
     type AppMessage = A::AudioToGuiMessage;
 
-    fn create_context(
-        &mut self,
+    fn build(
         window: baseview::RawWindow,
         window_info: &WindowInfo,
-    ) {
+    ) -> Self {
         let window_size =
             Size::new(window_info.width as u32, window_info.height as u32);
 
@@ -134,7 +129,7 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
         ));
 
         // Initialize user program
-        let (user_program, initial_command) = A::new(&self.flags);
+        let (user_program, initial_command) = A::new();
 
         let iced_program = IcedProgram {
             user_app: user_program,
@@ -147,7 +142,7 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
             &mut debug,
         );
 
-        self.state = Some(State {
+        let state = State {
             iced_state,
             initial_command,
             cursor_position: Point::new(-1.0, -1.0),
@@ -161,7 +156,9 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
             swap_chain,
             staging_belt,
             resized: false,
-        });
+        };
+
+        Self { state }
     }
 
     fn draw(&mut self) {}
