@@ -1,9 +1,8 @@
-use iced_native::Command;
+use iced_native::{Command, Program};
 
-pub trait Application: Sized {
+pub trait Application: Program {
     type Flags;
     type AudioToGuiMessage;
-    type Message;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -18,5 +17,5 @@ pub trait Application: Sized {
     /// [`Application`]: trait.Application.html
     /// [`run`]: #method.run.html
     /// [`Settings`]: ../settings/struct.Settings.html
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: &Self::Flags) -> (Self, Command<Self::Message>);
 }

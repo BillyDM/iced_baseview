@@ -18,5 +18,7 @@ debug = ["iced_native/debug"]
 [dependencies]
 iced_native = { git = "https://github.com/hecrj/iced", version = "0.2" }
 iced_graphics = { git = "https://github.com/hecrj/iced", version = "0.1" }
+iced_wgpu = { git = "https://github.com/hecrj/iced", version = "0.2" }
 baseview = { path = "../baseview" }
 raw-window-handle = "0.3"
+futures = "0.3"

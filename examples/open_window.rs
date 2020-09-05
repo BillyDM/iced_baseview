@@ -1,11 +1,11 @@
 use std::sync::mpsc;
 
-use iced_native::Command;
+use iced_native::{Column, Command, Container};
 
 fn main() {
     let settings = iced_baseview::Settings {
         window: iced_baseview::settings::Window {
-            title: String::from("iced_baseview"),
+            title: String::from("iced_baseview open window"),
             size: (500, 300),
             min_size: None,
             max_size: None,
@@ -23,20 +23,17 @@ impl iced_baseview::Application for MyProgram {
     type AudioToGuiMessage = ();
     type Message = ();
 
-    /// Initializes the [`Application`] with the flags provided to
-    /// [`run`] as part of the [`Settings`].
-    ///
-    /// Here is where you should return the initial state of your app.
-    ///
-    /// Additionally, you can return a [`Command`](struct.Command.html) if you
-    /// need to perform some async action in the background on startup. This is
-    /// useful if you want to load state from a file, perform an initial HTTP
-    /// request, etc.
-    ///
-    /// [`Application`]: trait.Application.html
-    /// [`run`]: #method.run.html
-    /// [`Settings`]: ../settings/struct.Settings.html
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
+    fn new(flags: &Self::Flags) -> (Self, Command<Self::Message>) {
         (Self {}, Command::none())
+    }
+
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        Command::none()
+    }
+
+    fn view(&mut self) -> Element<'_, Self::Message, Self::Renderer> {
+        let content = Column::new();
+
+        Container::new(content).into()
     }
 }
