@@ -1,6 +1,6 @@
 use std::sync::mpsc;
 
-use iced_native::{Column, Command, Container};
+use iced_native::{Column, Command, Container, Element};
 
 fn main() {
     let settings = iced_baseview::Settings {
@@ -11,10 +11,11 @@ fn main() {
             max_size: None,
             resizable: true,
         },
-        flags: (),
     };
 
-    iced_baseview::Executor::<MyProgram>::run(settings);
+    let flags = ();
+
+    iced_baseview::Executor::<MyProgram>::run(settings, flags);
 }
 struct MyProgram {}
 
@@ -31,7 +32,7 @@ impl iced_baseview::Application for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message, Self::Renderer> {
+    fn view(&mut self) -> Element<'_, Self::Message, iced_wgpu::Renderer> {
         let content = Column::new();
 
         Container::new(content).into()

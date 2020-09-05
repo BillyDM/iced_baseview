@@ -3,21 +3,28 @@ use crate::{Application, Settings};
 use std::sync::mpsc;
 
 use baseview::{Event, WindowInfo};
-use iced_native::{program, Command, Debug, Point, Size};
+use iced_native::{program, Command, Debug, Element, Point, Size};
 use iced_wgpu::{wgpu, Backend, Renderer, Viewport};
 
-struct RawWindow {
-    raw_window_handle: raw_window_handle::RawWindowHandle,
+struct IcedProgram<A: Application> {
+    pub user_app: A,
 }
 
-unsafe impl raw_window_handle::HasRawWindowHandle for RawWindow {
-    fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-        self.raw_window_handle
+impl<A: Application> iced_native::Program for IcedProgram<A> {
+    type Renderer = Renderer;
+    type Message = A::Message;
+
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        self.user_app.update(message)
+    }
+
+    fn view(&mut self) -> Element<'_, Self::Message, Self::Renderer> {
+        self.user_app.view()
     }
 }
 
 struct State<A: Application + 'static> {
-    iced_state: program::State<A>,
+    iced_state: program::State<IcedProgram<A>>,
     initial_command: Command<A::Message>,
     cursor_position: Point,
     debug: Debug,
@@ -33,12 +40,12 @@ struct State<A: Application + 'static> {
 }
 
 pub struct Executor<A: Application + 'static> {
-    settings: Settings<A::Flags>,
+    flags: A::Flags,
     state: Option<State<A>>,
 }
 
 impl<A: Application + 'static> Executor<A> {
-    pub fn run(settings: Settings<A::Flags>) {
+    pub fn run(settings: Settings, flags: A::Flags) {
         let window_open_options = baseview::WindowOpenOptions {
             title: settings.window.title.as_str(),
             width: settings.window.size.0 as usize,
@@ -46,10 +53,7 @@ impl<A: Application + 'static> Executor<A> {
             parent: baseview::Parent::None,
         };
 
-        let mut executor = Self {
-            settings,
-            state: None,
-        };
+        let executor = Self { flags, state: None };
 
         // Create channel for sending messages from audio to GUI.
         let (_app_message_tx, app_message_rx) =
@@ -69,25 +73,18 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
 
     fn create_context(
         &mut self,
-        window: raw_window_handle::RawWindowHandle,
+        window: baseview::RawWindow,
         window_info: &WindowInfo,
     ) {
-        let scale_factor: f64 = if let Some(dpi) = window_info.dpi {
-            dpi / 96.0
-        } else {
-            1.0
-        };
-
         let window_size =
             Size::new(window_info.width as u32, window_info.height as u32);
 
-        let mut viewport =
-            Viewport::with_physical_size(window_size, scale_factor);
+        let viewport =
+            Viewport::with_physical_size(window_size, window_info.scale);
 
         let wgpu_instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
 
-        let raw_window = RawWindow { raw_window_handle: window };
-        let surface = unsafe { wgpu_instance.create_surface(&raw_window) };
+        let surface = unsafe { wgpu_instance.create_surface(&window) };
 
         let (mut device, queue) = futures::executor::block_on(async {
             let adapter = wgpu_instance
@@ -113,7 +110,7 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
 
         let format = wgpu::TextureFormat::Bgra8UnormSrgb;
 
-        let mut swap_chain = {
+        let swap_chain = {
             device.create_swap_chain(
                 &surface,
                 &wgpu::SwapChainDescriptor {
@@ -125,21 +122,25 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
                 },
             )
         };
-        let mut resized = false;
 
         // Initialize staging belt
-        let mut staging_belt = wgpu::util::StagingBelt::new(5 * 1024);
+        let staging_belt = wgpu::util::StagingBelt::new(5 * 1024);
 
         // Initialize iced
         let mut debug = Debug::new();
-        let mut renderer =
-            Renderer::new(Backend::new(&mut device, iced_wgpu::Settings::default()));
+        let mut renderer = Renderer::new(Backend::new(
+            &mut device,
+            iced_wgpu::Settings::default(),
+        ));
 
         // Initialize user program
-        let (mut user_program, initial_command) = A::new(&self.settings.flags);
+        let (user_program, initial_command) = A::new(&self.flags);
 
-        let mut iced_state = program::State::new(
-            user_program,
+        let iced_program = IcedProgram {
+            user_app: user_program,
+        };
+        let iced_state = program::State::new(
+            iced_program,
             viewport.logical_size(),
             Point::new(-1.0, -1.0),
             &mut renderer,
@@ -163,9 +164,10 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
         });
     }
 
+    fn draw(&mut self) {}
+
     fn on_event(&mut self, event: Event) {
         match event {
-            Event::RenderExpose => {}
             Event::CursorMotion(x, y) => {
                 println!("Cursor moved, x: {}, y: {}", x, y);
             }

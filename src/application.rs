@@ -1,8 +1,9 @@
-use iced_native::{Command, Program};
+use iced_native::{Command, Element, Program};
 
-pub trait Application: Program {
+pub trait Application: Sized {
     type Flags;
     type AudioToGuiMessage;
+    type Message: std::fmt::Debug + Send;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -18,4 +19,24 @@ pub trait Application: Program {
     /// [`run`]: #method.run.html
     /// [`Settings`]: ../settings/struct.Settings.html
     fn new(flags: &Self::Flags) -> (Self, Command<Self::Message>);
+
+    /// Handles a __message__ and updates the state of the [`Program`].
+    ///
+    /// This is where you define your __update logic__. All the __messages__,
+    /// produced by either user interactions or commands, will be handled by
+    /// this method.
+    ///
+    /// Any [`Command`] returned will be executed immediately in the
+    /// background by shells.
+    ///
+    /// [`Program`]: trait.Application.html
+    /// [`Command`]: struct.Command.html
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
+
+    /// Returns the widgets to display in the [`Program`].
+    ///
+    /// These widgets can produce __messages__ based on user interaction.
+    ///
+    /// [`Program`]: trait.Program.html
+    fn view(&mut self) -> Element<'_, Self::Message, iced_wgpu::Renderer>;
 }
