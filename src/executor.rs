@@ -106,6 +106,8 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
     }
 
     fn draw(&mut self) {
+        println!("draw");
+
         use iced_graphics::window::Compositor;
 
         if self.redraw_requested {
@@ -127,45 +129,10 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
                 &mut self.renderer,
                 &mut self.swap_chain,
                 &self.viewport,
-                self.background_color, // background_color
+                self.background_color,
                 self.iced_state.primitive(),
                 &self.debug.overlay(),
             );
-
-            /*
-
-            let frame = self.swap_chain.get_current_frame().expect("Next frame");
-
-            let mut encoder = self.iced_renderer.wgpu_context.device.create_command_encoder(
-                &wgpu::CommandEncoderDescriptor { label: None },
-            );
-
-            let program = self.iced_state.program();
-
-            let mouse_interaction = self.iced_renderer.renderer.backend_mut().draw(
-                &mut self.iced_renderer.wgpu_context.device,
-                &mut self.iced_renderer.wgpu_context.staging_belt,
-                &mut encoder,
-                &frame.output.view,
-                &self.iced_renderer.viewport,
-                self.iced_state.primitive(),
-                &self.debug.overlay(),
-            );
-
-            // Submit the work
-            self.iced_renderer.wgpu_context.staging_belt.finish();
-            self.iced_renderer.wgpu_context.queue.submit(Some(encoder.finish()));
-
-            // TODO: set the mouse cursor icon
-
-            // Recall staging buffers
-            self.iced_renderer.wgpu_context.local_pool
-                .spawner()
-                .spawn(self.iced_renderer.wgpu_context.staging_belt.recall())
-                .expect("Recall staging buffers");
-            self.iced_renderer.wgpu_context.local_pool.run_until_stalled();
-
-            */
 
             self.redraw_requested = false;
 
