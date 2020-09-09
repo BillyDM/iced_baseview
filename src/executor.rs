@@ -3,44 +3,25 @@ use crate::{Application, Settings};
 use std::sync::mpsc;
 
 use baseview::{Event, WindowInfo};
-use iced_native::{program, Command, Debug, Element, Point, Size};
-use iced_wgpu::{wgpu, Backend, Renderer, Viewport};
-
-struct IcedProgram<A: Application> {
-    pub user_app: A,
-}
-
-impl<A: Application> iced_native::Program for IcedProgram<A> {
-    type Renderer = Renderer;
-    type Message = A::Message;
-
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        self.user_app.update(message)
-    }
-
-    fn view(&mut self) -> Element<'_, Self::Message, Self::Renderer> {
-        self.user_app.view()
-    }
-}
-
-struct State<A: Application + 'static> {
-    iced_state: program::State<IcedProgram<A>>,
-    initial_command: Command<A::Message>,
-    cursor_position: Point,
-    debug: Debug,
-    renderer: Renderer,
-    viewport: Viewport,
-    wgpu_instance: wgpu::Instance,
-    surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    swap_chain: wgpu::SwapChain,
-    staging_belt: wgpu::util::StagingBelt,
-    resized: bool,
-}
+use iced_graphics::Viewport;
+use iced_native::{program, Color, Command, Debug, Point, Size};
+//use iced_wgpu::{wgpu, Backend, Renderer, Viewport};
+//use futures::task::SpawnExt;
 
 pub struct Executor<A: Application + 'static> {
-    state: State<A>,
+    iced_state: program::State<A>,
+    cursor_position: Point,
+    debug: Debug,
+    viewport: Viewport,
+    compositor: A::Compositor,
+    renderer: A::Renderer,
+    surface: <A::Compositor as iced_graphics::window::Compositor>::Surface,
+    swap_chain: <A::Compositor as iced_graphics::window::Compositor>::SwapChain,
+    background_color: Color,
+    redraw_requested: bool,
+    window_size: Size<u32>,
+    scale_factor: f64,
+    resized: bool,
 }
 
 impl<A: Application + 'static> Executor<A> {
@@ -67,140 +48,168 @@ impl<A: Application + 'static> Executor<A> {
 impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
     type AppMessage = A::AudioToGuiMessage;
 
-    fn build(
-        window: baseview::RawWindow,
-        window_info: &WindowInfo,
-    ) -> Self {
+    fn build(window: baseview::RawWindow, window_info: &WindowInfo) -> Self {
+        use iced_graphics::window::Compositor;
+
+        let mut debug = Debug::new();
+
         let window_size =
             Size::new(window_info.width as u32, window_info.height as u32);
 
         let viewport =
             Viewport::with_physical_size(window_size, window_info.scale);
 
-        let wgpu_instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+        let compositor_settings = A::compositor_settings();
 
-        let surface = unsafe { wgpu_instance.create_surface(&window) };
+        let (mut compositor, mut renderer) =
+            A::Compositor::new(compositor_settings).unwrap();
 
-        let (mut device, queue) = futures::executor::block_on(async {
-            let adapter = wgpu_instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::Default,
-                    compatible_surface: Some(&surface),
-                })
-                .await
-                .expect("Request adapter");
+        let surface = compositor.create_surface(&window);
 
-            adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        features: wgpu::Features::empty(),
-                        limits: wgpu::Limits::default(),
-                        shader_validation: false,
-                    },
-                    None,
-                )
-                .await
-                .expect("Request device")
-        });
-
-        let format = wgpu::TextureFormat::Bgra8UnormSrgb;
-
-        let swap_chain = {
-            device.create_swap_chain(
-                &surface,
-                &wgpu::SwapChainDescriptor {
-                    usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
-                    format,
-                    width: window_size.width,
-                    height: window_size.height,
-                    present_mode: wgpu::PresentMode::Mailbox,
-                },
-            )
-        };
-
-        // Initialize staging belt
-        let staging_belt = wgpu::util::StagingBelt::new(5 * 1024);
-
-        // Initialize iced
-        let mut debug = Debug::new();
-        let mut renderer = Renderer::new(Backend::new(
-            &mut device,
-            iced_wgpu::Settings::default(),
-        ));
+        let swap_chain = compositor.create_swap_chain(
+            &surface,
+            window_size.width,
+            window_size.height,
+        );
 
         // Initialize user program
-        let (user_program, initial_command) = A::new();
+        let (user_program, _initial_command) = A::new();
 
-        let iced_program = IcedProgram {
-            user_app: user_program,
-        };
+        let background_color = A::background_color();
+
+        // TODO: do something with `_initial_command`
+
+        // Initialize iced's built-in state
         let iced_state = program::State::new(
-            iced_program,
+            user_program,
             viewport.logical_size(),
             Point::new(-1.0, -1.0),
             &mut renderer,
             &mut debug,
         );
 
-        let state = State {
+        Self {
             iced_state,
-            initial_command,
             cursor_position: Point::new(-1.0, -1.0),
             debug,
-            renderer,
             viewport,
-            wgpu_instance,
+            compositor,
+            renderer,
             surface,
-            device,
-            queue,
             swap_chain,
-            staging_belt,
+            redraw_requested: true,
+            window_size,
+            scale_factor: window_info.scale,
+            background_color,
             resized: false,
-        };
-
-        Self { state }
+        }
     }
 
-    fn draw(&mut self) {}
+    fn draw(&mut self) {
+        use iced_graphics::window::Compositor;
+
+        if self.redraw_requested {
+            self.debug.render_started();
+
+            if self.resized {
+                let physical_size = self.viewport.physical_size();
+
+                self.swap_chain = self.compositor.create_swap_chain(
+                    &self.surface,
+                    physical_size.width,
+                    physical_size.height,
+                );
+
+                self.resized = false;
+            }
+
+            let _new_mouse_interaction = self.compositor.draw(
+                &mut self.renderer,
+                &mut self.swap_chain,
+                &self.viewport,
+                self.background_color, // background_color
+                self.iced_state.primitive(),
+                &self.debug.overlay(),
+            );
+
+            /*
+
+            let frame = self.swap_chain.get_current_frame().expect("Next frame");
+
+            let mut encoder = self.iced_renderer.wgpu_context.device.create_command_encoder(
+                &wgpu::CommandEncoderDescriptor { label: None },
+            );
+
+            let program = self.iced_state.program();
+
+            let mouse_interaction = self.iced_renderer.renderer.backend_mut().draw(
+                &mut self.iced_renderer.wgpu_context.device,
+                &mut self.iced_renderer.wgpu_context.staging_belt,
+                &mut encoder,
+                &frame.output.view,
+                &self.iced_renderer.viewport,
+                self.iced_state.primitive(),
+                &self.debug.overlay(),
+            );
+
+            // Submit the work
+            self.iced_renderer.wgpu_context.staging_belt.finish();
+            self.iced_renderer.wgpu_context.queue.submit(Some(encoder.finish()));
+
+            // TODO: set the mouse cursor icon
+
+            // Recall staging buffers
+            self.iced_renderer.wgpu_context.local_pool
+                .spawner()
+                .spawn(self.iced_renderer.wgpu_context.staging_belt.recall())
+                .expect("Recall staging buffers");
+            self.iced_renderer.wgpu_context.local_pool.run_until_stalled();
+
+            */
+
+            self.redraw_requested = false;
+
+            self.debug.render_finished();
+        }
+    }
 
     fn on_event(&mut self, event: Event) {
-        match event {
-            Event::CursorMotion(x, y) => {
-                println!("Cursor moved, x: {}, y: {}", x, y);
+        if let Event::CursorMotion(x, y) = event {
+            self.cursor_position.x = x as f32;
+            self.cursor_position.y = y as f32;
+        }
+
+        if let Event::WindowResized(window_info) = &event {
+            if self.window_size.width != window_info.width
+                || self.window_size.height != window_info.height
+            {
+                self.window_size.width = window_info.width;
+                self.window_size.height = window_info.height;
+
+                self.viewport = Viewport::with_physical_size(
+                    self.window_size,
+                    self.scale_factor,
+                );
+
+                self.resized = true;
             }
-            Event::MouseDown(button_id) => {
-                println!("Mouse down, button id: {:?}", button_id);
-            }
-            Event::MouseUp(button_id) => {
-                println!("Mouse up, button id: {:?}", button_id);
-            }
-            Event::MouseScroll(mouse_scroll) => {
-                println!("Mouse scroll, {:?}", mouse_scroll);
-            }
-            Event::MouseClick(mouse_click) => {
-                println!("Mouse click, {:?}", mouse_click);
-            }
-            Event::KeyDown(keycode) => {
-                println!("Key down, keycode: {}", keycode);
-            }
-            Event::KeyUp(keycode) => {
-                println!("Key up, keycode: {}", keycode);
-            }
-            Event::CharacterInput(char_code) => {
-                println!("Character input, char_code: {}", char_code);
-            }
-            Event::WindowResized(window_info) => {
-                println!("Window resized, {:?}", window_info);
-            }
-            Event::WindowFocus => {
-                println!("Window focused");
-            }
-            Event::WindowUnfocus => {
-                println!("Window unfocused");
-            }
-            Event::WillClose => {
-                println!("Window will close");
-            }
+        }
+
+        if let Some(iced_event) =
+            crate::conversion::baseview_to_iced_event(event)
+        {
+            self.iced_state.queue_event(iced_event);
+
+            // update iced
+            let _ = self.iced_state.update(
+                self.viewport.logical_size(),
+                self.cursor_position,
+                None, // clipboard
+                &mut self.renderer,
+                &mut self.debug,
+            );
+
+            self.redraw_requested = true;
         }
     }
 

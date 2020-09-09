@@ -4,6 +4,7 @@
 // #![forbid(unsafe_code)]
 #![forbid(rust_2018_idioms)]
 
+mod conversion;
 mod executor;
 
 mod application;
