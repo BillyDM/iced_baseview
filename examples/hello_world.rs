@@ -5,11 +5,11 @@ use iced_native::{
 fn main() {
     let settings = iced_baseview::Settings {
         window: iced_baseview::settings::Window {
-            title: String::from("iced_baseview open window"),
+            title: String::from("iced_baseview hello world"),
             size: (500, 300),
             min_size: None,
             max_size: None,
-            resizable: true,
+            resizable: false,
         },
     };
 
