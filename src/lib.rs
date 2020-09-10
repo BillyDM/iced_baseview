@@ -12,3 +12,21 @@ pub mod settings;
 pub use application::Application;
 pub use handler::Handler;
 pub use settings::Settings;
+
+#[cfg(feature = "wgpu")]
+pub use iced_wgpu::Renderer;
+
+#[cfg(feature = "wgpu")]
+pub use iced_wgpu::Settings as CompositorSettings;
+
+#[cfg(feature = "wgpu")]
+pub use iced_wgpu::Antialiasing;
+
+#[cfg(feature = "glow")]
+pub use iced_glow::Renderer;
+
+#[cfg(feature = "glow")]
+pub use iced_glow::Settings as CompositorSettings;
+
+#[cfg(feature = "glow")]
+pub use iced_glow::Antialiasing;

@@ -4,19 +4,48 @@ use std::sync::mpsc;
 
 use baseview::{Event, WindowInfo};
 use iced_graphics::Viewport;
-use iced_native::{program, Color, Debug, Point, Size};
+use iced_native::{program, Color, Command, Debug, Element, Point, Size};
 //use iced_wgpu::{wgpu, Backend, Renderer, Viewport};
 //use futures::task::SpawnExt;
 
+#[cfg(feature = "wgpu")]
+type Renderer = iced_wgpu::Renderer;
+
+#[cfg(feature = "wgpu")]
+type Compositor = iced_wgpu::window::Compositor;
+
+#[cfg(feature = "glow")]
+type Renderer = iced_glow::Renderer;
+
+#[cfg(feature = "glow")]
+type Compositor = iced_glow::window::Compositor;
+
+struct IcedProgram<A: Application> {
+    pub user_app: A,
+}
+
+impl<A: Application> iced_native::Program for IcedProgram<A> {
+    type Renderer = Renderer;
+    type Message = A::Message;
+
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        self.user_app.update(message)
+    }
+
+    fn view(&mut self) -> Element<'_, Self::Message, Self::Renderer> {
+        self.user_app.view()
+    }
+}
+
 pub struct Handler<A: Application + 'static> {
-    iced_state: program::State<A>,
+    iced_state: program::State<IcedProgram<A>>,
     cursor_position: Point,
     debug: Debug,
     viewport: Viewport,
-    compositor: A::Compositor,
-    renderer: A::Renderer,
-    surface: <A::Compositor as iced_graphics::window::Compositor>::Surface,
-    swap_chain: <A::Compositor as iced_graphics::window::Compositor>::SwapChain,
+    compositor: Compositor,
+    renderer: Renderer,
+    surface: <Compositor as iced_graphics::window::Compositor>::Surface,
+    swap_chain: <Compositor as iced_graphics::window::Compositor>::SwapChain,
     background_color: Color,
     redraw_requested: bool,
     window_size: Size<u32>,
@@ -49,7 +78,7 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
     type AppMessage = A::AudioToGuiMessage;
 
     fn build(window: baseview::RawWindow, window_info: &WindowInfo) -> Self {
-        use iced_graphics::window::Compositor;
+        use iced_graphics::window::Compositor as IGCompositor;
 
         let mut debug = Debug::new();
 
@@ -62,7 +91,7 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
         let compositor_settings = A::compositor_settings();
 
         let (mut compositor, mut renderer) =
-            A::Compositor::new(compositor_settings).unwrap();
+            <Compositor as IGCompositor>::new(compositor_settings).unwrap();
 
         let surface = compositor.create_surface(&window);
 
@@ -73,13 +102,14 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
         );
 
         // Initialize user program
-        let user_program = A::new();
+        let user_app = A::new();
+        let iced_program = IcedProgram { user_app };
 
         let background_color = A::background_color();
 
         // Initialize iced's built-in state
         let iced_state = program::State::new(
-            user_program,
+            iced_program,
             viewport.logical_size(),
             Point::new(-1.0, -1.0),
             &mut renderer,

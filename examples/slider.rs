@@ -1,5 +1,6 @@
 use iced_native::{
-    Align, Color, Column, Command, Container, Element, Length, Text, slider, Slider,
+    slider, Align, Color, Column, Command, Container, Element, Length, Slider,
+    Text,
 };
 
 fn main() {
@@ -27,9 +28,17 @@ struct MyProgram {
     slider_value_str: String,
 }
 
-impl iced_native::Program for MyProgram {
+impl iced_baseview::Application for MyProgram {
+    type AudioToGuiMessage = ();
     type Message = Message;
-    type Renderer = iced_wgpu::Renderer;
+
+    fn new() -> Self {
+        Self {
+            slider_state: slider::State::new(),
+            slider_value: 0,
+            slider_value_str: String::from("0"),
+        }
+    }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
@@ -43,7 +52,7 @@ impl iced_native::Program for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message, Self::Renderer> {
+    fn view(&mut self) -> Element<'_, Self::Message, iced_baseview::Renderer> {
         let slider_widget = Slider::new(
             &mut self.slider_state,
             0..=100,
@@ -67,30 +76,17 @@ impl iced_native::Program for MyProgram {
             .center_y()
             .into()
     }
-}
-
-impl iced_baseview::Application for MyProgram {
-    type AudioToGuiMessage = ();
-    type Compositor = iced_wgpu::window::Compositor;
-
-    fn new() -> Self {
-        Self {
-            slider_state: slider::State::new(),
-            slider_value: 0,
-            slider_value_str: String::from("0"),
-        }
-    }
 
     fn background_color() -> Color {
         Color::WHITE
     }
 
-    fn compositor_settings() -> iced_wgpu::Settings {
-        iced_wgpu::Settings {
+    fn compositor_settings() -> iced_baseview::CompositorSettings {
+        iced_baseview::CompositorSettings {
             default_font: None,
             default_text_size: 20,
-            antialiasing: Some(iced_wgpu::Antialiasing::MSAAx8),
-            ..iced_wgpu::Settings::default()
+            antialiasing: Some(iced_baseview::Antialiasing::MSAAx8),
+            ..iced_baseview::CompositorSettings::default()
         }
     }
 }

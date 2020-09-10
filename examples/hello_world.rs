@@ -17,15 +17,19 @@ fn main() {
 }
 struct MyProgram {}
 
-impl iced_native::Program for MyProgram {
+impl iced_baseview::Application for MyProgram {
+    type AudioToGuiMessage = ();
     type Message = ();
-    type Renderer = iced_wgpu::Renderer;
+
+    fn new() -> Self {
+        Self {}
+    }
 
     fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message, iced_wgpu::Renderer> {
+    fn view(&mut self) -> Element<'_, Self::Message, iced_baseview::Renderer> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Align::Center)
@@ -39,26 +43,17 @@ impl iced_native::Program for MyProgram {
             .center_y()
             .into()
     }
-}
-
-impl iced_baseview::Application for MyProgram {
-    type AudioToGuiMessage = ();
-    type Compositor = iced_wgpu::window::Compositor;
-
-    fn new() -> Self {
-        Self {}
-    }
 
     fn background_color() -> Color {
         Color::WHITE
     }
 
-    fn compositor_settings() -> iced_wgpu::Settings {
-        iced_wgpu::Settings {
+    fn compositor_settings() -> iced_baseview::CompositorSettings {
+        iced_baseview::CompositorSettings {
             default_font: None,
             default_text_size: 20,
-            antialiasing: Some(iced_wgpu::Antialiasing::MSAAx8),
-            ..iced_wgpu::Settings::default()
+            antialiasing: Some(iced_baseview::Antialiasing::MSAAx8),
+            ..iced_baseview::CompositorSettings::default()
         }
     }
 }

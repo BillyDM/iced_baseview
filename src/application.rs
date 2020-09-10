@@ -1,9 +1,14 @@
-use iced_native::{Color, Command, Program, Subscription};
+use crate::{CompositorSettings, Renderer};
 
-pub trait Application: Program {
+use iced_native::{Color, Command, Element};
+
+pub trait Application: Sized {
     type AudioToGuiMessage;
-    type Compositor: iced_graphics::window::Compositor<Renderer = Self::Renderer>
-        + 'static;
+
+    /// The type of __messages__ your [`Program`] will produce.
+    ///
+    /// [`Program`]: trait.Program.html
+    type Message: std::fmt::Debug + Send;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -15,12 +20,31 @@ pub trait Application: Program {
     /// [`Settings`]: ../settings/struct.Settings.html
     fn new() -> Self;
 
+    /// Handles a __message__ and updates the state of the [`Program`].
+    ///
+    /// This is where you define your __update logic__. All the __messages__,
+    /// produced by either user interactions or commands, will be handled by
+    /// this method.
+    ///
+    /// Any [`Command`] returned will be executed immediately in the
+    /// background by shells.
+    ///
+    /// [`Program`]: trait.Application.html
+    /// [`Command`]: struct.Command.html
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
+
+    /// Returns the widgets to display in the [`Program`].
+    ///
+    /// These widgets can produce __messages__ based on user interaction.
+    ///
+    /// [`Program`]: trait.Program.html
+    fn view(&mut self) -> Element<'_, Self::Message, Renderer>;
+
     fn background_color() -> Color {
         Color::WHITE
     }
 
-    fn compositor_settings(
-    ) -> <Self::Compositor as iced_graphics::window::Compositor>::Settings {
-        Default::default()
+    fn compositor_settings() -> CompositorSettings {
+        CompositorSettings::default()
     }
 }
