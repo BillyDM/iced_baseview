@@ -5,10 +5,10 @@
 #![forbid(rust_2018_idioms)]
 
 mod conversion;
-mod executor;
+mod handler;
 
 mod application;
 pub mod settings;
 pub use application::Application;
-pub use executor::Executor;
+pub use handler::Handler;
 pub use settings::Settings;

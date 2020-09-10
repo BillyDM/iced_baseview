@@ -13,7 +13,7 @@ fn main() {
         },
     };
 
-    iced_baseview::Executor::<MyProgram>::run(settings);
+    iced_baseview::Handler::<MyProgram>::run(settings);
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -29,7 +29,6 @@ struct MyProgram {
 
 impl iced_native::Program for MyProgram {
     type Message = Message;
-    // Rendering backend chosen here by the user
     type Renderer = iced_wgpu::Renderer;
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
@@ -74,15 +73,12 @@ impl iced_baseview::Application for MyProgram {
     type AudioToGuiMessage = ();
     type Compositor = iced_wgpu::window::Compositor;
 
-    fn new() -> (Self, Command<Self::Message>) {
-        (
-            Self {
-                slider_state: slider::State::new(),
-                slider_value: 0,
-                slider_value_str: String::from("0"),
-            },
-            Command::none()
-        )
+    fn new() -> Self {
+        Self {
+            slider_state: slider::State::new(),
+            slider_value: 0,
+            slider_value_str: String::from("0"),
+        }
     }
 
     fn background_color() -> Color {

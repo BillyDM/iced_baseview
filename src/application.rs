@@ -1,4 +1,4 @@
-use iced_native::{Color, Command, Program};
+use iced_native::{Color, Command, Program, Subscription};
 
 pub trait Application: Program {
     type AudioToGuiMessage;
@@ -10,15 +10,10 @@ pub trait Application: Program {
     ///
     /// Here is where you should return the initial state of your app.
     ///
-    /// Additionally, you can return a [`Command`](struct.Command.html) if you
-    /// need to perform some async action in the background on startup. This is
-    /// useful if you want to load state from a file, perform an initial HTTP
-    /// request, etc.
-    ///
     /// [`Application`]: trait.Application.html
     /// [`run`]: #method.run.html
     /// [`Settings`]: ../settings/struct.Settings.html
-    fn new() -> (Self, Command<Self::Message>);
+    fn new() -> Self;
 
     fn background_color() -> Color {
         Color::WHITE

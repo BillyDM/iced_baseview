@@ -4,11 +4,11 @@ use std::sync::mpsc;
 
 use baseview::{Event, WindowInfo};
 use iced_graphics::Viewport;
-use iced_native::{program, Color, Command, Debug, Point, Size};
+use iced_native::{program, Color, Debug, Point, Size};
 //use iced_wgpu::{wgpu, Backend, Renderer, Viewport};
 //use futures::task::SpawnExt;
 
-pub struct Executor<A: Application + 'static> {
+pub struct Handler<A: Application + 'static> {
     iced_state: program::State<A>,
     cursor_position: Point,
     debug: Debug,
@@ -24,7 +24,7 @@ pub struct Executor<A: Application + 'static> {
     resized: bool,
 }
 
-impl<A: Application + 'static> Executor<A> {
+impl<A: Application + 'static> Handler<A> {
     pub fn run(settings: Settings) {
         let window_open_options = baseview::WindowOpenOptions {
             title: settings.window.title.as_str(),
@@ -38,14 +38,14 @@ impl<A: Application + 'static> Executor<A> {
             mpsc::channel::<A::AudioToGuiMessage>();
 
         // Run the baseview window with the executor.
-        let _ = baseview::Window::<Executor<A>>::open(
+        let _ = baseview::Window::<Handler<A>>::open(
             window_open_options,
             app_message_rx,
         );
     }
 }
 
-impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
+impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
     type AppMessage = A::AudioToGuiMessage;
 
     fn build(window: baseview::RawWindow, window_info: &WindowInfo) -> Self {
@@ -73,11 +73,9 @@ impl<A: Application + 'static> baseview::AppWindow for Executor<A> {
         );
 
         // Initialize user program
-        let (user_program, _initial_command) = A::new();
+        let user_program = A::new();
 
         let background_color = A::background_color();
-
-        // TODO: do something with `_initial_command`
 
         // Initialize iced's built-in state
         let iced_state = program::State::new(
