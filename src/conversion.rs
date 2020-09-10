@@ -26,7 +26,7 @@ pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
         BaseEvent::MouseUp(button_id) => {
             //println!("Mouse up, button id: {:?}", button_id);
 
-            Some(IcedEvent::Mouse(IcedMouseEvent::ButtonPressed(
+            Some(IcedEvent::Mouse(IcedMouseEvent::ButtonReleased(
                 baseview_mouse_button_to_iced(button_id),
             )))
         }

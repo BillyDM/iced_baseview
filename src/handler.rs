@@ -136,7 +136,7 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
     fn draw(&mut self) {
         println!("draw");
 
-        use iced_graphics::window::Compositor;
+        use iced_graphics::window::Compositor as IGCompositor;
 
         if self.redraw_requested {
             self.debug.render_started();
