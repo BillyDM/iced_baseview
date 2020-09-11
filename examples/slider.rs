@@ -54,7 +54,7 @@ impl iced_baseview::Application for MyProgram {
     fn view(&mut self) -> Element<'_, Self::Message, iced_baseview::Renderer> {
         let slider_widget = Slider::new(
             &mut self.slider_state,
-            0..=100,
+            0..=1000,
             self.slider_value,
             Message::SliderChanged,
         );
