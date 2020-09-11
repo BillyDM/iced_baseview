@@ -39,7 +39,7 @@ palette = ["iced_core/palette"]
 iced_native = { git = "https://github.com/hecrj/iced" }
 iced_graphics = { git = "https://github.com/hecrj/iced" }
 iced_core = { git = "https://github.com/hecrj/iced", optional = true }
-baseview = { git = "https://github.com/RustAudio/baseview.git" }
+baseview = { path = "../baseview" }
 raw-window-handle = "0.3"
 futures = "0.3"
 

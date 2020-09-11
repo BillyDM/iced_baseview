@@ -8,108 +8,70 @@ use iced_native::Event as IcedEvent;
 
 pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
     match event {
-        BaseEvent::CursorMotion(x, y) => {
-            //println!("Cursor moved, x: {}, y: {}", x, y);
-
-            Some(IcedEvent::Mouse(IcedMouseEvent::CursorMoved {
-                x: x as f32,
-                y: y as f32,
-            }))
-        }
-        BaseEvent::MouseDown(button_id) => {
-            //println!("Mouse down, button id: {:?}", button_id);
-
-            Some(IcedEvent::Mouse(IcedMouseEvent::ButtonPressed(
-                baseview_mouse_button_to_iced(button_id),
-            )))
-        }
-        BaseEvent::MouseUp(button_id) => {
-            //println!("Mouse up, button id: {:?}", button_id);
-
-            Some(IcedEvent::Mouse(IcedMouseEvent::ButtonReleased(
-                baseview_mouse_button_to_iced(button_id),
-            )))
-        }
-        BaseEvent::MouseScroll(mouse_scroll) => {
-            //println!("Mouse scroll, {:?}", mouse_scroll);
-
-            Some(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
-                delta: iced_native::mouse::ScrollDelta::Lines {
-                    x: mouse_scroll.x_delta as f32,
-                    y: mouse_scroll.y_delta as f32,
-                },
-            }))
-        }
-        BaseEvent::MouseClick(mouse_click) => {
-            //println!("Mouse click, {:?}", mouse_click);
-
-            None
-        }
-        BaseEvent::KeyDown(keycode) => {
-            //println!("Key down, keycode: {}", keycode);
-
-            // We need to map keycodes in baseview
-
-            None
-        }
-        BaseEvent::KeyUp(keycode) => {
-            //println!("Key up, keycode: {}", keycode);
-
-            // We need to map keycodes in baseview
-
-            None
-        }
-        BaseEvent::CharacterInput(char_code) => {
-            //println!("Character input, char_code: {}", char_code);
-
-            let char_code = (char_code as u8) as char;
-
-            if is_private_use_character(char_code) {
-                None
-            } else {
-                Some(IcedEvent::Keyboard(IcedKeyEvent::CharacterReceived(
-                    char_code,
+        BaseEvent::Mouse(mouse_event) => match mouse_event {
+            baseview::MouseEvent::CursorMoved { x, y } => {
+                Some(IcedEvent::Mouse(IcedMouseEvent::CursorMoved {
+                    x: x as f32,
+                    y: y as f32,
+                }))
+            }
+            baseview::MouseEvent::ButtonPressed(button) => {
+                Some(IcedEvent::Mouse(IcedMouseEvent::ButtonPressed(
+                    baseview_mouse_button_to_iced(button),
                 )))
             }
-        }
-        BaseEvent::WindowResized(window_info) => {
-            //println!("Window resized, {:?}", window_info);
+            baseview::MouseEvent::ButtonReleased(button) => {
+                Some(IcedEvent::Mouse(IcedMouseEvent::ButtonReleased(
+                    baseview_mouse_button_to_iced(button),
+                )))
+            }
+            baseview::MouseEvent::WheelScrolled(scroll_delta) => {
+                match scroll_delta {
+                    baseview::ScrollDelta::Lines { x, y } => {
+                        Some(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
+                            delta: iced_native::mouse::ScrollDelta::Lines {
+                                x,
+                                y,
+                            },
+                        }))
+                    }
+                    baseview::ScrollDelta::Pixels { x, y } => {
+                        Some(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
+                            delta: iced_native::mouse::ScrollDelta::Pixels {
+                                x,
+                                y,
+                            },
+                        }))
+                    }
+                }
+            }
+            _ => None,
+        },
 
-            Some(IcedEvent::Window(IcedWindowEvent::Resized {
-                width: window_info.width,
-                height: window_info.height,
-            }))
-        }
-        BaseEvent::WindowFocus => {
-            //println!("Window focused");
+        BaseEvent::Keyboard(keyboard_event) => None,
 
-            None
-        }
-        BaseEvent::WindowUnfocus => {
-            //println!("Window unfocused");
-
-            None
-        }
-        BaseEvent::WillClose => {
-            //println!("Window will close");
-
-            None
-        }
+        BaseEvent::Window(window_event) => match window_event {
+            baseview::WindowEvent::Resized(window_info) => {
+                Some(IcedEvent::Window(IcedWindowEvent::Resized {
+                    width: window_info.width,
+                    height: window_info.height,
+                }))
+            }
+            _ => None,
+        },
     }
 }
 
-fn baseview_mouse_button_to_iced(
-    id: baseview::MouseButtonID,
-) -> IcedMouseButton {
-    use baseview::MouseButtonID;
+fn baseview_mouse_button_to_iced(id: baseview::MouseButton) -> IcedMouseButton {
+    use baseview::MouseButton;
 
     match id {
-        MouseButtonID::Left => IcedMouseButton::Left,
-        MouseButtonID::Middle => IcedMouseButton::Middle,
-        MouseButtonID::Right => IcedMouseButton::Right,
-        MouseButtonID::Back => IcedMouseButton::Other(6),
-        MouseButtonID::Forward => IcedMouseButton::Other(7),
-        MouseButtonID::Other(other_id) => IcedMouseButton::Other(other_id),
+        MouseButton::Left => IcedMouseButton::Left,
+        MouseButton::Middle => IcedMouseButton::Middle,
+        MouseButton::Right => IcedMouseButton::Right,
+        MouseButton::Back => IcedMouseButton::Other(6),
+        MouseButton::Forward => IcedMouseButton::Other(7),
+        MouseButton::Other(other_id) => IcedMouseButton::Other(other_id),
     }
 }
 

@@ -1,8 +1,8 @@
 use crate::{Application, Settings};
 
-use std::sync::mpsc;
-
-use baseview::{Event, WindowInfo};
+use baseview::{
+    Event, KeyboardEvent, MouseEvent, Window, WindowEvent, WindowHandler,
+};
 use iced_graphics::Viewport;
 use iced_native::{program, Color, Command, Debug, Element, Point, Size};
 //use iced_wgpu::{wgpu, Backend, Renderer, Viewport};
@@ -56,29 +56,24 @@ pub struct Handler<A: Application + 'static> {
 impl<A: Application + 'static> Handler<A> {
     pub fn run(settings: Settings) {
         let window_open_options = baseview::WindowOpenOptions {
-            title: settings.window.title.as_str(),
+            title: settings.window.title,
             width: settings.window.size.0 as usize,
             height: settings.window.size.1 as usize,
             parent: baseview::Parent::None,
         };
 
-        // Create channel for sending messages from audio to GUI.
-        let (_app_message_tx, app_message_rx) =
-            mpsc::channel::<A::AudioToGuiMessage>();
-
-        // Run the baseview window with the executor.
-        let _ = baseview::Window::<Handler<A>>::open(
-            window_open_options,
-            app_message_rx,
-        );
+        let handle = Window::open::<Handler<A>>(window_open_options);
+        handle.app_run_blocking();
     }
 }
 
-impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
-    type AppMessage = A::AudioToGuiMessage;
+impl<A: Application + 'static> WindowHandler for Handler<A> {
+    type Message = A::AudioToGuiMessage;
 
-    fn build(window: baseview::RawWindow, window_info: &WindowInfo) -> Self {
+    fn build(window: &mut Window) -> Self {
         use iced_graphics::window::Compositor as IGCompositor;
+
+        let window_info = window.window_info();
 
         let mut debug = Debug::new();
 
@@ -93,7 +88,7 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
         let (mut compositor, mut renderer) =
             <Compositor as IGCompositor>::new(compositor_settings).unwrap();
 
-        let surface = compositor.create_surface(&window);
+        let surface = compositor.create_surface(window);
 
         let swap_chain = compositor.create_swap_chain(
             &surface,
@@ -133,12 +128,19 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
         }
     }
 
-    fn draw(&mut self) {
-        println!("draw");
-
+    fn on_frame(&mut self) {
         use iced_graphics::window::Compositor as IGCompositor;
 
         if self.redraw_requested {
+            // Update iced state
+            let _ = self.iced_state.update(
+                self.viewport.logical_size(),
+                self.cursor_position,
+                None, // clipboard
+                &mut self.renderer,
+                &mut self.debug,
+            );
+
             self.debug.render_started();
 
             if self.resized {
@@ -168,13 +170,13 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
         }
     }
 
-    fn on_event(&mut self, event: Event) {
-        if let Event::CursorMotion(x, y) = event {
+    fn on_event(&mut self, _window: &mut Window, event: Event) {
+        if let Event::Mouse(MouseEvent::CursorMoved { x, y }) = event {
             self.cursor_position.x = x as f32;
             self.cursor_position.y = y as f32;
-        }
+        };
 
-        if let Event::WindowResized(window_info) = &event {
+        if let Event::Window(WindowEvent::Resized(window_info)) = event {
             if self.window_size.width != window_info.width
                 || self.window_size.height != window_info.height
             {
@@ -196,6 +198,7 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
             self.iced_state.queue_event(iced_event);
 
             // update iced
+            /*
             let _ = self.iced_state.update(
                 self.viewport.logical_size(),
                 self.cursor_position,
@@ -203,10 +206,11 @@ impl<A: Application + 'static> baseview::AppWindow for Handler<A> {
                 &mut self.renderer,
                 &mut self.debug,
             );
+            */
 
             self.redraw_requested = true;
         }
     }
 
-    fn on_app_message(&mut self, message: Self::AppMessage) {}
+    fn on_message(&mut self, _window: &mut Window, _message: Self::Message) {}
 }

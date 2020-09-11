@@ -45,7 +45,6 @@ impl iced_baseview::Application for MyProgram {
             Message::SliderChanged(value) => {
                 self.slider_value = value;
                 self.slider_value_str = format!("{}", value);
-                println!("slider value changed: {}", value);
             }
         }
 
