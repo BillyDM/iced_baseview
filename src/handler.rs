@@ -1,10 +1,12 @@
 use crate::{Application, Settings};
 
 use baseview::{
-    Event, KeyboardEvent, MouseEvent, Window, WindowEvent, WindowHandler,
+    Event, KeyboardEvent, MouseEvent, Window, WindowEvent, WindowHandle,
+    WindowHandler,
 };
 use iced_graphics::Viewport;
 use iced_native::{program, Color, Command, Debug, Element, Point, Size};
+use raw_window_handle::RawWindowHandle;
 //use iced_wgpu::{wgpu, Backend, Renderer, Viewport};
 //use futures::task::SpawnExt;
 
@@ -54,16 +56,24 @@ pub struct Handler<A: Application + 'static> {
 }
 
 impl<A: Application + 'static> Handler<A> {
-    pub fn run(settings: Settings) {
+    pub fn open(
+        settings: Settings,
+        parent: Option<RawWindowHandle>,
+    ) -> WindowHandle {
+        let baseview_parent = if let Some(parent) = parent {
+            baseview::Parent::WithParent(parent)
+        } else {
+            baseview::Parent::None
+        };
+
         let window_open_options = baseview::WindowOpenOptions {
             title: settings.window.title,
             width: settings.window.size.0 as usize,
             height: settings.window.size.1 as usize,
-            parent: baseview::Parent::None,
+            parent: baseview_parent,
         };
 
-        let handle = Window::open::<Handler<A>>(window_open_options);
-        handle.app_run_blocking();
+        Window::open::<Handler<A>>(window_open_options)
     }
 }
 
