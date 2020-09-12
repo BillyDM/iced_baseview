@@ -197,17 +197,6 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
         {
             self.iced_state.queue_event(iced_event);
 
-            // update iced
-            /*
-            let _ = self.iced_state.update(
-                self.viewport.logical_size(),
-                self.cursor_position,
-                None, // clipboard
-                &mut self.renderer,
-                &mut self.debug,
-            );
-            */
-
             self.redraw_requested = true;
         }
     }
