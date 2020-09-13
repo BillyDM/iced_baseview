@@ -16,12 +16,6 @@ type Renderer = iced_wgpu::Renderer;
 #[cfg(feature = "wgpu")]
 type Compositor = iced_wgpu::window::Compositor;
 
-#[cfg(feature = "glow")]
-type Renderer = iced_glow::Renderer;
-
-#[cfg(feature = "glow")]
-type Compositor = iced_glow::window::Compositor;
-
 struct IcedProgram<A: Application> {
     pub user_app: A,
 }

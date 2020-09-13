@@ -21,12 +21,3 @@ pub use iced_wgpu::Settings as CompositorSettings;
 
 #[cfg(feature = "wgpu")]
 pub use iced_wgpu::Antialiasing;
-
-#[cfg(feature = "glow")]
-pub use iced_glow::Renderer;
-
-#[cfg(feature = "glow")]
-pub use iced_glow::Settings as CompositorSettings;
-
-#[cfg(feature = "glow")]
-pub use iced_glow::Antialiasing;

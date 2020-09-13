@@ -13,7 +13,8 @@ fn main() {
         },
     };
 
-    iced_baseview::Handler::<MyProgram>::run(settings);
+    let handle = iced_baseview::Handler::<MyProgram>::open(settings, None);
+    handle.app_run_blocking();
 }
 struct MyProgram {}
 

@@ -14,7 +14,8 @@ fn main() {
         },
     };
 
-    iced_baseview::Handler::<MyProgram>::run(settings);
+    let handle = iced_baseview::Handler::<MyProgram>::open(settings, None);
+    handle.app_run_blocking();
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -80,6 +81,7 @@ impl iced_baseview::Application for MyProgram {
         Color::WHITE
     }
 
+    /*
     fn compositor_settings() -> iced_baseview::CompositorSettings {
         iced_baseview::CompositorSettings {
             default_font: None,
@@ -88,4 +90,5 @@ impl iced_baseview::Application for MyProgram {
             ..iced_baseview::CompositorSettings::default()
         }
     }
+    */
 }
