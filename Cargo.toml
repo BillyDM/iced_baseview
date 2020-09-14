@@ -28,9 +28,9 @@ default_system_font = ["iced_wgpu/default_system_font"]
 debug = ["iced_native/debug"]
 
 [dependencies]
-iced_native = { git = "https://github.com/hecrj/iced" }
-iced_graphics = { git = "https://github.com/hecrj/iced" }
-iced_wgpu = { git = "https://github.com/hecrj/iced", optional = true }
-baseview = { git = "https://github.com/RustAudio/baseview.git" }
+iced_native = { git = "https://github.com/hecrj/iced", branch = "master" }
+iced_graphics = { git = "https://github.com/hecrj/iced", branch = "master" }
+iced_wgpu = { git = "https://github.com/hecrj/iced", branch = "master", optional = true }
+baseview = { git = "https://github.com/RustAudio/baseview.git", branch = "master" }
 raw-window-handle = "0.3"
 futures = "0.3"
