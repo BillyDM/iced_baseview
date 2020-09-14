@@ -46,7 +46,6 @@ pub struct Handler<A: Application + 'static> {
     redraw_requested: bool,
     window_size: Size<u32>,
     scale_factor: f64,
-    resized: bool,
 }
 
 impl<A: Application + 'static> Handler<A> {
@@ -128,7 +127,6 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
             window_size,
             scale_factor: window_info.scale,
             background_color,
-            resized: false,
         }
     }
 
@@ -136,19 +134,6 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
         use iced_graphics::window::Compositor as IGCompositor;
 
         if self.redraw_requested {
-            // Recreate swap chain if resized
-            if self.resized {
-                let physical_size = self.viewport.physical_size();
-
-                self.swap_chain = self.compositor.create_swap_chain(
-                    &self.surface,
-                    physical_size.width,
-                    physical_size.height,
-                );
-
-                self.resized = false;
-            }
-
             // Update iced state
             let _ = self.iced_state.update(
                 self.viewport.logical_size(),
@@ -176,6 +161,8 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
     }
 
     fn on_event(&mut self, _window: &mut Window, event: Event) {
+        use iced_graphics::window::Compositor as IGCompositor;
+
         if let Event::Mouse(MouseEvent::CursorMoved { x, y }) = event {
             self.cursor_position.x = x as f32;
             self.cursor_position.y = y as f32;
@@ -190,7 +177,13 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
                 self.scale_factor,
             );
 
-            self.resized = true;
+            let physical_size = self.viewport.physical_size();
+
+            self.swap_chain = self.compositor.create_swap_chain(
+                &self.surface,
+                physical_size.width,
+                physical_size.height,
+            );
         }
 
         if let Some(iced_event) =
