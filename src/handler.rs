@@ -136,17 +136,7 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
         use iced_graphics::window::Compositor as IGCompositor;
 
         if self.redraw_requested {
-            // Update iced state
-            let _ = self.iced_state.update(
-                self.viewport.logical_size(),
-                self.cursor_position,
-                None, // clipboard
-                &mut self.renderer,
-                &mut self.debug,
-            );
-
-            self.debug.render_started();
-
+            // Recreate swap chain if resized
             if self.resized {
                 let physical_size = self.viewport.physical_size();
 
@@ -159,6 +149,17 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
                 self.resized = false;
             }
 
+            // Update iced state
+            let _ = self.iced_state.update(
+                self.viewport.logical_size(),
+                self.cursor_position,
+                None, // clipboard
+                &mut self.renderer,
+                &mut self.debug,
+            );
+
+            self.debug.render_started();
+
             let _new_mouse_interaction = self.compositor.draw(
                 &mut self.renderer,
                 &mut self.swap_chain,
@@ -168,9 +169,9 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
                 &self.debug.overlay(),
             );
 
-            self.redraw_requested = false;
-
             self.debug.render_finished();
+
+            self.redraw_requested = false;
         }
     }
 
