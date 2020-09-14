@@ -181,19 +181,15 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
         };
 
         if let Event::Window(WindowEvent::Resized(window_info)) = event {
-            if self.window_size.width != window_info.width
-                || self.window_size.height != window_info.height
-            {
-                self.window_size.width = window_info.width;
-                self.window_size.height = window_info.height;
+            self.window_size.width = window_info.width;
+            self.window_size.height = window_info.height;
 
-                self.viewport = Viewport::with_physical_size(
-                    self.window_size,
-                    self.scale_factor,
-                );
+            self.viewport = Viewport::with_physical_size(
+                self.window_size,
+                self.scale_factor,
+            );
 
-                self.resized = true;
-            }
+            self.resized = true;
         }
 
         if let Some(iced_event) =
