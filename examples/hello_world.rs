@@ -1,10 +1,10 @@
-use iced_native::{
+use iced_baseview::{
     Align, Color, Column, Command, Container, Element, Length, Rule, Text,
 };
 
 fn main() {
     let settings = iced_baseview::Settings {
-        window: iced_baseview::settings::Window {
+        window: iced_baseview::window::Settings {
             title: String::from("iced_baseview hello world"),
             size: (500, 300),
             min_size: None,
@@ -30,7 +30,7 @@ impl iced_baseview::Application for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message, iced_baseview::Renderer> {
+    fn view(&mut self) -> Element<'_, Self::Message> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Align::Center)
@@ -49,12 +49,12 @@ impl iced_baseview::Application for MyProgram {
         Color::WHITE
     }
 
-    fn compositor_settings() -> iced_baseview::CompositorSettings {
-        iced_baseview::CompositorSettings {
+    fn compositor_settings() -> iced_baseview::renderer::Settings {
+        iced_baseview::renderer::Settings {
             default_font: None,
             default_text_size: 20,
-            antialiasing: Some(iced_baseview::Antialiasing::MSAAx8),
-            ..iced_baseview::CompositorSettings::default()
+            antialiasing: Some(iced_baseview::renderer::Antialiasing::MSAAx8),
+            ..iced_baseview::renderer::Settings::default()
         }
     }
 }

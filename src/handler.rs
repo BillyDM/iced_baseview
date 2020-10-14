@@ -1,7 +1,7 @@
 use crate::{Application, Settings};
 
 use baseview::{
-    Event, KeyboardEvent, MouseEvent, Window, WindowEvent, WindowHandle,
+    Event, MouseEvent, Window, WindowEvent, WindowHandle,
     WindowHandler,
 };
 use iced_graphics::Viewport;
@@ -33,6 +33,8 @@ impl<A: Application> iced_native::Program for IcedProgram<A> {
     }
 }
 
+/// Handles an iced_baseview application
+#[allow(missing_debug_implementations)]
 pub struct Handler<A: Application + 'static> {
     iced_state: program::State<IcedProgram<A>>,
     cursor_position: Point,
@@ -49,6 +51,7 @@ pub struct Handler<A: Application + 'static> {
 }
 
 impl<A: Application + 'static> Handler<A> {
+    /// Open a new window
     pub fn open(
         settings: Settings,
         parent: Option<RawWindowHandle>,

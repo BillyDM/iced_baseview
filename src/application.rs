@@ -1,4 +1,4 @@
-use crate::{CompositorSettings, Renderer};
+use crate::renderer;
 
 use iced_native::{Color, Command, Element};
 
@@ -38,13 +38,13 @@ pub trait Application: Sized {
     /// These widgets can produce __messages__ based on user interaction.
     ///
     /// [`Program`]: trait.Program.html
-    fn view(&mut self) -> Element<'_, Self::Message, Renderer>;
+    fn view(&mut self) -> Element<'_, Self::Message, renderer::Renderer>;
 
     fn background_color() -> Color {
         Color::WHITE
     }
 
-    fn compositor_settings() -> CompositorSettings {
-        CompositorSettings::default()
+    fn compositor_settings() -> renderer::Settings {
+        renderer::Settings::default()
     }
 }

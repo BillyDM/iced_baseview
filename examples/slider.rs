@@ -1,11 +1,11 @@
-use iced_native::{
+use iced_baseview::{
     slider, Align, Color, Column, Command, Container, Element, Length, Slider,
     Text,
 };
 
 fn main() {
     let settings = iced_baseview::Settings {
-        window: iced_baseview::settings::Window {
+        window: iced_baseview::window::Settings {
             title: String::from("iced_baseview slider"),
             size: (500, 300),
             min_size: None,
@@ -52,7 +52,7 @@ impl iced_baseview::Application for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message, iced_baseview::Renderer> {
+    fn view(&mut self) -> Element<'_, Self::Message> {
         let slider_widget = Slider::new(
             &mut self.slider_state,
             0..=1000,

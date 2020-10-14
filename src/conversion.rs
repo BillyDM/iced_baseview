@@ -1,6 +1,6 @@
 use baseview::Event as BaseEvent;
-use iced_native::keyboard::Event as IcedKeyEvent;
-use iced_native::keyboard::ModifiersState as IcedModifiersState;
+//use iced_native::keyboard::Event as IcedKeyEvent;
+//use iced_native::keyboard::ModifiersState as IcedModifiersState;
 use iced_native::mouse::Button as IcedMouseButton;
 use iced_native::mouse::Event as IcedMouseEvent;
 use iced_native::window::Event as IcedWindowEvent;
@@ -48,7 +48,7 @@ pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
             _ => None,
         },
 
-        BaseEvent::Keyboard(keyboard_event) => None,
+        BaseEvent::Keyboard(_keyboard_event) => None,
 
         BaseEvent::Window(window_event) => match window_event {
             baseview::WindowEvent::Resized(window_info) => {
@@ -75,6 +75,7 @@ fn baseview_mouse_button_to_iced(id: baseview::MouseButton) -> IcedMouseButton {
     }
 }
 
+/*
 // As defined in: http://www.unicode.org/faq/private_use.html
 fn is_private_use_character(c: char) -> bool {
     match c {
@@ -84,3 +85,4 @@ fn is_private_use_character(c: char) -> bool {
         _ => false,
     }
 }
+*/

@@ -26,11 +26,18 @@ canvas = ["iced_wgpu/canvas"]
 default_system_font = ["iced_wgpu/default_system_font"]
 # Enables a debug view in native platforms (press F12)
 debug = ["iced_native/debug"]
+# Enables `tokio` as the `executor::Default` on native platforms
+tokio = ["iced_futures/tokio"]
+# Enables `async-std` as the `executor::Default` on native platforms
+async-std = ["iced_futures/async-std"]
+# Enables advanced color conversion via `palette`
+palette = ["iced_core/palette"]
 
 [dependencies]
+iced_core = { git = "https://github.com/hecrj/iced", branch = "master" }
+iced_futures = { git = "https://github.com/hecrj/iced", branch = "master" }
 iced_native = { git = "https://github.com/hecrj/iced", branch = "master" }
 iced_graphics = { git = "https://github.com/hecrj/iced", branch = "master" }
 iced_wgpu = { git = "https://github.com/hecrj/iced", branch = "master", optional = true }
 baseview = { git = "https://github.com/RustAudio/baseview.git", branch = "master" }
 raw-window-handle = "0.3"
-futures = "0.3"
