@@ -77,18 +77,7 @@ impl iced_baseview::Application for MyProgram {
             .into()
     }
 
-    fn background_color() -> Color {
+    fn background_color(&self) -> Color {
         Color::WHITE
     }
-
-    /*
-    fn compositor_settings() -> iced_baseview::CompositorSettings {
-        iced_baseview::CompositorSettings {
-            default_font: None,
-            default_text_size: 20,
-            antialiasing: Some(iced_baseview::Antialiasing::MSAAx8),
-            ..iced_baseview::CompositorSettings::default()
-        }
-    }
-    */
 }

@@ -40,11 +40,28 @@ pub trait Application: Sized {
     /// [`Program`]: trait.Program.html
     fn view(&mut self) -> Element<'_, Self::Message, renderer::Renderer>;
 
-    fn background_color() -> Color {
+    /// Returns the background color of the application.
+    fn background_color(&self) -> Color {
         Color::WHITE
     }
 
-    fn compositor_settings() -> renderer::Settings {
+    /// Returns the scale factor of the [`Application`].
+    ///
+    /// It can be used to dynamically control the size of the UI at runtime
+    /// (i.e. zooming).
+    ///
+    /// For instance, a scale factor of `2.0` will make widgets twice as big,
+    /// while a scale factor of `0.5` will shrink them to half their size.
+    ///
+    /// By default, it returns `1.0`.
+    ///
+    /// [`Application`]: trait.Application.html
+    fn scale_factor(&self) -> f64 {
+        1.0
+    }
+
+    /// Returns the renderer settings
+    fn renderer_settings() -> renderer::Settings {
         renderer::Settings::default()
     }
 }

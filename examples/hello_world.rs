@@ -45,11 +45,11 @@ impl iced_baseview::Application for MyProgram {
             .into()
     }
 
-    fn background_color() -> Color {
+    fn background_color(&self) -> Color {
         Color::WHITE
     }
 
-    fn compositor_settings() -> iced_baseview::renderer::Settings {
+    fn renderer_settings() -> iced_baseview::renderer::Settings {
         iced_baseview::renderer::Settings {
             default_font: None,
             default_text_size: 20,

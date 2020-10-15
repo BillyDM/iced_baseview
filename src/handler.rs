@@ -79,20 +79,29 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
     fn build(window: &mut Window) -> Self {
         use iced_graphics::window::Compositor as IGCompositor;
 
-        let window_info = window.window_info();
-
         let mut debug = Debug::new();
 
+        let window_info = window.window_info();
+
+        // Initialize user program
+        let user_app = A::new();
+
+        let background_color = user_app.background_color();
+        let scale_factor = user_app.scale_factor() * window_info.scale;
+
         let window_size =
-            Size::new(window_info.width as u32, window_info.height as u32);
+            Size::new(
+                (window_info.width as f32 * scale_factor as f32).round() as u32,
+                (window_info.height as f32 * scale_factor as f32).round() as u32,
+            );
 
         let viewport =
-            Viewport::with_physical_size(window_size, window_info.scale);
+            Viewport::with_physical_size(window_size, scale_factor);
 
-        let compositor_settings = A::compositor_settings();
+        let renderer_settings = A::renderer_settings();
 
         let (mut compositor, mut renderer) =
-            <Compositor as IGCompositor>::new(compositor_settings).unwrap();
+            <Compositor as IGCompositor>::new(renderer_settings).unwrap();
 
         let surface = compositor.create_surface(window);
 
@@ -102,17 +111,13 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
             window_size.height,
         );
 
-        // Initialize user program
-        let user_app = A::new();
         let iced_program = IcedProgram { user_app };
-
-        let background_color = A::background_color();
 
         // Initialize iced's built-in state
         let iced_state = program::State::new(
             iced_program,
             viewport.logical_size(),
-            Point::new(-1.0, -1.0),
+            crate::conversion::cursor_position(Point::new(-1.0, -1.0), viewport.scale_factor()),
             &mut renderer,
             &mut debug,
         );
@@ -128,7 +133,7 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
             swap_chain,
             redraw_requested: true,
             window_size,
-            scale_factor: window_info.scale,
+            scale_factor,
             background_color,
         }
     }
@@ -167,8 +172,7 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
         use iced_graphics::window::Compositor as IGCompositor;
 
         if let Event::Mouse(MouseEvent::CursorMoved { x, y }) = event {
-            self.cursor_position.x = x as f32;
-            self.cursor_position.y = y as f32;
+            self.cursor_position = crate::conversion::cursor_position(Point::new(x as f32, y as f32), self.scale_factor);
         };
 
         if let Event::Window(WindowEvent::Resized(window_info)) = event {
@@ -190,7 +194,7 @@ impl<A: Application + 'static> WindowHandler for Handler<A> {
         }
 
         if let Some(iced_event) =
-            crate::conversion::baseview_to_iced_event(event)
+            crate::conversion::baseview_to_iced_event(event, self.scale_factor)
         {
             self.iced_state.queue_event(iced_event);
 
