@@ -44,4 +44,4 @@ pub use widget::*;
 pub mod time;
 
 #[doc(no_inline)]
-pub use baseview::Parent;
+pub use baseview::{Parent, WindowHandle};
