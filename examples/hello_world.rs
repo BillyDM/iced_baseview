@@ -12,6 +12,7 @@ fn main() {
     let handle = Runner::<MyProgram>::open(settings);
     handle.app_run_blocking();
 }
+
 struct MyProgram {}
 
 impl Application for MyProgram {
