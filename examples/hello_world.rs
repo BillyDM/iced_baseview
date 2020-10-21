@@ -1,6 +1,6 @@
 use iced_baseview::{
     executor, settings, Align, Application, Color, Column, Command, Container,
-    Element, Length, Rule, Runner, Settings, Text,
+    Element, Length, Parent, Rule, Runner, Settings, Text,
 };
 
 fn main() {
@@ -9,7 +9,7 @@ fn main() {
         flags: (),
     };
 
-    let handle = Runner::<MyProgram>::open(settings);
+    let handle = Runner::<MyProgram>::open(settings, Parent::None);
     handle.app_run_blocking();
 }
 

@@ -1,5 +1,5 @@
 use crate::application::Instance;
-use crate::{Application, Compositor, Renderer, Settings};
+use crate::{Application, Compositor, Parent, Renderer, Settings};
 
 use baseview::{Event, MouseEvent, Window, WindowEvent, WindowHandler};
 use iced_graphics::Viewport;
@@ -24,7 +24,10 @@ pub struct Runner<A: Application + 'static + Send> {
 
 impl<A: Application + 'static + Send> Runner<A> {
     /// Open a new window
-    pub fn open(settings: Settings<A::Flags>) -> baseview::WindowHandle {
+    pub fn open(
+        settings: Settings<A::Flags>,
+        parent: Parent,
+    ) -> baseview::WindowHandle {
         // TODO: use user_command
         let (user_app, _user_command) = A::new(settings.flags);
 
@@ -39,7 +42,7 @@ impl<A: Application + 'static + Send> Runner<A> {
                 settings.window.size.1 as f64,
             ),
             scale: baseview::WindowScalePolicy::SystemScaleFactor,
-            parent: baseview::Parent::None,
+            parent,
         };
 
         Window::open(
