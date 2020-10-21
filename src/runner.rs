@@ -28,9 +28,9 @@ impl<A: Application + 'static + Send> Runner<A> {
         // TODO: use user_command
         let (user_app, _user_command) = A::new(settings.flags);
 
-        let user_scale = user_app.scale_factor();
+        let _user_scale = user_app.scale_factor();
         // TODO: get system scale from baseview
-        let system_scale: f64 = 1.0;
+        let _system_scale: f64 = 1.0;
 
         let window_settings = baseview::WindowOpenOptions {
             title: user_app.title(),
@@ -38,9 +38,7 @@ impl<A: Application + 'static + Send> Runner<A> {
                 settings.window.size.0 as f64,
                 settings.window.size.1 as f64,
             ),
-            scale: baseview::WindowScalePolicy::ScaleFactor(
-                user_scale * system_scale,
-            ),
+            scale: baseview::WindowScalePolicy::SystemScaleFactor,
             parent: baseview::Parent::None,
         };
 
