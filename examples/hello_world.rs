@@ -1,29 +1,30 @@
 use iced_baseview::{
-    Align, Color, Column, Command, Container, Element, Length, Rule, Text,
+    executor, settings, Align, Application, Color, Column, Command, Container,
+    Element, Length, Rule, Runner, Settings, Text,
 };
 
 fn main() {
-    let settings = iced_baseview::Settings {
-        window: iced_baseview::window::Settings {
-            title: String::from("iced_baseview hello world"),
-            size: (500, 300),
-            min_size: None,
-            max_size: None,
-            resizable: false,
-        },
+    let settings = Settings {
+        window: settings::Window { size: (500, 300) },
+        flags: (),
     };
 
-    let handle = iced_baseview::Handler::<MyProgram>::open(settings, None);
+    let handle = Runner::<MyProgram>::open(settings);
     handle.app_run_blocking();
 }
 struct MyProgram {}
 
-impl iced_baseview::Application for MyProgram {
-    type AudioToGuiMessage = ();
+impl Application for MyProgram {
+    type Executor = executor::Default;
     type Message = ();
+    type Flags = ();
 
-    fn new() -> Self {
-        Self {}
+    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
+        (Self {}, Command::none())
+    }
+
+    fn title(&self) -> String {
+        String::from("iced_baseview hello world")
     }
 
     fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
@@ -47,14 +48,5 @@ impl iced_baseview::Application for MyProgram {
 
     fn background_color(&self) -> Color {
         Color::WHITE
-    }
-
-    fn renderer_settings() -> iced_baseview::renderer::Settings {
-        iced_baseview::renderer::Settings {
-            default_font: None,
-            default_text_size: 20,
-            antialiasing: Some(iced_baseview::renderer::Antialiasing::MSAAx8),
-            ..iced_baseview::renderer::Settings::default()
-        }
     }
 }

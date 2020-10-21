@@ -6,26 +6,13 @@ use iced_native::mouse::Event as IcedMouseEvent;
 use iced_native::window::Event as IcedWindowEvent;
 use iced_native::Event as IcedEvent;
 
-use iced_native::Point;
-
-/// Converts a physical cursor position to a logical `Point`.
-pub fn cursor_position(
-    position: Point,
-    scale_factor: f64,
-) -> Point {
-    Point {
-        x: position.x / scale_factor as f32,
-        y: position.y / scale_factor as f32,
-    }
-}
-
-pub fn baseview_to_iced_event(event: BaseEvent, scale_factor: f64) -> Option<IcedEvent> {
+pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
     match event {
         BaseEvent::Mouse(mouse_event) => match mouse_event {
-            baseview::MouseEvent::CursorMoved { x, y } => {
+            baseview::MouseEvent::CursorMoved { position } => {
                 Some(IcedEvent::Mouse(IcedMouseEvent::CursorMoved {
-                    x: x as f32 / scale_factor as f32,
-                    y: y as f32 / scale_factor as f32,
+                    x: position.x as f32,
+                    y: position.y as f32,
                 }))
             }
             baseview::MouseEvent::ButtonPressed(button) => {
@@ -65,10 +52,9 @@ pub fn baseview_to_iced_event(event: BaseEvent, scale_factor: f64) -> Option<Ice
 
         BaseEvent::Window(window_event) => match window_event {
             baseview::WindowEvent::Resized(window_info) => {
-
                 Some(IcedEvent::Window(IcedWindowEvent::Resized {
-                    width: (window_info.width as f32 / scale_factor as f32).round() as u32,
-                    height: (window_info.height as f32 / scale_factor as f32).round() as u32,
+                    width: window_info.logical_size().width as u32,
+                    height: window_info.logical_size().height as u32,
                 }))
             }
             _ => None,

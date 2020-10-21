@@ -1,20 +1,15 @@
 use iced_baseview::{
-    slider, Align, Color, Column, Command, Container, Element, Length, Slider,
-    Text,
+    executor, renderer, settings, slider, Align, Application, Color, Column,
+    Command, Container, Element, Length, Runner, Settings, Slider, Text,
 };
 
 fn main() {
-    let settings = iced_baseview::Settings {
-        window: iced_baseview::window::Settings {
-            title: String::from("iced_baseview slider"),
-            size: (500, 300),
-            min_size: None,
-            max_size: None,
-            resizable: false,
-        },
+    let settings = Settings {
+        window: settings::Window { size: (500, 300) },
+        flags: (),
     };
 
-    let handle = iced_baseview::Handler::<MyProgram>::open(settings, None);
+    let handle = Runner::<MyProgram>::open(settings);
     handle.app_run_blocking();
 }
 
@@ -29,16 +24,24 @@ struct MyProgram {
     slider_value_str: String,
 }
 
-impl iced_baseview::Application for MyProgram {
-    type AudioToGuiMessage = ();
+impl Application for MyProgram {
+    type Executor = executor::Default;
     type Message = Message;
+    type Flags = ();
 
-    fn new() -> Self {
-        Self {
-            slider_state: slider::State::new(),
-            slider_value: 0,
-            slider_value_str: String::from("0"),
-        }
+    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
+        (
+            Self {
+                slider_state: slider::State::new(),
+                slider_value: 0,
+                slider_value_str: String::from("0"),
+            },
+            Command::none(),
+        )
+    }
+
+    fn title(&self) -> String {
+        String::from("iced_baseview slider")
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
@@ -79,5 +82,14 @@ impl iced_baseview::Application for MyProgram {
 
     fn background_color(&self) -> Color {
         Color::WHITE
+    }
+
+    fn renderer_settings() -> renderer::Settings {
+        renderer::Settings {
+            default_font: None,
+            default_text_size: 20,
+            antialiasing: Some(renderer::Antialiasing::MSAAx4),
+            ..renderer::Settings::default()
+        }
     }
 }

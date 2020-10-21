@@ -39,5 +39,6 @@ iced_futures = { git = "https://github.com/hecrj/iced", branch = "master" }
 iced_native = { git = "https://github.com/hecrj/iced", branch = "master" }
 iced_graphics = { git = "https://github.com/hecrj/iced", branch = "master" }
 iced_wgpu = { git = "https://github.com/hecrj/iced", branch = "master", optional = true }
-baseview = { git = "https://github.com/RustAudio/baseview.git", branch = "master" }
+# baseview = { git = "https://github.com/RustAudio/baseview.git", branch = "master" }
+baseview = { path = "../baseview" }
 raw-window-handle = "0.3"
