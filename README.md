@@ -1,8 +1,7 @@
 # iced_baseview
-A backend for the iced GUI library that uses [`baseview`] to create GUIs for audio plugins
+A backend for the [`Iced`] GUI library that uses [`baseview`] for windowing.
 
 WIP
 
-Currently only works in Linux and with the mouse.
-
+[`Iced`]: https://github.com/hecrj/iced
 [`baseview`]: https://github.com/RustAudio/baseview
