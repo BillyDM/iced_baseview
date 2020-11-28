@@ -12,7 +12,7 @@ fn main() {
         flags: (),
     };
 
-    let handle = Runner::<MyProgram>::open(settings, Parent::None);
+    let handle = Runner::<MyProgram>::open(settings, Parent::None, None);
     handle.app_run_blocking();
 }
 

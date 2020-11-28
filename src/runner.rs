@@ -22,6 +22,7 @@ pub struct Runner<A: Application + 'static + Send> {
     redraw_requested: bool,
     physical_size: Size<u32>,
     scale_policy: WindowScalePolicy,
+    frame_message: Option<A::Message>,
 }
 
 impl<A: Application + 'static + Send> Runner<A> {
@@ -29,6 +30,8 @@ impl<A: Application + 'static + Send> Runner<A> {
     pub fn open(
         settings: Settings<A::Flags>,
         parent: Parent,
+        // Application message sent on every frame
+        frame_message: Option<<A as Application>::Message>,
     ) -> baseview::WindowHandle {
         // TODO: use user_command
         let (user_app, _user_command) = A::new(settings.flags);
@@ -114,6 +117,7 @@ impl<A: Application + 'static + Send> Runner<A> {
                     physical_size,
                     background_color,
                     scale_policy,
+                    frame_message,
                 }
             },
         )
@@ -125,6 +129,10 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
     type Message = ();
 
     fn on_frame(&mut self) {
+        if let Some(frame_message) = self.frame_message.as_ref() {
+            self.iced_state.queue_message(frame_message.clone());
+        }
+
         use iced_graphics::window::Compositor as IGCompositor;
 
         if self.redraw_requested {
