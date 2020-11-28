@@ -1,5 +1,7 @@
 use crate::application::Instance;
-use crate::{Application, Compositor, Parent, Renderer, Settings};
+use crate::{
+    Application, Compositor, Parent, Renderer, Settings, WindowScalePolicy,
+};
 
 use baseview::{Event, MouseEvent, Window, WindowEvent, WindowHandler};
 use iced_graphics::Viewport;
@@ -19,7 +21,7 @@ pub struct Runner<A: Application + 'static + Send> {
     background_color: Color,
     redraw_requested: bool,
     physical_size: Size<u32>,
-    scale_factor: f64,
+    scale_policy: WindowScalePolicy,
 }
 
 impl<A: Application + 'static + Send> Runner<A> {
@@ -31,40 +33,48 @@ impl<A: Application + 'static + Send> Runner<A> {
         // TODO: use user_command
         let (user_app, _user_command) = A::new(settings.flags);
 
-        let _user_scale = user_app.scale_factor();
-        // TODO: get system scale from baseview
-        let _system_scale: f64 = 1.0;
+        // TODO: WindowScalePolicy should derive copy or clone.
+        let scale_policy = match settings.window.scale {
+            WindowScalePolicy::ScaleFactor(scale) => {
+                WindowScalePolicy::ScaleFactor(scale)
+            }
+            WindowScalePolicy::SystemScaleFactor => {
+                WindowScalePolicy::SystemScaleFactor
+            }
+        };
+
+        let logical_width = settings.window.logical_size.0 as f64;
+        let logical_height = settings.window.logical_size.1 as f64;
 
         let window_settings = baseview::WindowOpenOptions {
             title: user_app.title(),
-            size: baseview::Size::new(
-                settings.window.size.0 as f64,
-                settings.window.size.1 as f64,
-            ),
-            scale: baseview::WindowScalePolicy::SystemScaleFactor,
+            size: baseview::Size::new(logical_width, logical_height),
+            scale: settings.window.scale,
             parent,
         };
 
         Window::open(
             window_settings,
-            move |window: &mut baseview::Window| -> Runner<A> {
+            move |window: &mut baseview::Window<'_>| -> Runner<A> {
                 use iced_graphics::window::Compositor as IGCompositor;
 
                 let mut debug = Debug::new();
 
-                let window_info = window.window_info();
-
                 let background_color = user_app.background_color();
 
+                // Assume scale for now until there is an event with the a new size.
+                let scale = match scale_policy {
+                    WindowScalePolicy::ScaleFactor(scale) => scale,
+                    WindowScalePolicy::SystemScaleFactor => 1.0,
+                };
+
                 let physical_size = Size::new(
-                    window_info.physical_size().width as u32,
-                    window_info.physical_size().height as u32,
+                    (logical_width * scale) as u32,
+                    (logical_height * scale) as u32,
                 );
 
-                let viewport = Viewport::with_physical_size(
-                    physical_size,
-                    window_info.scale(),
-                );
+                let viewport =
+                    Viewport::with_physical_size(physical_size, scale);
 
                 let renderer_settings = A::renderer_settings();
 
@@ -102,8 +112,8 @@ impl<A: Application + 'static + Send> Runner<A> {
                     swap_chain,
                     redraw_requested: true,
                     physical_size,
-                    scale_factor: window_info.scale(),
                     background_color,
+                    scale_policy,
                 }
             },
         )
@@ -144,7 +154,7 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
         }
     }
 
-    fn on_event(&mut self, _window: &mut Window, event: Event) {
+    fn on_event(&mut self, _window: &mut Window<'_>, event: Event) {
         use iced_graphics::window::Compositor as IGCompositor;
 
         if let Event::Mouse(MouseEvent::CursorMoved { position }) = event {
@@ -156,10 +166,13 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
             self.physical_size.width = window_info.physical_size().width;
             self.physical_size.height = window_info.physical_size().height;
 
-            self.viewport = Viewport::with_physical_size(
-                self.physical_size,
-                self.scale_factor,
-            );
+            let scale = match self.scale_policy {
+                WindowScalePolicy::ScaleFactor(scale) => scale,
+                WindowScalePolicy::SystemScaleFactor => window_info.scale(),
+            };
+
+            self.viewport =
+                Viewport::with_physical_size(self.physical_size, scale);
 
             self.swap_chain = self.compositor.create_swap_chain(
                 &self.surface,
@@ -177,5 +190,10 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
         }
     }
 
-    fn on_message(&mut self, _window: &mut Window, _message: Self::Message) {}
+    fn on_message(
+        &mut self,
+        _window: &mut Window<'_>,
+        _message: Self::Message,
+    ) {
+    }
 }

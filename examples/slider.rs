@@ -1,12 +1,15 @@
 use iced_baseview::{
     executor, renderer, settings, slider, Align, Application, Color, Column,
     Command, Container, Element, Length, Parent, Runner, Settings, Slider,
-    Text,
+    Text, WindowScalePolicy,
 };
 
 fn main() {
     let settings = Settings {
-        window: settings::Window { size: (500, 300) },
+        window: settings::Window {
+            logical_size: (500, 300),
+            scale: WindowScalePolicy::SystemScaleFactor,
+        },
         flags: (),
     };
 

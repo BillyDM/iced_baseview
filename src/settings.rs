@@ -1,7 +1,8 @@
 //! Configure your application
+use crate::WindowScalePolicy;
 
 /// The settings of an application.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct Settings<Flags> {
     /// The [`Window`] settings
     ///
@@ -15,14 +16,19 @@ pub struct Settings<Flags> {
 }
 
 /// The window settings of an application.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Window {
-    /// The size of the window.
-    pub size: (u32, u32),
+    /// The logical size of the window.
+    pub logical_size: (u32, u32),
+    /// The dpi scaling policy
+    pub scale: WindowScalePolicy,
 }
 
 impl Default for Window {
     fn default() -> Window {
-        Window { size: (1024, 768) }
+        Window {
+            logical_size: (1024, 768),
+            scale: WindowScalePolicy::SystemScaleFactor,
+        }
     }
 }
