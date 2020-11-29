@@ -2,6 +2,10 @@ use crate::{renderer, Color, Command, Element, Executor, Subscription};
 
 /// An interactive cross-platform application.
 ///
+///
+/// TODO: Update this example to the correct `iced_baseview` use case.
+///
+///
 /// This trait is the main entrypoint of Iced. Once implemented, you can run
 /// your GUI application by simply calling [`run`](#method.run).
 ///
@@ -54,7 +58,7 @@ use crate::{renderer, Color, Command, Element, Executor, Subscription};
 /// If you just want to get started, here is a simple [`Application`] that
 /// says "Hello, world!":
 ///
-/// ```no_run
+/// ```text
 /// use iced_baseview::{executor, Application, Command, Element, Settings, Text};
 ///
 /// pub fn main() -> iced::Result {

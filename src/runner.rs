@@ -62,7 +62,7 @@ impl<A: Application + 'static + Send> Runner<A> {
 
                 let background_color = user_app.background_color();
 
-                // Assume scale for now until there is an event with the a new size.
+                // Assume scale for now until there is an event with a new one.
                 let scale = match scale_policy {
                     WindowScalePolicy::ScaleFactor(scale) => scale,
                     WindowScalePolicy::SystemScaleFactor => 1.0,
