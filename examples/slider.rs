@@ -1,7 +1,7 @@
 use iced_baseview::{
     executor, renderer, settings, slider, Align, Application, Color, Column,
-    Command, Container, Element, Length, Parent, Runner, Settings, Slider,
-    Text, WindowScalePolicy,
+    Command, Container, Element, Handle, Length, Parent, Runner, Settings,
+    Slider, Text, WindowScalePolicy
 };
 
 fn main() {
@@ -33,7 +33,7 @@ impl Application for MyProgram {
     type Message = Message;
     type Flags = ();
 
-    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
+    fn new(_flags: (), _handle: Handle) -> (Self, Command<Self::Message>) {
         (
             Self {
                 slider_state: slider::State::new(),

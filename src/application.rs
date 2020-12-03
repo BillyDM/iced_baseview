@@ -1,4 +1,4 @@
-use crate::{renderer, Color, Command, Element, Executor, Subscription};
+use crate::{renderer, Color, Command, Element, Executor, Handle, Subscription};
 
 /// An interactive cross-platform application.
 ///
@@ -121,7 +121,7 @@ pub trait Application: Sized {
     /// [`Application`]: trait.Application.html
     /// [`run`]: #method.run.html
     /// [`Settings`]: ../settings/struct.Settings.html
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: Self::Flags, handle: Handle) -> (Self, Command<Self::Message>);
 
     /// Returns the current title of the [`Application`].
     ///

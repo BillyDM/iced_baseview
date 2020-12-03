@@ -1,6 +1,6 @@
 use iced_baseview::{
     executor, settings, Align, Application, Color, Column, Command, Container,
-    Element, Length, Parent, Rule, Runner, Settings, Text, WindowScalePolicy,
+    Element, Handle, Length, Parent, Rule, Runner, Settings, Text, WindowScalePolicy,
 };
 
 fn main() {
@@ -23,7 +23,7 @@ impl Application for MyProgram {
     type Message = ();
     type Flags = ();
 
-    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
+    fn new(_flags: (), _handle: Handle) -> (Self, Command<Self::Message>) {
         (Self {}, Command::none())
     }
 

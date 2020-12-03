@@ -1,8 +1,10 @@
 use crate::application::Instance;
 use crate::{
-    Application, Compositor, Parent, Renderer, Settings, WindowScalePolicy,
+    Application, Compositor, Handle, Parent, Renderer, Settings,
+    WindowScalePolicy,
 };
 
+use std::sync::atomic::Ordering;
 use baseview::{Event, MouseEvent, Window, WindowEvent, WindowHandler};
 use iced_graphics::Viewport;
 use iced_native::{program, Color, Debug, Point, Size};
@@ -23,6 +25,7 @@ pub struct Runner<A: Application + 'static + Send> {
     physical_size: Size<u32>,
     scale_policy: WindowScalePolicy,
     frame_message: Option<A::Message>,
+    handle: Handle,
 }
 
 impl<A: Application + 'static + Send> Runner<A> {
@@ -33,8 +36,10 @@ impl<A: Application + 'static + Send> Runner<A> {
         // Application message sent on every frame
         frame_message: Option<<A as Application>::Message>,
     ) -> baseview::WindowHandle {
+        let handle = Handle::new();
+
         // TODO: use user_command
-        let (user_app, _user_command) = A::new(settings.flags);
+        let (user_app, _user_command) = A::new(settings.flags, handle.clone());
 
         // TODO: WindowScalePolicy should derive copy or clone.
         let scale_policy = match settings.window.scale {
@@ -118,6 +123,7 @@ impl<A: Application + 'static + Send> Runner<A> {
                     background_color,
                     scale_policy,
                     frame_message,
+                    handle
                 }
             },
         )
@@ -131,6 +137,10 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
     fn on_frame(&mut self) {
         if let Some(frame_message) = self.frame_message.as_ref() {
             self.iced_state.queue_message(frame_message.clone());
+        }
+
+        if self.handle.request_redraw.fetch_and(false, Ordering::SeqCst){
+            self.redraw_requested = true;
         }
 
         use iced_graphics::window::Compositor as IGCompositor;
