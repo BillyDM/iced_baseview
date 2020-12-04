@@ -70,6 +70,7 @@ use crate::{renderer, Color, Command, Element, Executor, Subscription};
 /// impl Application for Hello {
 ///     type Executor = executor::Default;
 ///     type Message = ();
+///     type WindowMessage = ();
 ///     type Flags = ();
 ///
 ///     fn new(_flags: ()) -> (Hello, Command<Self::Message>) {
@@ -102,6 +103,12 @@ pub trait Application: Sized {
     ///
     /// [`Application`]: trait.Application.html
     type Message: std::fmt::Debug + Send;
+
+    /// The type of __messages__ your can send through the WindowHandle. They
+    /// are passed on to your [`Application`].
+    ///
+    /// [`Application`]: trait.Application.html
+    type WindowMessage: std::fmt::Debug + Send + Clone + Into<Self::Message>;
 
     /// The data needed to initialize your [`Application`].
     ///

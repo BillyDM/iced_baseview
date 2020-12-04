@@ -25,6 +25,7 @@ struct MyProgram {}
 impl Application for MyProgram {
     type Executor = executor::Default;
     type Message = ();
+    type WindowMessage = ();
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {

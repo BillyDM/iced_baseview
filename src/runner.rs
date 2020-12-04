@@ -121,8 +121,7 @@ impl<A: Application + 'static + Send> Runner<A> {
 }
 
 impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
-    // TODO: Add message API
-    type Message = ();
+    type Message = A::WindowMessage;
 
     fn on_frame(&mut self) {
         use iced_graphics::window::Compositor as IGCompositor;
@@ -193,7 +192,8 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
     fn on_message(
         &mut self,
         _window: &mut Window<'_>,
-        _message: Self::Message,
+        message: Self::Message,
     ) {
+        self.iced_state.queue_message(message.into());
     }
 }

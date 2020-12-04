@@ -22,8 +22,20 @@ fn main() {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub enum WindowMessage {
+    SomethingHappened
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum Message {
     SliderChanged(u32),
+    Window(WindowMessage)
+}
+
+impl From<WindowMessage> for Message {
+    fn from(window_message: WindowMessage) -> Self {
+        Self::Window(window_message)
+    }
 }
 
 struct MyProgram {
@@ -35,6 +47,7 @@ struct MyProgram {
 impl Application for MyProgram {
     type Executor = executor::Default;
     type Message = Message;
+    type WindowMessage = WindowMessage;
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
@@ -57,6 +70,9 @@ impl Application for MyProgram {
             Message::SliderChanged(value) => {
                 self.slider_value = value;
                 self.slider_value_str = format!("{}", value);
+            },
+            Message::Window(WindowMessage::SomethingHappened) => {
+                
             }
         }
 
