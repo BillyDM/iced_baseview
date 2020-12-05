@@ -13,8 +13,12 @@ fn main() {
         flags: (),
     };
 
-    let handle = Runner::<MyProgram>::open(settings, Parent::None);
-    handle.app_run_blocking();
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(
+        settings,
+        Parent::None
+    );
+
+    opt_app_runner.unwrap().app_run_blocking();
 }
 
 #[derive(Debug, Copy, Clone)]
