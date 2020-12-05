@@ -1,6 +1,6 @@
 use baseview::Event as BaseEvent;
-//use iced_native::keyboard::Event as IcedKeyEvent;
-//use iced_native::keyboard::ModifiersState as IcedModifiersState;
+use iced_native::keyboard::Event as IcedKeyEvent;
+use iced_native::keyboard::Modifiers as IcedModifiers;
 use iced_native::mouse::Button as IcedMouseButton;
 use iced_native::mouse::Event as IcedMouseEvent;
 use iced_native::window::Event as IcedWindowEvent;
@@ -48,7 +48,50 @@ pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
             _ => None,
         },
 
-        BaseEvent::Keyboard(_keyboard_event) => None,
+        BaseEvent::Keyboard(event) => {
+            use keyboard_types::Modifiers;
+
+            let modifiers = IcedModifiers {
+                shift: event.modifiers.contains(Modifiers::SHIFT),
+                control: event.modifiers.contains(Modifiers::CONTROL),
+                alt: event.modifiers.contains(Modifiers::ALT),
+                logo: event.modifiers.contains(Modifiers::META),
+            };
+
+            use keyboard_types::Code;
+            use iced_core::keyboard::KeyCode;
+
+            let opt_key_code = match event.code {
+                Code::ShiftLeft => Some(KeyCode::LShift),
+                Code::ControlLeft => Some(KeyCode::LControl),
+                Code::AltLeft => Some(KeyCode::LAlt),
+                Code::MetaLeft => Some(KeyCode::LWin),
+                Code::ShiftRight => Some(KeyCode::RShift),
+                Code::ControlRight => Some(KeyCode::RControl),
+                Code::AltRight => Some(KeyCode::RAlt),
+                Code::MetaRight => Some(KeyCode::RWin),
+                _ => None,
+            };
+
+            opt_key_code.map(|key_code| {
+                let key_event = match event.state {
+                    keyboard_types::KeyState::Down => {
+                        IcedKeyEvent::KeyPressed {
+                            key_code,
+                            modifiers,
+                        }
+                    }
+                    keyboard_types::KeyState::Up => {
+                        IcedKeyEvent::KeyReleased {
+                            key_code,
+                            modifiers,
+                        }
+                    }
+                };
+
+                IcedEvent::Keyboard(key_event)
+            })
+        },
 
         BaseEvent::Window(window_event) => match window_event {
             baseview::WindowEvent::Resized(window_info) => {
