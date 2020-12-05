@@ -29,7 +29,7 @@ impl<A: Application + 'static + Send> Runner<A> {
     pub fn open(
         settings: Settings<A::Flags>,
         parent: Parent,
-    ) -> baseview::WindowHandle {
+    ) -> (baseview::WindowHandle<Self>, Option<baseview::AppRunner>){
         // TODO: use user_command
         let (user_app, _user_command) = A::new(settings.flags);
 
