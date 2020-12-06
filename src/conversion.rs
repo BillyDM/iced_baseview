@@ -1,10 +1,11 @@
-use baseview::Event as BaseEvent;
+use baseview::{Event as BaseEvent, PhyPoint};
 use iced_native::keyboard::Event as IcedKeyEvent;
 use iced_native::keyboard::Modifiers as IcedModifiers;
 use iced_native::mouse::Button as IcedMouseButton;
 use iced_native::mouse::Event as IcedMouseEvent;
 use iced_native::window::Event as IcedWindowEvent;
 use iced_native::Event as IcedEvent;
+use iced_native::Point;
 
 pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
     match event {
@@ -116,6 +117,17 @@ fn baseview_mouse_button_to_iced(id: baseview::MouseButton) -> IcedMouseButton {
         MouseButton::Forward => IcedMouseButton::Other(7),
         MouseButton::Other(other_id) => IcedMouseButton::Other(other_id),
     }
+}
+
+/// Converts a physical cursor position to a logical `Point`.
+pub fn cursor_position(
+    position: PhyPoint,
+    scale_factor: f64,
+) -> Point {
+    Point::new(
+        (f64::from(position.x) * scale_factor) as f32,
+        (f64::from(position.y) * scale_factor) as f32,
+    )
 }
 
 /*

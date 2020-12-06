@@ -7,7 +7,7 @@ fn main() {
     let settings = Settings {
         window: settings::Window {
             logical_size: (500, 300),
-            scale: WindowScalePolicy::SystemScaleFactor,
+            scale_policy: WindowScalePolicy::SystemScaleFactor,
         },
         flags: (),
     };
@@ -39,7 +39,7 @@ impl Application for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message> {
+    fn view<'a>(&self) -> Element<'a, Self::Message> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Align::Center)
