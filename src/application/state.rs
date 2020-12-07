@@ -8,7 +8,6 @@ use crate::{Application, Color, Point, Size, WindowScalePolicy};
 /// The state of a windowed [`Application`].
 #[derive(Debug, Clone)]
 pub struct State<A: Application + Send> {
-    title: String,
     background_color: Color,
     scale_policy: WindowScalePolicy,
     system_scale_factor: f64,
@@ -26,13 +25,11 @@ impl<A: Application + Send> State<A> {
         viewport: Viewport,
         scale_policy: WindowScalePolicy,
     ) -> Self {
-        let title = application.title();
         //let mode = application.mode();
         let background_color = application.background_color();
         //let scale_factor = application.scale_factor();
 
         Self {
-            title,
             background_color,
             scale_policy,
             system_scale_factor: 1.0,
@@ -159,15 +156,6 @@ impl<A: Application + Send> State<A> {
     /// [`Application::update`]: crate::Program::update
     pub fn synchronize(&mut self, application: &A) {
         /*
-        // Update window title
-        let new_title = application.title();
-
-        if self.title != new_title {
-            window.set_title(&new_title);
-
-            self.title = new_title;
-        }
-
         // Update window mode
         let new_mode = application.mode();
 

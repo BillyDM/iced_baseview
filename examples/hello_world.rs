@@ -6,6 +6,7 @@ use iced_baseview::{
 fn main() {
     let settings = Settings {
         window: settings::Window {
+            title: String::from("iced_baseview hello world"),
             logical_size: (500, 300),
             scale_policy: WindowScalePolicy::SystemScaleFactor,
         },
@@ -26,10 +27,6 @@ impl Application for MyProgram {
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (Self {}, Command::none())
-    }
-
-    fn title(&self) -> String {
-        String::from("iced_baseview hello world")
     }
 
     fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {

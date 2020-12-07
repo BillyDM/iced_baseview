@@ -20,6 +20,24 @@ enum RuntimeEvent<Message: 'static + Send> {
     OnFrame,
 }
 
+/// This struct creates subscriptions for common window events.
+#[allow(missing_debug_implementations)]
+pub struct WindowSubs<Message: Clone> {
+    /// The message to send right before each rendering frame.
+    pub on_frame: Option<Message>,
+    /// The message to send when the window is about to close.
+    pub on_window_will_close: Option<Message>,
+}
+
+impl<Message: Clone> Default for WindowSubs<Message> {
+    fn default() -> Self {
+        WindowSubs {
+            on_frame: None,
+            on_window_will_close: None,
+        }
+    }
+}
+
 /// Handles an iced_baseview application
 #[allow(missing_debug_implementations)]
 pub struct Runner<A: Application + 'static + Send> {
@@ -41,7 +59,7 @@ impl<A: Application + 'static + Send> Runner<A> {
         let logical_height = settings.window.logical_size.1 as f64;
 
         let window_settings = baseview::WindowOpenOptions {
-            title: String::from("test"),
+            title: settings.window.title.clone(),
             size: baseview::Size::new(logical_width, logical_height),
             scale: settings.window.scale_policy.into(),
             parent,
@@ -72,7 +90,9 @@ impl<A: Application + 'static + Send> Runner<A> {
                     runtime.enter(|| A::new(flags))
                 };
 
-                let subscription = application.subscription();
+                let mut window_subs = WindowSubs::default();
+
+                let subscription = application.subscription(&mut window_subs);
 
                 runtime.spawn(init_command);
                 runtime.track(subscription);
@@ -112,6 +132,7 @@ impl<A: Application + 'static + Send> Runner<A> {
                     receiver,
                     surface,
                     state,
+                    window_subs,
                 ));
 
                 let runtime_context =
@@ -158,6 +179,8 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
         self.sender
             .start_send(RuntimeEvent::Baseview(event))
             .expect("Send event");
+
+        let _ = self.instance.as_mut().poll(&mut self.runtime_context);
     }
 
     fn on_message(
@@ -180,6 +203,7 @@ async fn run_instance<A, E>(
     mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     surface: <Compositor as iced_graphics::window::Compositor>::Surface,
     mut state: State<A>,
+    mut window_subs: WindowSubs<A::Message>,
 ) where
     A: Application + 'static + Send,
     E: Executor + 'static,
@@ -222,6 +246,35 @@ async fn run_instance<A, E>(
         match event {
             RuntimeEvent::Baseview(event) => {
                 if requests_exit(&event) {
+                    if let Some(message) = &window_subs.on_window_will_close {
+                        // Send message to user before exiting the loop.
+
+                        messages.push(message.clone());
+                        let cache = ManuallyDrop::into_inner(user_interface)
+                            .into_cache();
+
+                        // Update application
+                        update(
+                            &mut application,
+                            &mut runtime,
+                            &mut debug,
+                            &mut messages,
+                            &mut window_subs,
+                        );
+
+                        // Update window
+                        state.synchronize(&application);
+
+                        user_interface =
+                            ManuallyDrop::new(build_user_interface(
+                                &mut application,
+                                cache,
+                                &mut renderer,
+                                state.logical_size(),
+                                &mut debug,
+                            ));
+                    }
+
                     break;
                 }
 
@@ -234,6 +287,10 @@ async fn run_instance<A, E>(
                 }
             }
             RuntimeEvent::MainEventsCleared => {
+                if let Some(message) = &window_subs.on_frame {
+                    messages.push(message.clone());
+                }
+
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
@@ -264,6 +321,7 @@ async fn run_instance<A, E>(
                         &mut runtime,
                         &mut debug,
                         &mut messages,
+                        &mut window_subs,
                     );
 
                     // Update window
@@ -401,6 +459,7 @@ pub fn update<A: Application, E: Executor>(
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
+    window_subs: &mut WindowSubs<A::Message>,
 ) {
     for message in messages.drain(..) {
         debug.log_message(&message);
@@ -412,6 +471,6 @@ pub fn update<A: Application, E: Executor>(
         runtime.spawn(command);
     }
 
-    let subscription = application.subscription();
+    let subscription = application.subscription(window_subs);
     runtime.track(subscription);
 }

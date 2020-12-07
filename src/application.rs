@@ -1,6 +1,6 @@
 use crate::{
     renderer, Color, Command, Element, Executor, Subscription,
-    WindowScalePolicy,
+    WindowScalePolicy, WindowSubs,
 };
 
 mod state;
@@ -108,7 +108,7 @@ pub trait Application: Sized + 'static {
     /// The type of __messages__ your [`Application`] will produce.
     ///
     /// [`Application`]: trait.Application.html
-    type Message: std::fmt::Debug + Send + 'static;
+    type Message: std::fmt::Debug + Send + 'static + Clone;
 
     /// The data needed to initialize your [`Application`].
     ///
@@ -129,14 +129,6 @@ pub trait Application: Sized + 'static {
     /// [`run`]: #method.run.html
     /// [`Settings`]: ../settings/struct.Settings.html
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
-
-    /// Returns the current title of the [`Application`].
-    ///
-    /// This title can be dynamic! The runtime will automatically update the
-    /// title of your application when necessary.
-    ///
-    /// [`Application`]: trait.Application.html
-    fn title(&self) -> String;
 
     /// Handles a __message__ and updates the state of the [`Application`].
     ///
@@ -160,7 +152,10 @@ pub trait Application: Sized + 'static {
     /// By default, this method returns an empty [`Subscription`].
     ///
     /// [`Subscription`]: struct.Subscription.html
-    fn subscription(&self) -> Subscription<Self::Message> {
+    fn subscription(
+        &self,
+        _window_subs: &mut WindowSubs<Self::Message>,
+    ) -> Subscription<Self::Message> {
         Subscription::none()
     }
 

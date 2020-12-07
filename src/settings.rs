@@ -44,6 +44,8 @@ pub struct Settings<Flags> {
 /// The window settings of an application.
 #[derive(Debug)]
 pub struct Window {
+    /// The window title.
+    pub title: String,
     /// The logical size of the window.
     pub logical_size: (u32, u32),
     /// The initial dpi scaling policy
@@ -53,6 +55,7 @@ pub struct Window {
 impl Default for Window {
     fn default() -> Window {
         Window {
+            title: String::from("iced baseview"),
             logical_size: (1024, 768),
             scale_policy: Default::default(),
         }
