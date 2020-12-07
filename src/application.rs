@@ -1,4 +1,11 @@
-use crate::{renderer, Color, Command, Element, Executor, Subscription};
+use crate::{
+    renderer, Color, Command, Element, Executor, Subscription,
+    WindowScalePolicy,
+};
+
+mod state;
+
+pub use state::State;
 
 /// An interactive cross-platform application.
 ///
@@ -89,7 +96,7 @@ use crate::{renderer, Color, Command, Element, Executor, Subscription};
 ///     }
 /// }
 /// ```
-pub trait Application: Sized {
+pub trait Application: Sized + 'static {
     /// The [`Executor`] that will run commands and subscriptions.
     ///
     /// The [default executor] can be a good starting point!
@@ -101,12 +108,12 @@ pub trait Application: Sized {
     /// The type of __messages__ your [`Application`] will produce.
     ///
     /// [`Application`]: trait.Application.html
-    type Message: std::fmt::Debug + Send;
+    type Message: std::fmt::Debug + Send + 'static;
 
     /// The data needed to initialize your [`Application`].
     ///
     /// [`Application`]: trait.Application.html
-    type Flags;
+    type Flags: Send + 'static;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -175,23 +182,18 @@ pub trait Application: Sized {
         Color::WHITE
     }
 
+    /// Returns the [`WindowScalePolicy`] that the [`Application`] should use.
+    ///
+    /// By default, it returns `WindowScalePolicy::SystemScaleFactor`.
+    ///
+    /// [`WindowScalePolicy`]: ../settings/enum.WindowScalePolicy.html
+    /// [`Application`]: trait.Application.html
+    fn scale_policy(&self) -> WindowScalePolicy {
+        WindowScalePolicy::SystemScaleFactor
+    }
+
     /// Returns the renderer settings
     fn renderer_settings() -> renderer::Settings {
         renderer::Settings::default()
-    }
-}
-
-pub(crate) struct Instance<A: Application>(pub A);
-
-impl<A: Application> iced_native::Program for Instance<A> {
-    type Renderer = crate::Renderer;
-    type Message = A::Message;
-
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        self.0.update(message)
-    }
-
-    fn view(&mut self) -> Element<'_, Self::Message> {
-        self.0.view()
     }
 }

@@ -7,15 +7,12 @@ fn main() {
     let settings = Settings {
         window: settings::Window {
             logical_size: (500, 300),
-            scale: WindowScalePolicy::SystemScaleFactor,
+            scale_policy: WindowScalePolicy::SystemScaleFactor,
         },
         flags: (),
     };
 
-    let (_, opt_app_runner) = Runner::<MyProgram>::open(
-        settings,
-        Parent::None
-    );
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings, Parent::None);
 
     opt_app_runner.unwrap().app_run_blocking();
 }

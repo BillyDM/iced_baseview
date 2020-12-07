@@ -58,8 +58,8 @@ pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
                 logo: event.modifiers.contains(Modifiers::META),
             };
 
-            use keyboard_types::Code;
             use iced_core::keyboard::KeyCode;
+            use keyboard_types::Code;
 
             let opt_key_code = match event.code {
                 Code::ShiftLeft => Some(KeyCode::LShift),
@@ -81,17 +81,15 @@ pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
                             modifiers,
                         }
                     }
-                    keyboard_types::KeyState::Up => {
-                        IcedKeyEvent::KeyReleased {
-                            key_code,
-                            modifiers,
-                        }
-                    }
+                    keyboard_types::KeyState::Up => IcedKeyEvent::KeyReleased {
+                        key_code,
+                        modifiers,
+                    },
                 };
 
                 IcedEvent::Keyboard(key_event)
             })
-        },
+        }
 
         BaseEvent::Window(window_event) => match window_event {
             baseview::WindowEvent::Resized(window_info) => {
@@ -117,6 +115,16 @@ fn baseview_mouse_button_to_iced(id: baseview::MouseButton) -> IcedMouseButton {
         MouseButton::Other(other_id) => IcedMouseButton::Other(other_id),
     }
 }
+
+/*
+/// Converts a physical cursor position to a logical `Point`.
+pub fn cursor_position(position: PhyPoint, scale_factor: f64) -> Point {
+    Point::new(
+        (f64::from(position.x) * scale_factor) as f32,
+        (f64::from(position.y) * scale_factor) as f32,
+    )
+}
+*/
 
 /*
 // As defined in: http://www.unicode.org/faq/private_use.html

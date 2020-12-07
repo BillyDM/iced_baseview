@@ -1,12 +1,13 @@
 // #![deny(missing_docs)]  // annoying while developing
 #![deny(missing_debug_implementations)]
 #![deny(unused_results)]
-#![forbid(unsafe_code)]
+//#![forbid(unsafe_code)]
 #![forbid(rust_2018_idioms)]
 
 mod application;
 mod conversion;
 mod element;
+mod proxy;
 mod runner;
 
 pub mod executor;
@@ -19,7 +20,7 @@ pub use application::Application;
 pub use element::Element;
 pub use executor::Executor;
 pub use runner::Runner;
-pub use settings::Settings;
+pub use settings::{Settings, WindowScalePolicy};
 
 #[cfg(feature = "wgpu")]
 type Renderer = iced_wgpu::Renderer;
@@ -44,4 +45,4 @@ pub use widget::*;
 pub mod time;
 
 #[doc(no_inline)]
-pub use baseview::{Parent, WindowHandle, WindowScalePolicy};
+pub use baseview::{Parent, WindowHandle};
