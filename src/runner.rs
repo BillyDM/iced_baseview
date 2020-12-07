@@ -158,8 +158,6 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
         self.sender
             .start_send(RuntimeEvent::Baseview(event))
             .expect("Send event");
-
-        let _ = self.instance.as_mut().poll(&mut self.runtime_context);
     }
 
     fn on_message(
