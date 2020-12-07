@@ -7,8 +7,8 @@
 mod application;
 mod conversion;
 mod element;
-mod runner;
 mod proxy;
+mod runner;
 
 pub mod executor;
 pub mod keyboard;

@@ -13,10 +13,7 @@ fn main() {
         flags: (),
     };
 
-    let (_, opt_app_runner) = Runner::<MyProgram>::open(
-        settings,
-        Parent::None
-    );
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings, Parent::None);
 
     opt_app_runner.unwrap().app_run_blocking();
 }
@@ -63,7 +60,7 @@ impl Application for MyProgram {
         Command::none()
     }
 
-    fn view<'a>(&self) -> Element<'a, Self::Message> {
+    fn view(&mut self) -> Element<'_, Self::Message> {
         let slider_widget = Slider::new(
             &mut self.slider_state,
             0..=1000,

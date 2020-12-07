@@ -1,4 +1,3 @@
-
 use iced_native::futures::{
     channel::mpsc,
     task::{Context, Poll},
@@ -9,20 +8,20 @@ use std::pin::Pin;
 /// An event loop proxy that implements `Sink`.
 #[derive(Debug)]
 pub struct Proxy<Message: 'static> {
-    sender: mpsc::Sender<Message>,
+    sender: mpsc::UnboundedSender<Message>,
 }
 
 impl<Message: 'static> Clone for Proxy<Message> {
     fn clone(&self) -> Self {
         Self {
-            sender: self.sender.clone()
+            sender: self.sender.clone(),
         }
     }
 }
 
 impl<Message: 'static> Proxy<Message> {
     /// Creates a new [`Proxy`] from an `mpsc::Sender`.
-    pub fn new(sender: mpsc::Sender<Message>) -> Self {
+    pub fn new(sender: mpsc::UnboundedSender<Message>) -> Self {
         Self { sender }
     }
 }

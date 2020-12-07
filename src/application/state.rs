@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
-use iced_native::Debug;
-use iced_native::keyboard;
 use iced_graphics::Viewport;
+use iced_native::keyboard;
+use iced_native::Debug;
+use std::marker::PhantomData;
 
 use crate::{Application, Color, Point, Size, WindowScalePolicy};
 
@@ -72,51 +72,55 @@ impl<A: Application + Send> State<A> {
         self.viewport.logical_size()
     }
 
+    /*
     /// Returns the current scale factor of the [`Viewport`] of the [`State`].
     pub fn scale_factor(&self) -> f64 {
         self.viewport.scale_factor()
     }
+    */
 
     /// Returns the current cursor position of the [`State`].
     pub fn cursor_position(&self) -> Point {
         self.cursor_position
     }
 
+    /*
     /// Returns the current keyboard modifiers of the [`State`].
     pub fn modifiers(&self) -> keyboard::Modifiers {
         self.modifiers
     }
+    */
 
     /// Processes the provided window event and updates the [`State`]
     /// accordingly.
-    pub fn update(
-        &mut self,
-        window: &baseview::Window<'_>,
-        event: &baseview::Event,
-        _debug: &mut Debug,
-    ) {
+    pub fn update(&mut self, event: &baseview::Event, _debug: &mut Debug) {
         match event {
-            baseview::Event::Window(baseview::WindowEvent::Resized(window_info)) => {
+            baseview::Event::Window(baseview::WindowEvent::Resized(
+                window_info,
+            )) => {
                 // Cache system window info in case users changes their scale policy in the future.
                 self.system_scale_factor = window_info.scale();
 
                 let scale = match self.scale_policy {
                     WindowScalePolicy::ScaleFactor(scale) => scale,
-                    WindowScalePolicy::SystemScaleFactor => self.system_scale_factor,
+                    WindowScalePolicy::SystemScaleFactor => {
+                        self.system_scale_factor
+                    }
                 };
 
-                self.viewport =
-                    Viewport::with_physical_size(
-                        Size::new(
-                            window_info.physical_size().width,
-                            window_info.physical_size().height
-                        ),
-                        scale
-                    );
-                
+                self.viewport = Viewport::with_physical_size(
+                    Size::new(
+                        window_info.physical_size().width,
+                        window_info.physical_size().height,
+                    ),
+                    scale,
+                );
+
                 self.viewport_version = self.viewport_version.wrapping_add(1);
             }
-            baseview::Event::Mouse(baseview::MouseEvent::CursorMoved { position }) => {
+            baseview::Event::Mouse(baseview::MouseEvent::CursorMoved {
+                position,
+            }) => {
                 self.cursor_position.x = position.x as f32;
                 self.cursor_position.y = position.y as f32;
 
@@ -153,7 +157,7 @@ impl<A: Application + Send> State<A> {
     /// and window after calling [`Application::update`].
     ///
     /// [`Application::update`]: crate::Program::update
-    pub fn synchronize(&mut self, application: &A, window: &baseview::Window<'_>) {
+    pub fn synchronize(&mut self, application: &A) {
         /*
         // Update window title
         let new_title = application.title();
@@ -188,15 +192,16 @@ impl<A: Application + Send> State<A> {
 
             let scale = match self.scale_policy {
                 WindowScalePolicy::ScaleFactor(scale) => scale,
-                WindowScalePolicy::SystemScaleFactor => self.system_scale_factor,
+                WindowScalePolicy::SystemScaleFactor => {
+                    self.system_scale_factor
+                }
             };
 
-            self.viewport =
-                Viewport::with_physical_size(
-                    self.viewport.physical_size(),
-                    scale
-                );
-            
+            self.viewport = Viewport::with_physical_size(
+                self.viewport.physical_size(),
+                scale,
+            );
+
             self.viewport_version = self.viewport_version.wrapping_add(1);
         }
     }

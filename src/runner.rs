@@ -1,53 +1,35 @@
 use baseview::{Event, Window, WindowHandler};
+use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
-use iced_native::{Debug, Size, Executor, Runtime};
 use iced_native::{Cache, UserInterface};
+use iced_native::{Debug, Executor, Runtime, Size};
 use std::mem::ManuallyDrop;
 use std::pin::Pin;
-use std::marker::PhantomPinned;
 
-use crate::application;
+use crate::application::State;
 use crate::{
-    Application, Compositor, Parent, Renderer, Settings, WindowScalePolicy, proxy::Proxy,
+    proxy::Proxy, Application, Compositor, Parent, Renderer, Settings,
+    WindowScalePolicy,
 };
 
-struct PinnedApp<'a, A: Application + 'a + Send> {
-    pub application: A,
-    pub user_interface: Option<ManuallyDrop<UserInterface<'a, A::Message, Renderer>>>,
-    _pin: PhantomPinned,
-}
-
-impl<'a, A: Application + 'a + Send> PinnedApp<'a, A> {
-    pub fn new(application: A) -> Self {
-        Self {
-            application,
-            user_interface: None,
-            _pin: PhantomPinned,
-        }
-    }
+enum RuntimeEvent<Message: 'static + Send> {
+    Baseview(baseview::Event),
+    UserEvent(Message),
+    MainEventsCleared,
+    OnFrame,
 }
 
 /// Handles an iced_baseview application
 #[allow(missing_debug_implementations)]
-pub struct Runner<'a, A: Application + 'a + Send> {
-    pinned_app: Pin<Box<PinnedApp<'a, A>>>,
-    state: application::State<A>,
-    debug: Debug,
-    compositor: Compositor,
-    renderer: Renderer,
-    surface: <Compositor as iced_graphics::window::Compositor>::Surface,
-    swap_chain: <Compositor as iced_graphics::window::Compositor>::SwapChain,
-    primitive: (iced_graphics::Primitive, iced_native::mouse::Interaction),
-    mouse_interaction: iced_native::mouse::Interaction,
-    viewport_version: usize,
-    runtime: Runtime<A::Executor, Proxy<A::Message>, A::Message>,
-    runtime_rx: mpsc::Receiver<A::Message>,
-    events: Vec<iced_native::Event>,
-    messages: Vec<A::Message>,
+pub struct Runner<A: Application + 'static + Send> {
+    sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
+    instance: Pin<Box<dyn futures::Future<Output = ()>>>,
+    runtime_context: futures::task::Context<'static>,
+    runtime_rx: mpsc::UnboundedReceiver<A::Message>,
 }
 
-impl<'a, A: Application + 'a + Send> Runner<'a, A> {
+impl<A: Application + 'static + Send> Runner<A> {
     /// Open a new window
     pub fn open(
         settings: Settings<A::Flags>,
@@ -67,22 +49,28 @@ impl<'a, A: Application + 'a + Send> Runner<'a, A> {
 
         Window::open(
             window_settings,
-            move |window: &mut baseview::Window<'_>| -> Runner<'a, A> {
+            move |window: &mut baseview::Window<'_>| -> Runner<A> {
                 use iced_graphics::window::Compositor as IGCompositor;
+
+                use futures::task;
 
                 let mut debug = Debug::new();
                 debug.startup_started();
 
-                let (runtime_tx, runtime_rx) = mpsc::channel::<A::Message>(128);
+                let (runtime_tx, runtime_rx) = mpsc::unbounded::<A::Message>();
 
                 let mut runtime = {
                     let proxy = Proxy::new(runtime_tx);
                     let executor = <A::Executor as Executor>::new().unwrap();
-            
+
                     Runtime::new(executor, proxy)
                 };
 
-                let (mut application, init_command) = A::new(settings.flags);
+                let (application, init_command) = {
+                    let flags = settings.flags;
+
+                    runtime.enter(|| A::new(flags))
+                };
 
                 let subscription = application.subscription();
 
@@ -105,141 +93,73 @@ impl<'a, A: Application + 'a + Send> Runner<'a, A> {
 
                 let renderer_settings = A::renderer_settings();
 
-                let (mut compositor, mut renderer) =
+                let (mut compositor, renderer) =
                     <Compositor as IGCompositor>::new(renderer_settings)
                         .unwrap();
 
                 let surface = compositor.create_surface(window);
 
-                let swap_chain = compositor.create_swap_chain(
-                    &surface,
-                    physical_size.width,
-                    physical_size.height,
-                );
+                let state = State::new(&application, viewport, scale_policy);
 
-                let state = application::State::new(&application, viewport, scale_policy);
-                let viewport_version = state.viewport_version();
+                let (sender, receiver) = mpsc::unbounded();
 
-                let mut pinned_app = Box::pin(PinnedApp::new(application));
-
-                // We know this is safe because modifying a field doesn't move the whole struct.
-                let primitive = unsafe {
-                    let mut_ref = Pin::as_mut(&mut pinned_app).get_unchecked_mut();
-
-                    let mut user_interface = ManuallyDrop::new(build_user_interface(
-                        &mut mut_ref.application,
-                        Cache::default(),
-                        &mut renderer,
-                        state.logical_size(),
-                        &mut debug,
-                    ));
-
-                    let primitive = user_interface.draw(&mut renderer, state.cursor_position());
-
-                    mut_ref.user_interface = Some(user_interface);
-
-                    primitive
-                };
-
-                let mouse_interaction = iced_native::mouse::Interaction::default();
-
-                debug.startup_finished();
-
-                Self {
-                    pinned_app,
-                    state,
-                    debug,
+                let instance = Box::pin(run_instance(
+                    application,
                     compositor,
                     renderer,
-                    surface,
-                    swap_chain,
-                    primitive,
-                    mouse_interaction,
-                    viewport_version,
                     runtime,
+                    debug,
+                    receiver,
+                    surface,
+                    state,
+                ));
+
+                let runtime_context =
+                    task::Context::from_waker(task::noop_waker_ref());
+
+                Self {
+                    sender,
+                    instance,
+                    runtime_context,
                     runtime_rx,
-                    events: Vec::new(),
-                    messages: Vec::new(),
                 }
             },
         )
     }
 }
 
-impl<'a, A: Application + Send> WindowHandler for Runner<'a, A> {
+impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
     // TODO: Add message API
     type Message = ();
 
     fn on_frame(&mut self) {
-        use iced_graphics::window::Compositor as IGCompositor;
-
-        self.debug.render_started();
-        let current_viewport_version = self.state.viewport_version();
-
-        if self.viewport_version != current_viewport_version {
-            let physical_size = self.state.physical_size();
-            let logical_size = self.state.logical_size();
-
-            self.debug.layout_started();
-            // We know this is safe because modifying a field doesn't move the whole struct.
-            unsafe {
-                let mut_ref = Pin::as_mut(&mut self.pinned_app).get_unchecked_mut();
-
-                mut_ref.user_interface = Some(ManuallyDrop::new(ManuallyDrop::into_inner(mut_ref.user_interface.take().unwrap())
-                    .relayout(logical_size, &mut self.renderer)));
-            };
-            self.debug.layout_finished();
-
-            self.debug.draw_started();
-
-            self.primitive = self.pinned_app.user_interface.unwrap().draw(&mut self.renderer, self.state.cursor_position());
-
-            /*
-            self.primitive = if let Some(user_interface) = self.user_interface {
-                user_interface.as_mut().unwrap().draw(&mut self.renderer, self.state.cursor_position())
+        loop {
+            if let Ok(Some(message)) = self.runtime_rx.try_next() {
+                self.sender
+                    .start_send(RuntimeEvent::UserEvent(message))
+                    .expect("Send event");
             } else {
-                // This should never happen.
-                panic!()
-            };
-            */
-            
-            self.debug.draw_finished();
-
-            self.swap_chain = self.compositor.create_swap_chain(
-                &self.surface,
-                physical_size.width,
-                physical_size.height,
-            );
-
-            self.viewport_version = current_viewport_version;
+                break;
+            }
         }
 
-        let new_mouse_interaction = self.compositor.draw(
-            &mut self.renderer,
-            &mut self.swap_chain,
-            self.state.viewport(),
-            self.state.background_color(),
-            &self.primitive,
-            &self.debug.overlay(),
-        );
+        self.sender
+            .start_send(RuntimeEvent::MainEventsCleared)
+            .expect("Send event");
 
-        self.debug.render_finished();
+        self.sender
+            .start_send(RuntimeEvent::OnFrame)
+            .expect("Send event");
 
-        if new_mouse_interaction != self.mouse_interaction {
-            // TODO: set baseview mouse cursor
-
-            self.mouse_interaction = new_mouse_interaction;
-        }
+        let _ = self.instance.as_mut().poll(&mut self.runtime_context);
     }
 
-    fn on_event(&mut self, window: &mut Window<'_>, event: Event) {
-        self.state.update(window, &event, &mut self.debug);
+    fn on_event(&mut self, _window: &mut Window<'_>, event: Event) {
+        self.sender
+            .start_send(RuntimeEvent::Baseview(event))
+            .expect("Send event");
 
-        if let Some(iced_event) =
-            crate::conversion::baseview_to_iced_event(event)
-        {
-            self.events.push(iced_event);
-        }
+        let _ = self.instance.as_mut().poll(&mut self.runtime_context);
     }
 
     fn on_message(
@@ -250,22 +170,215 @@ impl<'a, A: Application + Send> WindowHandler for Runner<'a, A> {
     }
 }
 
-impl<'a, A: Application + Send> Drop for Runner<'a, A> {
-    fn drop(&mut self) {
-        // Manually drop the user interface
-        // We know this is safe because modifying a field doesn't move the whole struct.
-        unsafe {
-            let mut_ref = Pin::as_mut(&mut self.pinned_app).get_unchecked_mut();
+// This may appear to be asynchronous, but it is actually a blocking future on the same thread.
+// This is a necessary workaround for the issue described here:
+// https://github.com/hecrj/iced/pull/597
+async fn run_instance<A, E>(
+    mut application: A,
+    mut compositor: Compositor,
+    mut renderer: Renderer,
+    mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
+    mut debug: Debug,
+    mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
+    surface: <Compositor as iced_graphics::window::Compositor>::Surface,
+    mut state: State<A>,
+) where
+    A: Application + 'static + Send,
+    E: Executor + 'static,
+{
+    use iced_futures::futures::stream::StreamExt;
+    use iced_graphics::window::Compositor as IGCompositor;
+    //let clipboard = Clipboard::new(window);  // TODO: clipboard
 
-            drop(ManuallyDrop::into_inner(mut_ref.user_interface.take().unwrap()));
-        };
-        
+    let mut viewport_version = state.viewport_version();
+    let mut swap_chain = {
+        let physical_size = state.physical_size();
+
+        compositor.create_swap_chain(
+            &surface,
+            physical_size.width,
+            physical_size.height,
+        )
+    };
+
+    let mut user_interface = ManuallyDrop::new(build_user_interface(
+        &mut application,
+        Cache::default(),
+        &mut renderer,
+        state.logical_size(),
+        &mut debug,
+    ));
+
+    let mut primitive =
+        user_interface.draw(&mut renderer, state.cursor_position());
+    let mut mouse_interaction = iced_native::mouse::Interaction::default();
+
+    let mut events = Vec::new();
+    let mut messages = Vec::new();
+
+    let mut redraw_requested = true;
+
+    debug.startup_finished();
+
+    while let Some(event) = receiver.next().await {
+        match event {
+            RuntimeEvent::Baseview(event) => {
+                if requests_exit(&event) {
+                    break;
+                }
+
+                state.update(&event, &mut debug);
+
+                if let Some(iced_event) =
+                    crate::conversion::baseview_to_iced_event(event)
+                {
+                    events.push(iced_event);
+                }
+            }
+            RuntimeEvent::MainEventsCleared => {
+                if events.is_empty() && messages.is_empty() {
+                    continue;
+                }
+
+                debug.event_processing_started();
+
+                let statuses = user_interface.update(
+                    &events,
+                    state.cursor_position(),
+                    None, // TODO: clipboard
+                    &mut renderer,
+                    &mut messages,
+                );
+
+                debug.event_processing_finished();
+
+                for event in events.drain(..).zip(statuses.into_iter()) {
+                    runtime.broadcast(event);
+                }
+
+                if !messages.is_empty() {
+                    let cache =
+                        ManuallyDrop::into_inner(user_interface).into_cache();
+
+                    // Update application
+                    update(
+                        &mut application,
+                        &mut runtime,
+                        &mut debug,
+                        &mut messages,
+                    );
+
+                    // Update window
+                    state.synchronize(&application);
+
+                    user_interface = ManuallyDrop::new(build_user_interface(
+                        &mut application,
+                        cache,
+                        &mut renderer,
+                        state.logical_size(),
+                        &mut debug,
+                    ));
+                }
+
+                debug.draw_started();
+                primitive =
+                    user_interface.draw(&mut renderer, state.cursor_position());
+                debug.draw_finished();
+
+                redraw_requested = true;
+            }
+            RuntimeEvent::UserEvent(message) => {
+                messages.push(message);
+            }
+            RuntimeEvent::OnFrame => {
+                if redraw_requested {
+                    debug.render_started();
+                    let current_viewport_version = state.viewport_version();
+
+                    if viewport_version != current_viewport_version {
+                        let physical_size = state.physical_size();
+                        let logical_size = state.logical_size();
+
+                        debug.layout_started();
+                        user_interface = ManuallyDrop::new(
+                            ManuallyDrop::into_inner(user_interface)
+                                .relayout(logical_size, &mut renderer),
+                        );
+                        debug.layout_finished();
+
+                        debug.draw_started();
+                        primitive = user_interface
+                            .draw(&mut renderer, state.cursor_position());
+                        debug.draw_finished();
+
+                        swap_chain = compositor.create_swap_chain(
+                            &surface,
+                            physical_size.width,
+                            physical_size.height,
+                        );
+
+                        viewport_version = current_viewport_version;
+                    }
+
+                    let new_mouse_interaction = compositor.draw(
+                        &mut renderer,
+                        &mut swap_chain,
+                        state.viewport(),
+                        state.background_color(),
+                        &primitive,
+                        &debug.overlay(),
+                    );
+
+                    debug.render_finished();
+
+                    if new_mouse_interaction != mouse_interaction {
+                        // TODO: set window cursor icon
+                        /*
+                        window.set_cursor_icon(conversion::mouse_interaction(
+                            new_mouse_interaction,
+                        ));
+                        */
+
+                        mouse_interaction = new_mouse_interaction;
+                    }
+
+                    redraw_requested = false;
+
+                    // TODO: Handle animations!
+                    // Maybe we can use `ControlFlow::WaitUntil` for this.
+                }
+            }
+        }
+    }
+
+    // Manually drop the user interface
+    drop(ManuallyDrop::into_inner(user_interface));
+}
+
+/// Returns true if the provided event should cause an [`Application`] to
+/// exit.
+pub fn requests_exit(event: &baseview::Event) -> bool {
+    match event {
+        baseview::Event::Window(baseview::WindowEvent::WillClose) => true,
+        #[cfg(target_os = "macos")]
+        baseview::Event::Keyboard(event) => {
+            if event.code == keyboard_types::Code::KeyQ {
+                if event.modifiers == keyboard_types::Modifiers::META {
+                    if event.state == keyboard_types::KeyState::Down {
+                        return true;
+                    }
+                }
+            }
+
+            false
+        }
+        _ => false,
     }
 }
 
 /// Builds a [`UserInterface`] for the provided [`Application`], logging
 /// [`struct@Debug`] information accordingly.
-pub fn build_user_interface<'a, A: Application>(
+pub fn build_user_interface<'a, A: Application + 'static + Send>(
     application: &'a mut A,
     cache: Cache,
     renderer: &mut Renderer,
@@ -281,4 +394,26 @@ pub fn build_user_interface<'a, A: Application>(
     debug.layout_finished();
 
     user_interface
+}
+
+/// Updates an [`Application`] by feeding it the provided messages, spawning any
+/// resulting [`Command`], and tracking its [`Subscription`].
+pub fn update<A: Application, E: Executor>(
+    application: &mut A,
+    runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
+    debug: &mut Debug,
+    messages: &mut Vec<A::Message>,
+) {
+    for message in messages.drain(..) {
+        debug.log_message(&message);
+
+        debug.update_started();
+        let command = runtime.enter(|| application.update(message));
+        debug.update_finished();
+
+        runtime.spawn(command);
+    }
+
+    let subscription = application.subscription();
+    runtime.track(subscription);
 }

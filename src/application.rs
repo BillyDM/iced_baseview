@@ -1,6 +1,9 @@
-use crate::{renderer, Color, Command, Element, Executor, Subscription, WindowScalePolicy};
+use crate::{
+    renderer, Color, Command, Element, Executor, Subscription,
+    WindowScalePolicy,
+};
 
-mod state; 
+mod state;
 
 pub use state::State;
 
@@ -161,13 +164,12 @@ pub trait Application: Sized + 'static {
         Subscription::none()
     }
 
-    // TODO: Does this need to be mutable? It's causing me a lot of borrow-checker headaches.
     /// Returns the widgets to display in the [`Application`].
     ///
     /// These widgets can produce __messages__ based on user interaction.
     ///
     /// [`Application`]: trait.Application.html
-    fn view<'a>(&'a self) -> Element<'a, Self::Message>;
+    fn view(&mut self) -> Element<'_, Self::Message>;
 
     /// Returns the background [`Color`] of the [`Application`].
     ///

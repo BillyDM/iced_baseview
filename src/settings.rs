@@ -19,7 +19,7 @@ impl From<WindowScalePolicy> for baseview::WindowScalePolicy {
         match p {
             WindowScalePolicy::ScaleFactor(scale) => {
                 baseview::WindowScalePolicy::ScaleFactor(scale)
-            },
+            }
             WindowScalePolicy::SystemScaleFactor => {
                 baseview::WindowScalePolicy::SystemScaleFactor
             }
