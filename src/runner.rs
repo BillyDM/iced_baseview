@@ -52,7 +52,7 @@ impl<A: Application + 'static + Send> Runner<A> {
     pub fn open(
         settings: Settings<A::Flags>,
         parent: Parent,
-    ) -> (baseview::WindowHandle<Self>, Option<baseview::AppRunner>) {
+    ) -> Option<baseview::AppRunner> {
         let scale_policy = settings.window.scale_policy;
 
         let logical_width = settings.window.logical_size.0 as f64;
@@ -150,9 +150,6 @@ impl<A: Application + 'static + Send> Runner<A> {
 }
 
 impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
-    // TODO: Add message API
-    type Message = ();
-
     fn on_frame(&mut self) {
         loop {
             if let Ok(Some(message)) = self.runtime_rx.try_next() {
@@ -181,13 +178,6 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
             .expect("Send event");
 
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
-    }
-
-    fn on_message(
-        &mut self,
-        _window: &mut Window<'_>,
-        _message: Self::Message,
-    ) {
     }
 }
 
