@@ -28,7 +28,7 @@ impl From<WindowScalePolicy> for baseview::WindowScalePolicy {
 }
 
 /// The settings of an application.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Settings<Flags> {
     /// The [`Window`] settings
     ///
@@ -39,6 +39,15 @@ pub struct Settings<Flags> {
     ///
     /// [`Application`]: trait.Application.html
     pub flags: Flags,
+}
+
+impl<Flags: Default> Default for Settings<Flags> {
+    fn default() -> Self {
+        Self {
+            window: Window::default(),
+            flags: Flags::default(),
+        }
+    }
 }
 
 /// The window settings of an application.

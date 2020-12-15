@@ -19,7 +19,7 @@ pub mod widget;
 pub use application::Application;
 pub use element::Element;
 pub use executor::Executor;
-pub use runner::{Runner, WindowSubs};
+pub use runner::{Handle, Runner, WindowSubs};
 pub use settings::{Settings, WindowScalePolicy};
 
 #[cfg(feature = "wgpu")]

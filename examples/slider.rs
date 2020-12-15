@@ -14,7 +14,7 @@ fn main() {
         flags: (),
     };
 
-    let opt_app_runner = Runner::<MyProgram>::open(settings, Parent::None);
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings, Parent::None);
 
     opt_app_runner.unwrap().app_run_blocking();
 }
