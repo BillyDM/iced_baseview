@@ -18,6 +18,7 @@ enum RuntimeEvent<Message: 'static + Send> {
     UserEvent(Message),
     MainEventsCleared,
     OnFrame,
+    WillClose,
 }
 
 /// This struct creates subscriptions for common window events.
@@ -223,13 +224,19 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
     }
 
     fn on_event(&mut self, _window: &mut Window<'_>, event: Event) {
-        // Send the event to the instance.
-        self.sender
-            .start_send(RuntimeEvent::Baseview(event))
-            .expect("Send event");
+        if requests_exit(&event) {
+            self.sender
+                .start_send(RuntimeEvent::WillClose)
+                .expect("Send event");
 
-        // Flush all messages. This will block until the instance is finished.
-        let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+            // Flush all messages so the application receives the close event. This will block until the instance is finished.
+            let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+        } else {
+            // Send the event to the instance.
+            self.sender
+                .start_send(RuntimeEvent::Baseview(event))
+                .expect("Send event");
+        }
     }
 }
 
@@ -287,39 +294,6 @@ async fn run_instance<A, E>(
     while let Some(event) = receiver.next().await {
         match event {
             RuntimeEvent::Baseview(event) => {
-                if requests_exit(&event) {
-                    if let Some(message) = &window_subs.on_window_will_close {
-                        // Send message to user before exiting the loop.
-
-                        messages.push(message.clone());
-                        let cache = ManuallyDrop::into_inner(user_interface)
-                            .into_cache();
-
-                        // Update application
-                        update(
-                            &mut application,
-                            &mut runtime,
-                            &mut debug,
-                            &mut messages,
-                            &mut window_subs,
-                        );
-
-                        // Update window
-                        state.synchronize(&application);
-
-                        user_interface =
-                            ManuallyDrop::new(build_user_interface(
-                                &mut application,
-                                cache,
-                                &mut renderer,
-                                state.logical_size(),
-                                &mut debug,
-                            ));
-                    }
-
-                    break;
-                }
-
                 state.update(&event, &mut debug);
 
                 if let Some(iced_event) =
@@ -444,6 +418,35 @@ async fn run_instance<A, E>(
 
                     // TODO: Handle animations!
                     // Maybe we can use `ControlFlow::WaitUntil` for this.
+                }
+            }
+            RuntimeEvent::WillClose => {
+                if let Some(message) = &window_subs.on_window_will_close {
+                    // Send message to user before exiting the loop.
+
+                    messages.push(message.clone());
+                    let cache =
+                        ManuallyDrop::into_inner(user_interface).into_cache();
+
+                    // Update application
+                    update(
+                        &mut application,
+                        &mut runtime,
+                        &mut debug,
+                        &mut messages,
+                        &mut window_subs,
+                    );
+
+                    // Update window
+                    state.synchronize(&application);
+
+                    user_interface = ManuallyDrop::new(build_user_interface(
+                        &mut application,
+                        cache,
+                        &mut renderer,
+                        state.logical_size(),
+                        &mut debug,
+                    ));
                 }
             }
         }
