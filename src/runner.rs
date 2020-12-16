@@ -448,6 +448,8 @@ async fn run_instance<A, E>(
                         &mut debug,
                     ));
                 }
+
+                break;
             }
         }
     }
