@@ -191,12 +191,13 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
                 HandleMessage::CloseRequested => {
                     // Send an event when the Host requests the window to close.
                     self.sender
-                        .start_send(RuntimeEvent::Baseview(
-                            baseview::Event::Window(
-                                baseview::WindowEvent::WillClose,
-                            ),
-                        ))
+                        .start_send(RuntimeEvent::WillClose)
                         .expect("Send event");
+                    
+                    // Flush all messages so the application receives the close event. This will block until the instance is finished.
+                    let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+
+                    return;
                 }
             }
         }
