@@ -376,6 +376,13 @@ async fn run_instance<A, E>(
 
                 if viewport_version != current_viewport_version {
                     let physical_size = state.physical_size();
+
+                    swap_chain = compositor.create_swap_chain(
+                        &surface,
+                        physical_size.width,
+                        physical_size.height,
+                    );
+                    
                     let logical_size = state.logical_size();
 
                     debug.layout_started();
@@ -389,12 +396,6 @@ async fn run_instance<A, E>(
                     primitive = user_interface
                         .draw(&mut renderer, state.cursor_position());
                     debug.draw_finished();
-
-                    swap_chain = compositor.create_swap_chain(
-                        &surface,
-                        physical_size.width,
-                        physical_size.height,
-                    );
 
                     viewport_version = current_viewport_version;
                 }
