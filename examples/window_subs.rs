@@ -5,7 +5,7 @@ use iced_baseview::{
 };
 use std::time::{Duration, Instant};
 
-static COUNT_INTERVAL: Duration = Duration::from_millis(1000);
+static COUNT_INTERVAL: Duration = Duration::from_millis(10);
 
 fn main() {
     let settings = Settings {

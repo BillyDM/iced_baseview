@@ -100,6 +100,8 @@ pub fn baseview_to_iced_event(event: BaseEvent) -> Option<IcedEvent> {
             }
             _ => None,
         },
+
+        _ => None,
     }
 }
 

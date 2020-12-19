@@ -17,6 +17,7 @@ enum RuntimeEvent<Message: 'static + Send> {
     Baseview(baseview::Event),
     UserEvent(Message),
     MainEventsCleared,
+    UpdateSwapChain,
     OnFrame,
     WillClose,
 }
@@ -185,6 +186,14 @@ impl<A: Application + 'static + Send> Runner<A> {
 
 impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
     fn on_frame(&mut self) {
+        // Send event to render the frame.
+        self.sender
+            .start_send(RuntimeEvent::UpdateSwapChain)
+            .expect("Send event");
+
+        // Flush all messages. This will block until the instance is finished.
+        let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+
         // Poll handle messages.
         while let Ok(message) = self.handle_rx.pop() {
             match message {
@@ -209,8 +218,7 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
                 .expect("Send event");
         }
 
-        // Send event signaling that all events have been sent and is ready for
-        // rendering.
+        // Send the event to the instance.
         self.sender
             .start_send(RuntimeEvent::MainEventsCleared)
             .expect("Send event");
@@ -363,35 +371,37 @@ async fn run_instance<A, E>(
             RuntimeEvent::UserEvent(message) => {
                 messages.push(message);
             }
+            RuntimeEvent::UpdateSwapChain => {
+                let current_viewport_version = state.viewport_version();
+
+                if viewport_version != current_viewport_version {
+                    let physical_size = state.physical_size();
+                    let logical_size = state.logical_size();
+
+                    debug.layout_started();
+                    user_interface = ManuallyDrop::new(
+                        ManuallyDrop::into_inner(user_interface)
+                            .relayout(logical_size, &mut renderer),
+                    );
+                    debug.layout_finished();
+
+                    debug.draw_started();
+                    primitive = user_interface
+                        .draw(&mut renderer, state.cursor_position());
+                    debug.draw_finished();
+
+                    swap_chain = compositor.create_swap_chain(
+                        &surface,
+                        physical_size.width,
+                        physical_size.height,
+                    );
+
+                    viewport_version = current_viewport_version;
+                }
+            }
             RuntimeEvent::OnFrame => {
                 if redraw_requested {
                     debug.render_started();
-                    let current_viewport_version = state.viewport_version();
-
-                    if viewport_version != current_viewport_version {
-                        let physical_size = state.physical_size();
-                        let logical_size = state.logical_size();
-
-                        debug.layout_started();
-                        user_interface = ManuallyDrop::new(
-                            ManuallyDrop::into_inner(user_interface)
-                                .relayout(logical_size, &mut renderer),
-                        );
-                        debug.layout_finished();
-
-                        debug.draw_started();
-                        primitive = user_interface
-                            .draw(&mut renderer, state.cursor_position());
-                        debug.draw_finished();
-
-                        swap_chain = compositor.create_swap_chain(
-                            &surface,
-                            physical_size.width,
-                            physical_size.height,
-                        );
-
-                        viewport_version = current_viewport_version;
-                    }
 
                     let new_mouse_interaction = compositor.draw(
                         &mut renderer,
