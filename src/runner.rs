@@ -202,9 +202,10 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
                     self.sender
                         .start_send(RuntimeEvent::WillClose)
                         .expect("Send event");
-                    
+
                     // Flush all messages so the application receives the close event. This will block until the instance is finished.
-                    let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+                    let _ =
+                        self.instance.as_mut().poll(&mut self.runtime_context);
 
                     return;
                 }
@@ -382,7 +383,7 @@ async fn run_instance<A, E>(
                         physical_size.width,
                         physical_size.height,
                     );
-                    
+
                     let logical_size = state.logical_size();
 
                     debug.layout_started();
