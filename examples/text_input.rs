@@ -1,7 +1,7 @@
 use iced_baseview::{
-    executor, renderer, settings, slider, Align, Application, Color, Column,
-    Command, Container, Element, Length, Parent, Runner, Settings, Slider,
-    Text, WindowScalePolicy,
+    executor, renderer, settings, text_input, Align, Application, Color,
+    Column, Command, Container, Element, Length, Parent, Runner, Settings,
+    Text, TextInput, WindowScalePolicy,
 };
 
 fn main() {
@@ -21,13 +21,12 @@ fn main() {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    SliderChanged(u32),
+    TextInputChanged(String),
 }
 
 struct MyProgram {
-    slider_state: slider::State,
-    slider_value: u32,
-    slider_value_str: String,
+    text_input_state: text_input::State,
+    text_input_str: String,
 }
 
 impl Application for MyProgram {
@@ -38,9 +37,8 @@ impl Application for MyProgram {
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (
             Self {
-                slider_state: slider::State::new(),
-                slider_value: 0,
-                slider_value_str: String::from("0"),
+                text_input_state: text_input::State::new(),
+                text_input_str: String::from(""),
             },
             Command::none(),
         )
@@ -48,9 +46,8 @@ impl Application for MyProgram {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::SliderChanged(value) => {
-                self.slider_value = value;
-                self.slider_value_str = format!("{}", value);
+            Message::TextInputChanged(value) => {
+                self.text_input_str = value;
             }
         }
 
@@ -58,11 +55,11 @@ impl Application for MyProgram {
     }
 
     fn view(&mut self) -> Element<'_, Self::Message> {
-        let slider_widget = Slider::new(
-            &mut self.slider_state,
-            0..=1000,
-            self.slider_value,
-            Message::SliderChanged,
+        let text_input_widget = TextInput::new(
+            &mut self.text_input_state,
+            "Hello!",
+            &self.text_input_str,
+            Message::TextInputChanged,
         );
 
         let content = Column::new()
@@ -70,9 +67,8 @@ impl Application for MyProgram {
             .align_items(Align::Center)
             .padding(20)
             .spacing(20)
-            .push(Text::new("Slide me!"))
-            .push(slider_widget)
-            .push(Text::new(self.slider_value_str.as_str()));
+            .push(Text::new("Write text!"))
+            .push(text_input_widget);
 
         Container::new(content)
             .width(Length::Fill)

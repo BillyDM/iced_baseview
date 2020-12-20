@@ -306,11 +306,7 @@ async fn run_instance<A, E>(
             RuntimeEvent::Baseview(event) => {
                 state.update(&event, &mut debug);
 
-                if let Some(iced_event) =
-                    crate::conversion::baseview_to_iced_event(event)
-                {
-                    events.push(iced_event);
-                }
+                crate::conversion::baseview_to_iced_events(event, &mut events);
             }
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
