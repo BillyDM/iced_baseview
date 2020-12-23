@@ -94,7 +94,7 @@ impl Application for MyProgram {
 }
 ```
 
-## Audio Plugins
+VST / LV2 / AU Plugins
 
 Examples of how to use this library for audio plugins can be found here:
 * [`iced-baseplug-examples`]
