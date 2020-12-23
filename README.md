@@ -1,5 +1,5 @@
 # iced_baseview
-![Test](https://github.com/BillyDM/iced_baseview/workflows/Test/badge.svg)
+![Test](https://github.com/BillyDM/iced_baseview/workflows/Rust/badge.svg)
 [![Crates.io](https://img.shields.io/crates/v/iced_baseview.svg)](https://crates.io/crates/iced_baseview)
 [![License](https://img.shields.io/crates/l/iced_baseview.svg)](https://github.com/BillyDM/iced_baseview/blob/main/LICENSE)
 
