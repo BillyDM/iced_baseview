@@ -3,10 +3,12 @@ use iced_native::keyboard;
 use iced_native::Debug;
 use std::marker::PhantomData;
 
-use crate::{Application, Color, Point, Size, WindowScalePolicy};
+use crate::{Application, Color, Point, Size};
+
+use baseview::WindowScalePolicy;
 
 /// The state of a windowed [`Application`].
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct State<A: Application + Send> {
     background_color: Color,
     scale_policy: WindowScalePolicy,
@@ -175,22 +177,42 @@ impl<A: Application + Send> State<A> {
         // Update scale policy
         let new_scale_policy = application.scale_policy();
 
-        if self.scale_policy != new_scale_policy {
-            self.scale_policy = new_scale_policy;
+        match &new_scale_policy {
+            WindowScalePolicy::SystemScaleFactor => match &self.scale_policy {
+                WindowScalePolicy::SystemScaleFactor => {}
+                WindowScalePolicy::ScaleFactor(_) => {
+                    self.scale_policy = WindowScalePolicy::SystemScaleFactor;
 
-            let scale = match self.scale_policy {
-                WindowScalePolicy::ScaleFactor(scale) => scale,
-                WindowScalePolicy::SystemScaleFactor => {
-                    self.system_scale_factor
+                    self.viewport = Viewport::with_physical_size(
+                        self.viewport.physical_size(),
+                        self.system_scale_factor,
+                    );
+
+                    self.viewport_version =
+                        self.viewport_version.wrapping_add(1);
                 }
-            };
+            },
+            WindowScalePolicy::ScaleFactor(new_scale) => {
+                let matches = match &self.scale_policy {
+                    WindowScalePolicy::SystemScaleFactor => false,
+                    WindowScalePolicy::ScaleFactor(scale) => {
+                        *scale == *new_scale
+                    }
+                };
 
-            self.viewport = Viewport::with_physical_size(
-                self.viewport.physical_size(),
-                scale,
-            );
+                if !matches {
+                    self.scale_policy =
+                        WindowScalePolicy::ScaleFactor(*new_scale);
 
-            self.viewport_version = self.viewport_version.wrapping_add(1);
+                    self.viewport = Viewport::with_physical_size(
+                        self.viewport.physical_size(),
+                        *new_scale,
+                    );
+
+                    self.viewport_version =
+                        self.viewport_version.wrapping_add(1);
+                }
+            }
         }
     }
 }

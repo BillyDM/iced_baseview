@@ -20,7 +20,7 @@ pub use application::Application;
 pub use element::Element;
 pub use executor::Executor;
 pub use runner::{Handle, Runner, WindowSubs};
-pub use settings::{Settings, WindowScalePolicy};
+pub use settings::Settings;
 
 #[cfg(feature = "wgpu")]
 type Renderer = iced_wgpu::Renderer;
@@ -43,6 +43,3 @@ pub use widget::*;
 #[cfg(all(any(feature = "tokio", feature = "async-std"),))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-std"))))]
 pub mod time;
-
-#[doc(no_inline)]
-pub use baseview::{AppRunner, Parent};

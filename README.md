@@ -12,19 +12,21 @@ A [`baseview`] backend for the [`Iced`] GUI library.
 ## Simple Usage Example
 
 ```rust
+use baseview::{Parent, Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::*;
 
 fn main() {
     let settings = Settings {
-        window: settings::Window {
+        window: WindowOpenOptions {
             title: String::from("iced_baseview slider"),
-            logical_size: (500, 300),
-            scale_policy: WindowScalePolicy::SystemScaleFactor,
+            size: Size::new(500.0, 300.0),
+            scale: WindowScalePolicy::SystemScaleFactor,
+            parent: Parent::None,
         },
         flags: (),
     };
 
-    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings, Parent::None);
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings);
 
     opt_app_runner.unwrap().app_run_blocking();
 }

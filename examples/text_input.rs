@@ -1,20 +1,21 @@
+use baseview::{Parent, Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, renderer, settings, text_input, Align, Application, Color,
-    Column, Command, Container, Element, Length, Parent, Runner, Settings,
-    Text, TextInput, WindowScalePolicy,
+    executor, renderer, text_input, Align, Application, Color, Column, Command,
+    Container, Element, Length, Runner, Settings, Text, TextInput,
 };
 
 fn main() {
     let settings = Settings {
-        window: settings::Window {
-            title: String::from("iced_baseview slider"),
-            logical_size: (500, 300),
-            scale_policy: WindowScalePolicy::SystemScaleFactor,
+        window: WindowOpenOptions {
+            title: String::from("iced_baseview text input"),
+            size: Size::new(500.0, 300.0),
+            scale: WindowScalePolicy::SystemScaleFactor,
+            parent: Parent::None,
         },
         flags: (),
     };
 
-    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings, Parent::None);
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings);
 
     opt_app_runner.unwrap().app_run_blocking();
 }

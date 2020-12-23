@@ -1,19 +1,21 @@
+use baseview::{Parent, Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, settings, Align, Application, Color, Column, Command, Container,
-    Element, Length, Parent, Rule, Runner, Settings, Text, WindowScalePolicy,
+    executor, Align, Application, Color, Column, Command, Container, Element,
+    Length, Rule, Runner, Settings, Text,
 };
 
 fn main() {
     let settings = Settings {
-        window: settings::Window {
+        window: WindowOpenOptions {
             title: String::from("iced_baseview hello world"),
-            logical_size: (500, 300),
-            scale_policy: WindowScalePolicy::SystemScaleFactor,
+            size: Size::new(500.0, 300.0),
+            scale: WindowScalePolicy::SystemScaleFactor,
+            parent: Parent::None,
         },
         flags: (),
     };
 
-    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings, Parent::None);
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings);
 
     opt_app_runner.unwrap().app_run_blocking();
 }

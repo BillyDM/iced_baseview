@@ -1,4 +1,4 @@
-use baseview::{Event, Window, WindowHandler};
+use baseview::{Event, Window, WindowHandler, WindowScalePolicy};
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
@@ -8,10 +8,7 @@ use std::mem::ManuallyDrop;
 use std::pin::Pin;
 
 use crate::application::State;
-use crate::{
-    proxy::Proxy, Application, Compositor, Parent, Renderer, Settings,
-    WindowScalePolicy,
-};
+use crate::{proxy::Proxy, Application, Compositor, Renderer, Settings};
 
 enum RuntimeEvent<Message: 'static + Send> {
     Baseview(baseview::Event),
@@ -75,27 +72,29 @@ impl<A: Application + 'static + Send> Runner<A> {
     /// Open a new window
     pub fn open(
         settings: Settings<A::Flags>,
-        parent: Parent,
     ) -> (Handle, Option<baseview::AppRunner>) {
         let (handle_tx, handle_rx) =
             rtrb::RingBuffer::new(Handle::QUEUE_SIZE).split();
 
-        let scale_policy = settings.window.scale_policy;
-
-        let logical_width = settings.window.logical_size.0 as f64;
-        let logical_height = settings.window.logical_size.1 as f64;
-
-        let window_settings = baseview::WindowOpenOptions {
-            title: settings.window.title.clone(),
-            size: baseview::Size::new(logical_width, logical_height),
-            scale: settings.window.scale_policy.into(),
-            parent,
+        // WindowScalePolicy does not implement Copy/Clone.
+        let scale_policy = match &settings.window.scale {
+            WindowScalePolicy::SystemScaleFactor => {
+                WindowScalePolicy::SystemScaleFactor
+            }
+            WindowScalePolicy::ScaleFactor(scale) => {
+                WindowScalePolicy::ScaleFactor(*scale)
+            }
         };
+
+        let logical_width = settings.window.size.width as f64;
+        let logical_height = settings.window.size.height as f64;
+
+        let flags = settings.flags;
 
         (
             Handle::new(handle_tx),
             Window::open(
-                window_settings,
+                settings.window,
                 move |window: &mut baseview::Window<'_>| -> Runner<A> {
                     use iced_graphics::window::Compositor as IGCompositor;
 
@@ -116,7 +115,7 @@ impl<A: Application + 'static + Send> Runner<A> {
                     };
 
                     let (application, init_command) = {
-                        let flags = settings.flags;
+                        let flags = flags;
 
                         runtime.enter(|| A::new(flags))
                     };

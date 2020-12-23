@@ -1,7 +1,8 @@
 use crate::{
-    renderer, Color, Command, Element, Executor, Subscription,
-    WindowScalePolicy, WindowSubs,
+    renderer, Color, Command, Element, Executor, Subscription, WindowSubs,
 };
+
+use baseview::WindowScalePolicy;
 
 mod state;
 

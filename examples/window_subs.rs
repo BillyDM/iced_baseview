@@ -1,7 +1,7 @@
+use baseview::{Parent, Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, settings, Align, Application, Color, Column, Command, Container,
-    Element, Length, Parent, Runner, Settings, Subscription, Text,
-    WindowScalePolicy, WindowSubs,
+    executor, Align, Application, Color, Column, Command, Container, Element,
+    Length, Runner, Settings, Subscription, Text, WindowSubs,
 };
 use std::time::{Duration, Instant};
 
@@ -9,15 +9,16 @@ static COUNT_INTERVAL: Duration = Duration::from_millis(1000);
 
 fn main() {
     let settings = Settings {
-        window: settings::Window {
+        window: WindowOpenOptions {
             title: String::from("iced_baseview window subscriptions"),
-            logical_size: (500, 300),
-            scale_policy: WindowScalePolicy::SystemScaleFactor,
+            size: Size::new(500.0, 300.0),
+            scale: WindowScalePolicy::SystemScaleFactor,
+            parent: Parent::None,
         },
         flags: (),
     };
 
-    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings, Parent::None);
+    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings);
 
     opt_app_runner.unwrap().app_run_blocking();
 }
