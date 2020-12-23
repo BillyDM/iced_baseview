@@ -97,8 +97,8 @@ impl Application for MyProgram {
 ## VST / LV2 / AU Plugins
 
 Examples of how to use this library for audio plugins can be found here:
-* [`imgui_baseview_test_vst2`]
+* [`iced-baseplug-examples`]
 
 [`Iced`]: https://github.com/hecrj/iced
 [`baseview`]: https://github.com/RustAudio/baseview
-[`imgui_baseview_test_vst2`]: https://github.com/DGriffin91/imgui_baseview_test_vst2
+[`iced-baseplug-examples`]: https://github.com/BillyDM/iced-baseplug-examples
