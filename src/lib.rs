@@ -8,7 +8,7 @@ mod application;
 mod conversion;
 mod element;
 mod proxy;
-mod runner;
+mod window;
 
 pub mod executor;
 pub mod keyboard;
@@ -19,8 +19,8 @@ pub mod widget;
 pub use application::Application;
 pub use element::Element;
 pub use executor::Executor;
-pub use runner::{Handle, Runner, WindowSubs};
 pub use settings::Settings;
+pub use window::{IcedWindow, WindowSubs};
 
 #[cfg(feature = "wgpu")]
 type Renderer = iced_wgpu::Renderer;

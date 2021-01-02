@@ -4,6 +4,7 @@ use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
 use iced_native::{Cache, UserInterface};
 use iced_native::{Debug, Executor, Runtime, Size};
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::mem::ManuallyDrop;
 use std::pin::Pin;
 
@@ -37,45 +38,105 @@ impl<Message: Clone> Default for WindowSubs<Message> {
     }
 }
 
-pub(crate) enum HandleMessage {
-    CloseRequested,
-}
-
-#[allow(missing_debug_implementations)]
-pub struct Handle {
-    handle_tx: rtrb::Producer<HandleMessage>,
-}
-
-impl Handle {
-    pub const QUEUE_SIZE: usize = 10;
-
-    pub(crate) fn new(handle_tx: rtrb::Producer<HandleMessage>) -> Self {
-        Self { handle_tx }
-    }
-
-    pub fn request_window_close(&mut self) {
-        self.handle_tx.push(HandleMessage::CloseRequested).unwrap();
-    }
-}
-
 /// Handles an iced_baseview application
 #[allow(missing_debug_implementations)]
-pub struct Runner<A: Application + 'static + Send> {
+pub struct IcedWindow<A: Application + 'static + Send> {
     sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
     instance: Pin<Box<dyn futures::Future<Output = ()>>>,
     runtime_context: futures::task::Context<'static>,
     runtime_rx: mpsc::UnboundedReceiver<A::Message>,
-    handle_rx: rtrb::Consumer<HandleMessage>,
 }
 
-impl<A: Application + 'static + Send> Runner<A> {
-    /// Open a new window
-    pub fn open(
-        settings: Settings<A::Flags>,
-    ) -> (Handle, Option<baseview::AppRunner>) {
-        let (handle_tx, handle_rx) =
-            rtrb::RingBuffer::new(Handle::QUEUE_SIZE).split();
+impl<A: Application + 'static + Send> IcedWindow<A> {
+    fn new(
+        window: &mut baseview::Window<'_>,
+        flags: A::Flags,
+        scale_policy: WindowScalePolicy,
+        logical_width: f64,
+        logical_height: f64,
+    ) -> IcedWindow<A> {
+        use futures::task;
+        use iced_graphics::window::Compositor as IGCompositor;
 
+        let mut debug = Debug::new();
+        debug.startup_started();
+
+        let (runtime_tx, runtime_rx) = mpsc::unbounded::<A::Message>();
+
+        let mut runtime = {
+            let proxy = Proxy::new(runtime_tx);
+            let executor = <A::Executor as Executor>::new().unwrap();
+
+            Runtime::new(executor, proxy)
+        };
+
+        let (application, init_command) = {
+            let flags = flags;
+
+            runtime.enter(|| A::new(flags))
+        };
+
+        let mut window_subs = WindowSubs::default();
+
+        let subscription = application.subscription(&mut window_subs);
+
+        runtime.spawn(init_command);
+        runtime.track(subscription);
+
+        // Assume scale for now until there is an event with a new one.
+        let scale = match scale_policy {
+            WindowScalePolicy::ScaleFactor(scale) => scale,
+            WindowScalePolicy::SystemScaleFactor => 1.0,
+        };
+
+        let physical_size = Size::new(
+            (logical_width * scale) as u32,
+            (logical_height * scale) as u32,
+        );
+
+        let viewport = Viewport::with_physical_size(physical_size, scale);
+
+        let renderer_settings = A::renderer_settings();
+
+        let (mut compositor, renderer) =
+            <Compositor as IGCompositor>::new(renderer_settings).unwrap();
+
+        let surface = compositor.create_surface(window);
+
+        let state = State::new(&application, viewport, scale_policy);
+
+        let (sender, receiver) = mpsc::unbounded();
+
+        let instance = Box::pin(run_instance(
+            application,
+            compositor,
+            renderer,
+            runtime,
+            debug,
+            receiver,
+            surface,
+            state,
+            window_subs,
+        ));
+
+        let runtime_context = task::Context::from_waker(task::noop_waker_ref());
+
+        Self {
+            sender,
+            instance,
+            runtime_context,
+            runtime_rx,
+        }
+    }
+
+    /// Open a new child window.
+    ///
+    /// * `parent` - The parent window.
+    /// * `settings` - The settings of the window.
+    pub fn open_parented<P>(parent: &P, settings: Settings<A::Flags>)
+    where
+        P: HasRawWindowHandle,
+    {
         // WindowScalePolicy does not implement Copy/Clone.
         let scale_policy = match &settings.window.scale {
             WindowScalePolicy::SystemScaleFactor => {
@@ -85,105 +146,91 @@ impl<A: Application + 'static + Send> Runner<A> {
                 WindowScalePolicy::ScaleFactor(*scale)
             }
         };
-
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
-
         let flags = settings.flags;
 
-        (
-            Handle::new(handle_tx),
-            Window::open(
-                settings.window,
-                move |window: &mut baseview::Window<'_>| -> Runner<A> {
-                    use iced_graphics::window::Compositor as IGCompositor;
+        Window::open_parented(
+            parent,
+            settings.window,
+            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
+                IcedWindow::new(
+                    window,
+                    flags,
+                    scale_policy,
+                    logical_width,
+                    logical_height,
+                )
+            },
+        )
+    }
 
-                    use futures::task;
+    /// Open a new window as if it had a parent window.
+    ///
+    /// * `settings` - The settings of the window.
+    pub fn open_as_if_parented<P>(
+        settings: Settings<A::Flags>,
+    ) -> RawWindowHandle {
+        // WindowScalePolicy does not implement Copy/Clone.
+        let scale_policy = match &settings.window.scale {
+            WindowScalePolicy::SystemScaleFactor => {
+                WindowScalePolicy::SystemScaleFactor
+            }
+            WindowScalePolicy::ScaleFactor(scale) => {
+                WindowScalePolicy::ScaleFactor(*scale)
+            }
+        };
+        let logical_width = settings.window.size.width as f64;
+        let logical_height = settings.window.size.height as f64;
+        let flags = settings.flags;
 
-                    let mut debug = Debug::new();
-                    debug.startup_started();
+        Window::open_as_if_parented(
+            settings.window,
+            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
+                IcedWindow::new(
+                    window,
+                    flags,
+                    scale_policy,
+                    logical_width,
+                    logical_height,
+                )
+            },
+        )
+    }
 
-                    let (runtime_tx, runtime_rx) =
-                        mpsc::unbounded::<A::Message>();
+    /// Open a new window that blocks the current thread until the window is destroyed.
+    ///
+    /// * `settings` - The settings of the window.
+    pub fn open_blocking(settings: Settings<A::Flags>) {
+        // WindowScalePolicy does not implement Copy/Clone.
+        let scale_policy = match &settings.window.scale {
+            WindowScalePolicy::SystemScaleFactor => {
+                WindowScalePolicy::SystemScaleFactor
+            }
+            WindowScalePolicy::ScaleFactor(scale) => {
+                WindowScalePolicy::ScaleFactor(*scale)
+            }
+        };
+        let logical_width = settings.window.size.width as f64;
+        let logical_height = settings.window.size.height as f64;
+        let flags = settings.flags;
 
-                    let mut runtime = {
-                        let proxy = Proxy::new(runtime_tx);
-                        let executor =
-                            <A::Executor as Executor>::new().unwrap();
-
-                        Runtime::new(executor, proxy)
-                    };
-
-                    let (application, init_command) = {
-                        let flags = flags;
-
-                        runtime.enter(|| A::new(flags))
-                    };
-
-                    let mut window_subs = WindowSubs::default();
-
-                    let subscription =
-                        application.subscription(&mut window_subs);
-
-                    runtime.spawn(init_command);
-                    runtime.track(subscription);
-
-                    // Assume scale for now until there is an event with a new one.
-                    let scale = match scale_policy {
-                        WindowScalePolicy::ScaleFactor(scale) => scale,
-                        WindowScalePolicy::SystemScaleFactor => 1.0,
-                    };
-
-                    let physical_size = Size::new(
-                        (logical_width * scale) as u32,
-                        (logical_height * scale) as u32,
-                    );
-
-                    let viewport =
-                        Viewport::with_physical_size(physical_size, scale);
-
-                    let renderer_settings = A::renderer_settings();
-
-                    let (mut compositor, renderer) =
-                        <Compositor as IGCompositor>::new(renderer_settings)
-                            .unwrap();
-
-                    let surface = compositor.create_surface(window);
-
-                    let state =
-                        State::new(&application, viewport, scale_policy);
-
-                    let (sender, receiver) = mpsc::unbounded();
-
-                    let instance = Box::pin(run_instance(
-                        application,
-                        compositor,
-                        renderer,
-                        runtime,
-                        debug,
-                        receiver,
-                        surface,
-                        state,
-                        window_subs,
-                    ));
-
-                    let runtime_context =
-                        task::Context::from_waker(task::noop_waker_ref());
-
-                    Self {
-                        sender,
-                        instance,
-                        runtime_context,
-                        runtime_rx,
-                        handle_rx,
-                    }
-                },
-            ),
+        Window::open_blocking(
+            settings.window,
+            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
+                IcedWindow::new(
+                    window,
+                    flags,
+                    scale_policy,
+                    logical_width,
+                    logical_height,
+                )
+            },
         )
     }
 }
 
-impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
+impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
     fn on_frame(&mut self) {
         // Send event to render the frame.
         self.sender
@@ -192,24 +239,6 @@ impl<A: Application + 'static + Send> WindowHandler for Runner<A> {
 
         // Flush all messages. This will block until the instance is finished.
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
-
-        // Poll handle messages.
-        while let Ok(message) = self.handle_rx.pop() {
-            match message {
-                HandleMessage::CloseRequested => {
-                    // Send an event when the Host requests the window to close.
-                    self.sender
-                        .start_send(RuntimeEvent::WillClose)
-                        .expect("Send event");
-
-                    // Flush all messages so the application receives the close event. This will block until the instance is finished.
-                    let _ =
-                        self.instance.as_mut().poll(&mut self.runtime_context);
-
-                    return;
-                }
-            }
-        }
 
         // Poll subscriptions and send the corresponding messages.
         while let Ok(Some(message)) = self.runtime_rx.try_next() {

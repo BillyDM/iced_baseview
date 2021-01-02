@@ -1,7 +1,7 @@
-use baseview::{Parent, Size, WindowOpenOptions, WindowScalePolicy};
+use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
     executor, Align, Application, Color, Column, Command, Container, Element,
-    Length, Rule, Runner, Settings, Text,
+    IcedWindow, Length, Rule, Settings, Text,
 };
 
 fn main() {
@@ -10,14 +10,11 @@ fn main() {
             title: String::from("iced_baseview hello world"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
-            parent: Parent::None,
         },
         flags: (),
     };
 
-    let (_, opt_app_runner) = Runner::<MyProgram>::open(settings);
-
-    opt_app_runner.unwrap().app_run_blocking();
+    IcedWindow::<MyProgram>::open_blocking(settings);
 }
 
 struct MyProgram {}

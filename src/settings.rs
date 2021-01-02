@@ -3,7 +3,7 @@
 use baseview::WindowOpenOptions;
 
 /// The settings of an application.
-#[derive(Debug)]
+#[allow(missing_debug_implementations)]
 pub struct Settings<Flags> {
     /// The [`Window`] settings
     ///
