@@ -168,7 +168,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     /// Open a new window as if it had a parent window.
     ///
     /// * `settings` - The settings of the window.
-    pub fn open_as_if_parented<P>(
+    pub fn open_as_if_parented(
         settings: Settings<A::Flags>,
     ) -> RawWindowHandle {
         // WindowScalePolicy does not implement Copy/Clone.
