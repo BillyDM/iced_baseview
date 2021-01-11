@@ -75,8 +75,6 @@ pub fn baseview_to_iced_events(
             let is_modifier = match event.code {
                 Code::AltLeft => true,
                 Code::AltRight => true,
-                Code::BracketLeft => true,
-                Code::BracketRight => true,
                 Code::ControlLeft => true,
                 Code::ControlRight => true,
                 Code::ShiftLeft => true,
