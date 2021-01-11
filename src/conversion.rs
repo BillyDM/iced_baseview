@@ -63,7 +63,7 @@ pub fn baseview_to_iced_events(
         }
 
         BaseEvent::Keyboard(event) => {
-            use keyboard_types::Modifiers;
+            use keyboard_types::{Code, Modifiers};
 
             let modifiers = IcedModifiers {
                 shift: event.modifiers.contains(Modifiers::SHIFT),
@@ -71,6 +71,25 @@ pub fn baseview_to_iced_events(
                 alt: event.modifiers.contains(Modifiers::ALT),
                 logo: event.modifiers.contains(Modifiers::META),
             };
+
+            let is_modifier = match event.code {
+                Code::AltLeft => true,
+                Code::AltRight => true,
+                Code::BracketLeft => true,
+                Code::BracketRight => true,
+                Code::ControlLeft => true,
+                Code::ControlRight => true,
+                Code::ShiftLeft => true,
+                Code::ShiftRight => true,
+                Code::MetaLeft => true,
+                Code::MetaRight => true,
+                _ => false,
+            };
+            if is_modifier {
+                iced_events.push(IcedEvent::Keyboard(
+                    iced_native::keyboard::Event::ModifiersChanged(modifiers),
+                ));
+            }
 
             let opt_key_code = baseview_to_iced_keycode(event.code);
 
