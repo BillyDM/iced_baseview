@@ -327,6 +327,13 @@ async fn run_instance<A, E>(
 
     let mut redraw_requested = true;
 
+    let mut modifiers = iced_core::keyboard::Modifiers {
+        shift: false,
+        control: false,
+        alt: false,
+        logo: false,
+    };
+
     debug.startup_finished();
 
     while let Some(event) = receiver.next().await {
@@ -334,7 +341,7 @@ async fn run_instance<A, E>(
             RuntimeEvent::Baseview(event) => {
                 state.update(&event, &mut debug);
 
-                crate::conversion::baseview_to_iced_events(event, &mut events);
+                crate::conversion::baseview_to_iced_events(event, &mut events, &mut modifiers);
             }
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {

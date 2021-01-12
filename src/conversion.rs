@@ -9,6 +9,7 @@ use iced_native::Event as IcedEvent;
 pub fn baseview_to_iced_events(
     event: BaseEvent,
     iced_events: &mut Vec<IcedEvent>,
+    modifiers: &mut IcedModifiers,
 ) {
     match event {
         BaseEvent::Mouse(mouse_event) => {
@@ -63,66 +64,60 @@ pub fn baseview_to_iced_events(
         }
 
         BaseEvent::Keyboard(event) => {
-            use keyboard_types::{Code, Modifiers};
+            use keyboard_types::Code;
 
-            let modifiers = IcedModifiers {
-                shift: event.modifiers.contains(Modifiers::SHIFT),
-                control: event.modifiers.contains(Modifiers::CONTROL),
-                alt: event.modifiers.contains(Modifiers::ALT),
-                logo: event.modifiers.contains(Modifiers::META),
+            let is_down = match event.state {
+                keyboard_types::KeyState::Down => true,
+                keyboard_types::KeyState::Up => false
             };
 
+            // TODO: Remove manual setting of modifiers once the issue
+            // is fixed in baseview.
             let is_modifier = match event.code {
-                Code::AltLeft => true,
-                Code::AltRight => true,
-                Code::ControlLeft => true,
-                Code::ControlRight => true,
-                Code::ShiftLeft => true,
-                Code::ShiftRight => true,
-                Code::MetaLeft => true,
-                Code::MetaRight => true,
+                Code::AltLeft => { modifiers.alt = is_down; true },
+                Code::AltRight => { modifiers.alt = is_down; true },
+                Code::ControlLeft => { modifiers.control = is_down; true },
+                Code::ControlRight => { modifiers.control = is_down; true },
+                Code::ShiftLeft => { modifiers.shift = is_down; true },
+                Code::ShiftRight => { modifiers.shift = is_down; true },
+                Code::MetaLeft => { modifiers.logo = is_down; true },
+                Code::MetaRight => { modifiers.logo = is_down; true },
                 _ => false,
             };
             if is_modifier {
                 iced_events.push(IcedEvent::Keyboard(
-                    iced_native::keyboard::Event::ModifiersChanged(modifiers),
+                    iced_native::keyboard::Event::ModifiersChanged(*modifiers),
                 ));
             }
 
             let opt_key_code = baseview_to_iced_keycode(event.code);
 
-            if let Some(key_code) = opt_key_code {
-                match event.state {
-                    keyboard_types::KeyState::Down => {
-                        iced_events.push(IcedEvent::Keyboard(
-                            IcedKeyEvent::KeyPressed {
-                                key_code,
-                                modifiers,
-                            },
-                        ));
-                    }
-                    keyboard_types::KeyState::Up => {
-                        iced_events.push(IcedEvent::Keyboard(
-                            IcedKeyEvent::KeyReleased {
-                                key_code,
-                                modifiers,
-                            },
-                        ));
-                    }
+            if is_down {
+                if let Some(key_code) = opt_key_code {
+                    iced_events.push(IcedEvent::Keyboard(
+                        IcedKeyEvent::KeyPressed {
+                            key_code,
+                            modifiers: *modifiers,
+                        },
+                    ));
                 }
-            };
 
-            match event.state {
-                keyboard_types::KeyState::Down => {
-                    if let keyboard_types::Key::Character(written) = event.key {
-                        for chr in written.chars() {
-                            iced_events.push(IcedEvent::Keyboard(
-                                IcedKeyEvent::CharacterReceived(chr),
-                            ));
-                        }
+                if let keyboard_types::Key::Character(written) = event.key {
+                    for chr in written.chars() {
+                        iced_events.push(IcedEvent::Keyboard(
+                            IcedKeyEvent::CharacterReceived(chr),
+                        ));
                     }
                 }
-                _ => {}
+            } else {
+                if let Some(key_code) = opt_key_code {
+                    iced_events.push(IcedEvent::Keyboard(
+                        IcedKeyEvent::KeyReleased {
+                            key_code,
+                            modifiers: *modifiers,
+                        },
+                    ));
+                }
             }
         }
 
