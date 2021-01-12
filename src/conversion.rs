@@ -128,6 +128,12 @@ pub fn baseview_to_iced_events(
                     height: window_info.logical_size().height as u32,
                 }));
             }
+            baseview::WindowEvent::Unfocused => {
+                modifiers.alt = false;
+                modifiers.shift = false;
+                modifiers.control = false;
+                modifiers.logo = false;
+            }
             _ => {}
         },
     }
