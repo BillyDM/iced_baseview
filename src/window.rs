@@ -231,7 +231,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 }
 
 impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
-    fn on_frame(&mut self) {
+    fn on_frame(&mut self, _window: &mut Window<'_>) {
         // Send event to render the frame.
         self.sender
             .start_send(RuntimeEvent::UpdateSwapChain)
@@ -341,7 +341,11 @@ async fn run_instance<A, E>(
             RuntimeEvent::Baseview(event) => {
                 state.update(&event, &mut debug);
 
-                crate::conversion::baseview_to_iced_events(event, &mut events, &mut modifiers);
+                crate::conversion::baseview_to_iced_events(
+                    event,
+                    &mut events,
+                    &mut modifiers,
+                );
             }
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
