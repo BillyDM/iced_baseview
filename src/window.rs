@@ -231,7 +231,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 }
 
 impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
-    fn on_frame(&mut self) {
+    fn on_frame(&mut self, _window: &mut Window<'_>) {
         // Send event to render the frame.
         self.sender
             .start_send(RuntimeEvent::UpdateSwapChain)
