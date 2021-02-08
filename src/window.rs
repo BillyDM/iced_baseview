@@ -1,10 +1,10 @@
 use baseview::{Event, Window, WindowHandler, WindowScalePolicy};
-use futures::SinkExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
 use iced_native::{Cache, UserInterface};
 use iced_native::{Debug, Executor, Runtime, Size};
+use mpsc::SendError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::mem::ManuallyDrop;
 use std::pin::Pin;
@@ -12,9 +12,7 @@ use std::pin::Pin;
 use crate::application::State;
 use crate::{proxy::Proxy, Application, Compositor, Renderer, Settings};
 
-/// The runtime event type.
-#[allow(missing_debug_implementations)]
-pub enum RuntimeEvent<Message: 'static + Send> {
+pub(crate) enum RuntimeEvent<Message: 'static + Send> {
     Baseview(baseview::Event),
     UserEvent(Message),
     MainEventsCleared,
@@ -66,12 +64,8 @@ impl<Message: 'static + Send> WindowHandle<Message> {
     pub fn send_baseview_event(
         &mut self,
         event: baseview::Event,
-    ) -> futures::sink::Send<
-        '_,
-        mpsc::UnboundedSender<RuntimeEvent<Message>>,
-        RuntimeEvent<Message>,
-    > {
-        self.tx.send(RuntimeEvent::Baseview(event))
+    ) -> Result<(), SendError> {
+        self.tx.start_send(RuntimeEvent::Baseview(event))
     }
 
     /// Send a custom message to the window.
@@ -79,15 +73,8 @@ impl<Message: 'static + Send> WindowHandle<Message> {
     /// Please note this channel is ***not*** realtime-safe and should never be
     /// used to send events from the audio thread. Use a realtime-safe ring
     /// buffer instead.
-    pub fn send_message(
-        &mut self,
-        msg: Message,
-    ) -> futures::sink::Send<
-        '_,
-        mpsc::UnboundedSender<RuntimeEvent<Message>>,
-        RuntimeEvent<Message>,
-    > {
-        self.tx.send(RuntimeEvent::UserEvent(msg))
+    pub fn send_message(&mut self, msg: Message) -> Result<(), SendError> {
+        self.tx.start_send(RuntimeEvent::UserEvent(msg))
     }
 
     /// Signal the window to close.
@@ -95,14 +82,8 @@ impl<Message: 'static + Send> WindowHandle<Message> {
     /// Please note this channel is ***not*** realtime-safe and should never be
     /// be used to send events from the audio thread. Use a realtime-safe ring
     /// buffer instead.
-    pub fn send_close_signal(
-        &mut self,
-    ) -> futures::sink::Send<
-        '_,
-        mpsc::UnboundedSender<RuntimeEvent<Message>>,
-        RuntimeEvent<Message>,
-    > {
-        self.tx.send(RuntimeEvent::WillClose)
+    pub fn send_close_signal(&mut self) -> Result<(), SendError> {
+        self.tx.start_send(RuntimeEvent::WillClose)
     }
 }
 
@@ -596,6 +577,8 @@ async fn run_instance<A, E>(
             }
         }
     }
+
+    receiver.close();
 
     // Manually drop the user interface
     drop(ManuallyDrop::into_inner(user_interface));
