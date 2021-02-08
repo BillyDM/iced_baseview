@@ -82,7 +82,7 @@ impl<Message: 'static + Send> WindowHandle<Message> {
     /// Please note this channel is ***not*** realtime-safe and should never be
     /// be used to send events from the audio thread. Use a realtime-safe ring
     /// buffer instead.
-    pub fn send_close_signal(&mut self) -> Result<(), SendError> {
+    pub fn close_window(&mut self) -> Result<(), SendError> {
         self.tx.start_send(RuntimeEvent::WillClose)
     }
 }
