@@ -68,20 +68,44 @@ pub fn baseview_to_iced_events(
 
             let is_down = match event.state {
                 keyboard_types::KeyState::Down => true,
-                keyboard_types::KeyState::Up => false
+                keyboard_types::KeyState::Up => false,
             };
 
             // TODO: Remove manual setting of modifiers once the issue
             // is fixed in baseview.
             let is_modifier = match event.code {
-                Code::AltLeft => { modifiers.alt = is_down; true },
-                Code::AltRight => { modifiers.alt = is_down; true },
-                Code::ControlLeft => { modifiers.control = is_down; true },
-                Code::ControlRight => { modifiers.control = is_down; true },
-                Code::ShiftLeft => { modifiers.shift = is_down; true },
-                Code::ShiftRight => { modifiers.shift = is_down; true },
-                Code::MetaLeft => { modifiers.logo = is_down; true },
-                Code::MetaRight => { modifiers.logo = is_down; true },
+                Code::AltLeft => {
+                    modifiers.alt = is_down;
+                    true
+                }
+                Code::AltRight => {
+                    modifiers.alt = is_down;
+                    true
+                }
+                Code::ControlLeft => {
+                    modifiers.control = is_down;
+                    true
+                }
+                Code::ControlRight => {
+                    modifiers.control = is_down;
+                    true
+                }
+                Code::ShiftLeft => {
+                    modifiers.shift = is_down;
+                    true
+                }
+                Code::ShiftRight => {
+                    modifiers.shift = is_down;
+                    true
+                }
+                Code::MetaLeft => {
+                    modifiers.logo = is_down;
+                    true
+                }
+                Code::MetaRight => {
+                    modifiers.logo = is_down;
+                    true
+                }
                 _ => false,
             };
             if is_modifier {

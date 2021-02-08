@@ -1,4 +1,5 @@
 use baseview::{Event, Window, WindowHandler, WindowScalePolicy};
+use futures::SinkExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
@@ -11,7 +12,9 @@ use std::pin::Pin;
 use crate::application::State;
 use crate::{proxy::Proxy, Application, Compositor, Renderer, Settings};
 
-enum RuntimeEvent<Message: 'static + Send> {
+/// The runtime event type.
+#[allow(missing_debug_implementations)]
+pub enum RuntimeEvent<Message: 'static + Send> {
     Baseview(baseview::Event),
     UserEvent(Message),
     MainEventsCleared,
@@ -38,6 +41,71 @@ impl<Message: Clone> Default for WindowSubs<Message> {
     }
 }
 
+/// Use this to send custom events to the iced window.
+///
+/// Please note this channel is ***not*** realtime-safe and should never be
+/// be used to send events from the audio thread. Use a realtime-safe ring
+/// buffer instead.
+#[allow(missing_debug_implementations)]
+pub struct WindowHandle<Message: 'static + Send> {
+    tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
+}
+
+impl<Message: 'static + Send> WindowHandle<Message> {
+    pub(crate) fn new(
+        tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
+    ) -> Self {
+        Self { tx }
+    }
+
+    // Send a custom `baseview::Event` to the window.
+    ///
+    /// Please note this channel is ***not*** realtime-safe and should never be
+    /// be used to send events from the audio thread. Use a realtime-safe ring
+    /// buffer instead.
+    pub fn send_iced_event(
+        &mut self,
+        event: baseview::Event,
+    ) -> futures::sink::Send<
+        '_,
+        mpsc::UnboundedSender<RuntimeEvent<Message>>,
+        RuntimeEvent<Message>,
+    > {
+        self.tx.send(RuntimeEvent::Baseview(event))
+    }
+
+    // Send a custom message to the window.
+    ///
+    /// Please note this channel is ***not*** realtime-safe and should never be
+    /// used to send events from the audio thread. Use a realtime-safe ring
+    /// buffer instead.
+    pub fn send_message(
+        &mut self,
+        msg: Message,
+    ) -> futures::sink::Send<
+        '_,
+        mpsc::UnboundedSender<RuntimeEvent<Message>>,
+        RuntimeEvent<Message>,
+    > {
+        self.tx.send(RuntimeEvent::UserEvent(msg))
+    }
+
+    // Signal the window to close.
+    ///
+    /// Please note this channel is ***not*** realtime-safe and should never be
+    /// be used to send events from the audio thread. Use a realtime-safe ring
+    /// buffer instead.
+    pub fn send_close_signal(
+        &mut self,
+    ) -> futures::sink::Send<
+        '_,
+        mpsc::UnboundedSender<RuntimeEvent<Message>>,
+        RuntimeEvent<Message>,
+    > {
+        self.tx.send(RuntimeEvent::WillClose)
+    }
+}
+
 /// Handles an iced_baseview application
 #[allow(missing_debug_implementations)]
 pub struct IcedWindow<A: Application + 'static + Send> {
@@ -54,6 +122,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         scale_policy: WindowScalePolicy,
         logical_width: f64,
         logical_height: f64,
+        sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
+        receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     ) -> IcedWindow<A> {
         use futures::task;
         use iced_graphics::window::Compositor as IGCompositor;
@@ -105,8 +175,6 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let state = State::new(&application, viewport, scale_policy);
 
-        let (sender, receiver) = mpsc::unbounded();
-
         let instance = Box::pin(run_instance(
             application,
             compositor,
@@ -133,7 +201,10 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     ///
     /// * `parent` - The parent window.
     /// * `settings` - The settings of the window.
-    pub fn open_parented<P>(parent: &P, settings: Settings<A::Flags>)
+    pub fn open_parented<P>(
+        parent: &P,
+        settings: Settings<A::Flags>,
+    ) -> WindowHandle<A::Message>
     where
         P: HasRawWindowHandle,
     {
@@ -150,6 +221,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
 
+        let (sender, receiver) = mpsc::unbounded();
+        let handle = WindowHandle::new(sender.clone());
+
         Window::open_parented(
             parent,
             settings.window,
@@ -160,9 +234,13 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    sender,
+                    receiver,
                 )
             },
-        )
+        );
+
+        handle
     }
 
     /// Open a new window as if it had a parent window.
@@ -170,7 +248,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     /// * `settings` - The settings of the window.
     pub fn open_as_if_parented(
         settings: Settings<A::Flags>,
-    ) -> RawWindowHandle {
+    ) -> (RawWindowHandle, WindowHandle<A::Message>) {
         // WindowScalePolicy does not implement Copy/Clone.
         let scale_policy = match &settings.window.scale {
             WindowScalePolicy::SystemScaleFactor => {
@@ -184,24 +262,34 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
 
-        Window::open_as_if_parented(
-            settings.window,
-            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                IcedWindow::new(
-                    window,
-                    flags,
-                    scale_policy,
-                    logical_width,
-                    logical_height,
-                )
-            },
+        let (sender, receiver) = mpsc::unbounded();
+        let handle = WindowHandle::new(sender.clone());
+
+        (
+            Window::open_as_if_parented(
+                settings.window,
+                move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
+                    IcedWindow::new(
+                        window,
+                        flags,
+                        scale_policy,
+                        logical_width,
+                        logical_height,
+                        sender,
+                        receiver,
+                    )
+                },
+            ),
+            handle,
         )
     }
 
     /// Open a new window that blocks the current thread until the window is destroyed.
     ///
     /// * `settings` - The settings of the window.
-    pub fn open_blocking(settings: Settings<A::Flags>) {
+    pub fn open_blocking(
+        settings: Settings<A::Flags>,
+    ) -> WindowHandle<A::Message> {
         // WindowScalePolicy does not implement Copy/Clone.
         let scale_policy = match &settings.window.scale {
             WindowScalePolicy::SystemScaleFactor => {
@@ -214,6 +302,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
+
+        let (sender, receiver) = mpsc::unbounded();
+        let handle = WindowHandle::new(sender.clone());
 
         Window::open_blocking(
             settings.window,
@@ -224,9 +315,13 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    sender,
+                    receiver,
                 )
             },
-        )
+        );
+
+        handle
     }
 }
 
@@ -341,7 +436,11 @@ async fn run_instance<A, E>(
             RuntimeEvent::Baseview(event) => {
                 state.update(&event, &mut debug);
 
-                crate::conversion::baseview_to_iced_events(event, &mut events, &mut modifiers);
+                crate::conversion::baseview_to_iced_events(
+                    event,
+                    &mut events,
+                    &mut modifiers,
+                );
             }
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
