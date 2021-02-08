@@ -58,7 +58,7 @@ impl<Message: 'static + Send> WindowHandle<Message> {
         Self { tx }
     }
 
-    // Send a custom `baseview::Event` to the window.
+    /// Send a custom `baseview::Event` to the window.
     ///
     /// Please note this channel is ***not*** realtime-safe and should never be
     /// be used to send events from the audio thread. Use a realtime-safe ring
@@ -74,7 +74,7 @@ impl<Message: 'static + Send> WindowHandle<Message> {
         self.tx.send(RuntimeEvent::Baseview(event))
     }
 
-    // Send a custom message to the window.
+    /// Send a custom message to the window.
     ///
     /// Please note this channel is ***not*** realtime-safe and should never be
     /// used to send events from the audio thread. Use a realtime-safe ring
@@ -90,7 +90,7 @@ impl<Message: 'static + Send> WindowHandle<Message> {
         self.tx.send(RuntimeEvent::UserEvent(msg))
     }
 
-    // Signal the window to close.
+    /// Signal the window to close.
     ///
     /// Please note this channel is ***not*** realtime-safe and should never be
     /// be used to send events from the audio thread. Use a realtime-safe ring
