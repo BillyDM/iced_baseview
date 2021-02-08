@@ -63,7 +63,7 @@ impl<Message: 'static + Send> WindowHandle<Message> {
     /// Please note this channel is ***not*** realtime-safe and should never be
     /// be used to send events from the audio thread. Use a realtime-safe ring
     /// buffer instead.
-    pub fn send_iced_event(
+    pub fn send_baseview_event(
         &mut self,
         event: baseview::Event,
     ) -> futures::sink::Send<
