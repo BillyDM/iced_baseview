@@ -197,15 +197,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     where
         P: HasRawWindowHandle,
     {
-        // WindowScalePolicy does not implement Copy/Clone.
-        let scale_policy = match &settings.window.scale {
-            WindowScalePolicy::SystemScaleFactor => {
-                WindowScalePolicy::SystemScaleFactor
-            }
-            WindowScalePolicy::ScaleFactor(scale) => {
-                WindowScalePolicy::ScaleFactor(*scale)
-            }
-        };
+        let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
@@ -238,15 +230,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     pub fn open_as_if_parented(
         settings: Settings<A::Flags>,
     ) -> (RawWindowHandle, WindowHandle<A::Message>) {
-        // WindowScalePolicy does not implement Copy/Clone.
-        let scale_policy = match &settings.window.scale {
-            WindowScalePolicy::SystemScaleFactor => {
-                WindowScalePolicy::SystemScaleFactor
-            }
-            WindowScalePolicy::ScaleFactor(scale) => {
-                WindowScalePolicy::ScaleFactor(*scale)
-            }
-        };
+        let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
@@ -279,15 +263,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     pub fn open_blocking(
         settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message> {
-        // WindowScalePolicy does not implement Copy/Clone.
-        let scale_policy = match &settings.window.scale {
-            WindowScalePolicy::SystemScaleFactor => {
-                WindowScalePolicy::SystemScaleFactor
-            }
-            WindowScalePolicy::ScaleFactor(scale) => {
-                WindowScalePolicy::ScaleFactor(*scale)
-            }
-        };
+        let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
@@ -369,10 +345,7 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
             let _ = self.instance.as_mut().poll(&mut self.runtime_context);
 
             // TODO: make this Copy
-            match &*self.event_status.borrow() {
-                EventStatus::Captured => EventStatus::Captured,
-                EventStatus::Ignored => EventStatus::Ignored,
-            }
+            *self.event_status.borrow()
         }
     }
 }
