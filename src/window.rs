@@ -493,7 +493,6 @@ async fn run_instance<A, E>(
                     && events.is_empty()
                     && messages.is_empty()
                 {
-                    did_process_event = false;
                     continue;
                 }
                 did_process_event = false;
