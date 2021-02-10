@@ -425,6 +425,7 @@ async fn run_instance<A, E>(
     let mut messages = Vec::new();
 
     let mut redraw_requested = true;
+    let mut did_process_event = false;
 
     let mut modifiers = iced_core::keyboard::Modifiers {
         shift: false,
@@ -480,30 +481,39 @@ async fn run_instance<A, E>(
                 for event in events.drain(..).zip(statuses.into_iter()) {
                     runtime.broadcast(event);
                 }
+
+                did_process_event = true;
             }
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
                     messages.push(message.clone());
                 }
 
-                if events.is_empty() && messages.is_empty() {
+                if !did_process_event
+                    && events.is_empty()
+                    && messages.is_empty()
+                {
+                    did_process_event = false;
                     continue;
                 }
+                did_process_event = false;
 
-                debug.event_processing_started();
+                if !events.is_empty() {
+                    debug.event_processing_started();
 
-                let statuses = user_interface.update(
-                    &events,
-                    state.cursor_position(),
-                    None, // TODO: clipboard
-                    &mut renderer,
-                    &mut messages,
-                );
+                    let statuses = user_interface.update(
+                        &events,
+                        state.cursor_position(),
+                        None, // TODO: clipboard
+                        &mut renderer,
+                        &mut messages,
+                    );
 
-                debug.event_processing_finished();
+                    debug.event_processing_finished();
 
-                for event in events.drain(..).zip(statuses.into_iter()) {
-                    runtime.broadcast(event);
+                    for event in events.drain(..).zip(statuses.into_iter()) {
+                        runtime.broadcast(event);
+                    }
                 }
 
                 if !messages.is_empty() {
