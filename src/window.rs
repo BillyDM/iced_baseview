@@ -1,19 +1,22 @@
-use baseview::{Event, Window, WindowHandler, WindowScalePolicy};
+use baseview::{Event, EventStatus, Window, WindowHandler, WindowScalePolicy};
+use futures::StreamExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
-use iced_native::{Cache, UserInterface};
+use iced_native::{event::Status, Cache, UserInterface};
 use iced_native::{Debug, Executor, Runtime, Size};
 use mpsc::SendError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use std::cell::RefCell;
 use std::mem::ManuallyDrop;
 use std::pin::Pin;
+use std::rc::Rc;
 
 use crate::application::State;
 use crate::{proxy::Proxy, Application, Compositor, Renderer, Settings};
 
 pub(crate) enum RuntimeEvent<Message: 'static + Send> {
-    Baseview(baseview::Event),
+    Baseview((baseview::Event, bool)),
     UserEvent(Message),
     MainEventsCleared,
     UpdateSwapChain,
@@ -65,7 +68,7 @@ impl<Message: 'static + Send> WindowHandle<Message> {
         &mut self,
         event: baseview::Event,
     ) -> Result<(), SendError> {
-        self.tx.start_send(RuntimeEvent::Baseview(event))
+        self.tx.start_send(RuntimeEvent::Baseview((event, false)))
     }
 
     /// Send a custom message to the window.
@@ -94,6 +97,7 @@ pub struct IcedWindow<A: Application + 'static + Send> {
     instance: Pin<Box<dyn futures::Future<Output = ()>>>,
     runtime_context: futures::task::Context<'static>,
     runtime_rx: mpsc::UnboundedReceiver<A::Message>,
+    event_status: Rc<RefCell<EventStatus>>,
 }
 
 impl<A: Application + 'static + Send> IcedWindow<A> {
@@ -156,6 +160,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let state = State::new(&application, viewport, scale_policy);
 
+        let event_status = Rc::new(RefCell::new(EventStatus::Ignored));
+
         let instance = Box::pin(run_instance(
             application,
             compositor,
@@ -166,6 +172,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             surface,
             state,
             window_subs,
+            event_status.clone(),
         ));
 
         let runtime_context = task::Context::from_waker(task::noop_waker_ref());
@@ -175,6 +182,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             instance,
             runtime_context,
             runtime_rx,
+            event_status,
         }
     }
 
@@ -337,7 +345,11 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
     }
 
-    fn on_event(&mut self, _window: &mut Window<'_>, event: Event) {
+    fn on_event(
+        &mut self,
+        _window: &mut Window<'_>,
+        event: Event,
+    ) -> EventStatus {
         if requests_exit(&event) {
             self.sender
                 .start_send(RuntimeEvent::WillClose)
@@ -345,11 +357,22 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
 
             // Flush all messages so the application receives the close event. This will block until the instance is finished.
             let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+
+            EventStatus::Ignored
         } else {
             // Send the event to the instance.
             self.sender
-                .start_send(RuntimeEvent::Baseview(event))
+                .start_send(RuntimeEvent::Baseview((event, true)))
                 .expect("Send event");
+
+            // Flush all messages so the application receives the event. This will block until the instance is finished.
+            let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+
+            // TODO: make this Copy
+            match &*self.event_status.borrow() {
+                EventStatus::Captured => EventStatus::Captured,
+                EventStatus::Ignored => EventStatus::Ignored,
+            }
         }
     }
 }
@@ -367,11 +390,11 @@ async fn run_instance<A, E>(
     surface: <Compositor as iced_graphics::window::Compositor>::Surface,
     mut state: State<A>,
     mut window_subs: WindowSubs<A::Message>,
+    event_status: Rc<RefCell<EventStatus>>,
 ) where
     A: Application + 'static + Send,
     E: Executor + 'static,
 {
-    use iced_futures::futures::stream::StreamExt;
     use iced_graphics::window::Compositor as IGCompositor;
     //let clipboard = Clipboard::new(window);  // TODO: clipboard
 
@@ -414,7 +437,7 @@ async fn run_instance<A, E>(
 
     while let Some(event) = receiver.next().await {
         match event {
-            RuntimeEvent::Baseview(event) => {
+            RuntimeEvent::Baseview((event, do_send_status)) => {
                 state.update(&event, &mut debug);
 
                 crate::conversion::baseview_to_iced_events(
@@ -422,6 +445,41 @@ async fn run_instance<A, E>(
                     &mut events,
                     &mut modifiers,
                 );
+
+                if events.is_empty() {
+                    if do_send_status {
+                        *event_status.borrow_mut() = EventStatus::Ignored;
+                    }
+                    continue;
+                }
+
+                debug.event_processing_started();
+
+                let statuses = user_interface.update(
+                    &events,
+                    state.cursor_position(),
+                    None, // TODO: clipboard
+                    &mut renderer,
+                    &mut messages,
+                );
+
+                if do_send_status {
+                    let mut final_status = EventStatus::Ignored;
+                    for status in &statuses {
+                        if let Status::Captured = status {
+                            final_status = EventStatus::Captured;
+                            break;
+                        }
+                    }
+
+                    *event_status.borrow_mut() = final_status;
+                }
+
+                debug.event_processing_finished();
+
+                for event in events.drain(..).zip(statuses.into_iter()) {
+                    runtime.broadcast(event);
+                }
             }
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {

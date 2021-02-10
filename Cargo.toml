@@ -42,4 +42,3 @@ iced_wgpu = { version = "0.3", optional = true }
 keyboard-types = { version = "0.5", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", branch = "master" }
 raw-window-handle = "0.3"
-rtrb = "0.1"
