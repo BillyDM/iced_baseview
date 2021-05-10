@@ -1,4 +1,5 @@
 use baseview::Event as BaseEvent;
+use iced_core::Point;
 use iced_native::keyboard::Event as IcedKeyEvent;
 use iced_native::keyboard::Modifiers as IcedModifiers;
 use iced_native::mouse::Button as IcedMouseButton;
@@ -17,8 +18,10 @@ pub fn baseview_to_iced_events(
                 baseview::MouseEvent::CursorMoved { position } => {
                     iced_events.push(IcedEvent::Mouse(
                         IcedMouseEvent::CursorMoved {
-                            x: position.x as f32,
-                            y: position.y as f32,
+                            position: Point::new(
+                                position.x as f32,
+                                position.y as f32,
+                            ),
                         },
                     ));
                 }

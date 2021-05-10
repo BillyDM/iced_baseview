@@ -409,6 +409,8 @@ async fn run_instance<A, E>(
 
     debug.startup_finished();
 
+    let mut clipboard = iced_native::clipboard::Null; // TODO: clipboard
+
     while let Some(event) = receiver.next().await {
         match event {
             RuntimeEvent::Baseview((event, do_send_status)) => {
@@ -432,8 +434,8 @@ async fn run_instance<A, E>(
                 let statuses = user_interface.update(
                     &events,
                     state.cursor_position(),
-                    None, // TODO: clipboard
                     &mut renderer,
+                    &mut clipboard, // TODO: clipboard
                     &mut messages,
                 );
 
@@ -476,8 +478,8 @@ async fn run_instance<A, E>(
                     let statuses = user_interface.update(
                         &events,
                         state.cursor_position(),
-                        None, // TODO: clipboard
                         &mut renderer,
+                        &mut clipboard, // TODO: clipboard
                         &mut messages,
                     );
 
