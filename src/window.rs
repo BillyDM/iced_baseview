@@ -403,9 +403,13 @@ async fn run_instance<A, E>(
     mut debug: Debug,
     mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
 
+    #[rustfmt::skip]
+    #[cfg(feature = "wgpu")]
     surface: <Compositor as iced_graphics::window::Compositor>::Surface,
 
-    #[cfg(feature = "glow")] gl_context: raw_gl_context::GlContext,
+    #[rustfmt::skip]
+    #[cfg(feature = "glow")]
+    gl_context: raw_gl_context::GlContext,
 
     mut state: State<A>,
     mut window_subs: WindowSubs<A::Message>,
