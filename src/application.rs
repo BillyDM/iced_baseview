@@ -1,5 +1,6 @@
 use crate::{
-    renderer, Color, Command, Element, Executor, Subscription, WindowSubs,
+    Color, Command, Compositor, Element, Executor, Renderer, Subscription,
+    WindowSubs,
 };
 
 use baseview::WindowScalePolicy;
@@ -189,7 +190,22 @@ pub trait Application: Sized + 'static {
     }
 
     /// Returns the renderer settings
-    fn renderer_settings() -> renderer::Settings {
-        renderer::Settings::default()
+    #[cfg(feature = "wgpu")]
+    fn renderer_settings() -> iced_wgpu::settings::Settings {
+        iced_wgpu::settings::Settings {
+            // We usually don't want vsync for audio plugins.
+            present_mode: iced_wgpu::wgpu::PresentMode::Immediate,
+            ..iced_wgpu::settings::Settings::default()
+        }
+    }
+
+    /// Returns the renderer settings
+    #[cfg(feature = "glow")]
+    fn renderer_settings(
+    ) -> (raw_gl_context::GlConfig, iced_glow::settings::Settings) {
+        (
+            raw_gl_context::GlConfig::default(),
+            iced_glow::settings::Settings::default(),
+        )
     }
 }

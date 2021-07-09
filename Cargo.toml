@@ -24,6 +24,14 @@ svg = ["iced_wgpu/svg"]
 canvas = ["iced_wgpu/canvas"]
 # Enables using system fonts.
 default_system_font = ["iced_wgpu/default_system_font"]
+
+# Enables the `wgpu` rendering backend
+glow = ["iced_glow", "raw-gl-context"]
+# Enables the `Canvas` widget
+glow_canvas = ["iced_glow/canvas"]
+# Enables using system fonts.
+glow_default_system_font = ["iced_glow/default_system_font"]
+
 # Enables a debug view in native platforms (press F12)
 debug = ["iced_native/debug"]
 # Enables `tokio` as the `executor::Default` on native platforms
@@ -39,6 +47,8 @@ iced_futures = "0.3"
 iced_native =  "0.4"
 iced_graphics = "0.2"
 iced_wgpu = { version = "0.4", optional = true }
+iced_glow = { version = "0.2", optional = true }
+raw-gl-context = { version = "0.1", optional = true }
 keyboard-types = { version = "0.5", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "d399c1275522ae75f5a82caadd904df2685c8660" }
 raw-window-handle = "0.3"

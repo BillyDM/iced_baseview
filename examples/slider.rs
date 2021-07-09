@@ -84,6 +84,7 @@ impl Application for MyProgram {
         Color::WHITE
     }
 
+    /*
     fn renderer_settings() -> renderer::Settings {
         renderer::Settings {
             default_font: None,
@@ -92,4 +93,5 @@ impl Application for MyProgram {
             ..renderer::Settings::default()
         }
     }
+    */
 }

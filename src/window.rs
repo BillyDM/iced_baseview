@@ -111,7 +111,12 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     ) -> IcedWindow<A> {
         use futures::task;
+
+        #[cfg(feature = "wgpu")]
         use iced_graphics::window::Compositor as IGCompositor;
+
+        #[cfg(feature = "glow")]
+        use iced_graphics::window::GLCompositor as IGCompositor;
 
         let mut debug = Debug::new();
         debug.startup_started();
@@ -153,15 +158,38 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let renderer_settings = A::renderer_settings();
 
+        #[cfg(feature = "wgpu")]
         let (mut compositor, renderer) =
             <Compositor as IGCompositor>::new(renderer_settings).unwrap();
 
+        #[cfg(feature = "glow")]
+        let (context, compositor, renderer) = {
+            let context =
+                raw_gl_context::GlContext::create(window, renderer_settings.0)
+                    .unwrap();
+            context.make_current();
+
+            #[allow(unsafe_code)]
+            let (compositor, renderer) = unsafe {
+                <Compositor as IGCompositor>::new(renderer_settings.1, |s| {
+                    context.get_proc_address(s)
+                })
+                .unwrap()
+            };
+
+            context.make_not_current();
+
+            (context, compositor, renderer)
+        };
+
+        #[cfg(feature = "wgpu")]
         let surface = compositor.create_surface(window);
 
         let state = State::new(&application, viewport, scale_policy);
 
         let event_status = Rc::new(RefCell::new(EventStatus::Ignored));
 
+        #[cfg(feature = "wgpu")]
         let instance = Box::pin(run_instance(
             application,
             compositor,
@@ -170,6 +198,20 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             debug,
             receiver,
             surface,
+            state,
+            window_subs,
+            event_status.clone(),
+        ));
+
+        #[cfg(feature = "glow")]
+        let instance = Box::pin(run_instance(
+            application,
+            compositor,
+            renderer,
+            runtime,
+            debug,
+            receiver,
+            context,
             state,
             window_subs,
             event_status.clone(),
@@ -360,7 +402,11 @@ async fn run_instance<A, E>(
     mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
     mut debug: Debug,
     mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
+
     surface: <Compositor as iced_graphics::window::Compositor>::Surface,
+
+    #[cfg(feature = "glow")] gl_context: raw_gl_context::GlContext,
+
     mut state: State<A>,
     mut window_subs: WindowSubs<A::Message>,
     event_status: Rc<RefCell<EventStatus>>,
@@ -368,10 +414,17 @@ async fn run_instance<A, E>(
     A: Application + 'static + Send,
     E: Executor + 'static,
 {
+    #[cfg(feature = "wgpu")]
     use iced_graphics::window::Compositor as IGCompositor;
+
+    #[cfg(feature = "glow")]
+    use iced_graphics::window::GLCompositor as IGCompositor;
+
     //let clipboard = Clipboard::new(window);  // TODO: clipboard
 
     let mut viewport_version = state.viewport_version();
+
+    #[cfg(feature = "wgpu")]
     let mut swap_chain = {
         let physical_size = state.physical_size();
 
@@ -531,11 +584,21 @@ async fn run_instance<A, E>(
                 if viewport_version != current_viewport_version {
                     let physical_size = state.physical_size();
 
-                    swap_chain = compositor.create_swap_chain(
-                        &surface,
-                        physical_size.width,
-                        physical_size.height,
-                    );
+                    #[cfg(feature = "wgpu")]
+                    {
+                        swap_chain = compositor.create_swap_chain(
+                            &surface,
+                            physical_size.width,
+                            physical_size.height,
+                        );
+                    }
+
+                    #[cfg(feature = "glow")]
+                    {
+                        gl_context.make_current();
+                        compositor.resize_viewport(physical_size);
+                        gl_context.make_not_current();
+                    }
 
                     let logical_size = state.logical_size();
 
@@ -558,6 +621,7 @@ async fn run_instance<A, E>(
                 if redraw_requested {
                     debug.render_started();
 
+                    #[cfg(feature = "wgpu")]
                     let new_mouse_interaction = compositor.draw(
                         &mut renderer,
                         &mut swap_chain,
@@ -566,6 +630,24 @@ async fn run_instance<A, E>(
                         &primitive,
                         &debug.overlay(),
                     );
+
+                    #[cfg(feature = "glow")]
+                    let new_mouse_interaction = {
+                        gl_context.make_current();
+
+                        let new_mouse_interaction = compositor.draw(
+                            &mut renderer,
+                            state.viewport(),
+                            state.background_color(),
+                            &primitive,
+                            &debug.overlay(),
+                        );
+
+                        gl_context.swap_buffers();
+                        gl_context.make_not_current();
+
+                        new_mouse_interaction
+                    };
 
                     debug.render_finished();
 

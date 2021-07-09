@@ -24,12 +24,17 @@ pub use window::{IcedWindow, WindowHandle, WindowSubs};
 
 #[cfg(feature = "wgpu")]
 type Renderer = iced_wgpu::Renderer;
-
 #[cfg(feature = "wgpu")]
 type Compositor = iced_wgpu::window::Compositor;
-
 #[cfg(feature = "wgpu")]
 pub use iced_wgpu as renderer;
+
+#[cfg(feature = "glow")]
+type Renderer = iced_glow::Renderer;
+#[cfg(feature = "glow")]
+type Compositor = iced_glow::window::Compositor;
+#[cfg(feature = "glow")]
+pub use iced_glow as renderer;
 
 #[doc(no_inline)]
 pub use iced_native::{
