@@ -198,6 +198,7 @@ pub trait Application: Sized + 'static {
 
     /// Returns the renderer settings
     #[cfg(feature = "glow")]
+    #[cfg(not(feature = "wgpu"))]
     fn renderer_settings(
     ) -> (raw_gl_context::GlConfig, iced_glow::settings::Settings) {
         (
