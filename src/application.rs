@@ -1,7 +1,4 @@
-use crate::{
-    Color, Command, Compositor, Element, Executor, Renderer, Subscription,
-    WindowSubs,
-};
+use crate::{Color, Command, Element, Executor, Subscription, WindowSubs};
 
 use baseview::WindowScalePolicy;
 
