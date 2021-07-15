@@ -398,6 +398,7 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
 // This may appear to be asynchronous, but it is actually a blocking future on the same thread.
 // This is a necessary workaround for the issue described here:
 // https://github.com/hecrj/iced/pull/597
+#[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E>(
     mut application: A,
     mut compositor: Compositor,
@@ -496,7 +497,7 @@ async fn run_instance<A, E>(
                 let statuses = user_interface.update(
                     &events,
                     state.cursor_position(),
-                    &mut renderer,
+                    &renderer,
                     &mut clipboard, // TODO: clipboard
                     &mut messages,
                 );
@@ -540,7 +541,7 @@ async fn run_instance<A, E>(
                     let statuses = user_interface.update(
                         &events,
                         state.cursor_position(),
-                        &mut renderer,
+                        &renderer,
                         &mut clipboard, // TODO: clipboard
                         &mut messages,
                     );
@@ -726,12 +727,11 @@ pub fn requests_exit(event: &baseview::Event) -> bool {
         baseview::Event::Window(baseview::WindowEvent::WillClose) => true,
         #[cfg(target_os = "macos")]
         baseview::Event::Keyboard(event) => {
-            if event.code == keyboard_types::Code::KeyQ {
-                if event.modifiers == keyboard_types::Modifiers::META {
-                    if event.state == keyboard_types::KeyState::Down {
-                        return true;
-                    }
-                }
+            if event.code == keyboard_types::Code::KeyQ
+                && event.modifiers == keyboard_types::Modifiers::META
+                && event.state == keyboard_types::KeyState::Down
+            {
+                return true;
             }
 
             false

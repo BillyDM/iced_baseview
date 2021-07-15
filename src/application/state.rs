@@ -196,7 +196,7 @@ impl<A: Application + Send> State<A> {
                 let matches = match &self.scale_policy {
                     WindowScalePolicy::SystemScaleFactor => false,
                     WindowScalePolicy::ScaleFactor(scale) => {
-                        *scale == *new_scale
+                        (*scale - *new_scale).abs() < f64::EPSILON
                     }
                 };
 
