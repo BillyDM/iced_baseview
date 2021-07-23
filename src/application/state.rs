@@ -128,12 +128,23 @@ impl<A: Application + Send> State<A> {
             baseview::Event::Keyboard(event) => {
                 use keyboard_types::Modifiers as KeyModifiers;
 
-                self.modifiers = keyboard::Modifiers {
-                    shift: event.modifiers.contains(KeyModifiers::SHIFT),
-                    control: event.modifiers.contains(KeyModifiers::CONTROL),
-                    alt: event.modifiers.contains(KeyModifiers::ALT),
-                    logo: event.modifiers.contains(KeyModifiers::META),
-                };
+                self.modifiers = keyboard::Modifiers::empty();
+                self.modifiers.set(
+                    keyboard::Modifiers::SHIFT,
+                    event.modifiers.contains(KeyModifiers::SHIFT),
+                );
+                self.modifiers.set(
+                    keyboard::Modifiers::CTRL,
+                    event.modifiers.contains(KeyModifiers::CONTROL),
+                );
+                self.modifiers.set(
+                    keyboard::Modifiers::ALT,
+                    event.modifiers.contains(KeyModifiers::ALT),
+                );
+                self.modifiers.set(
+                    keyboard::Modifiers::LOGO,
+                    event.modifiers.contains(KeyModifiers::META),
+                );
             }
             #[cfg(feature = "debug")]
             WindowEvent::KeyboardInput {

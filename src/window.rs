@@ -457,12 +457,7 @@ async fn run_instance<A, E>(
     let mut redraw_requested = true;
     let mut did_process_event = false;
 
-    let mut modifiers = iced_core::keyboard::Modifiers {
-        shift: false,
-        control: false,
-        alt: false,
-        logo: false,
-    };
+    let mut modifiers = iced_core::keyboard::Modifiers::empty();
 
     debug.startup_finished();
 

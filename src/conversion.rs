@@ -78,35 +78,35 @@ pub fn baseview_to_iced_events(
             // is fixed in baseview.
             let is_modifier = match event.code {
                 Code::AltLeft => {
-                    modifiers.alt = is_down;
+                    modifiers.set(IcedModifiers::ALT, is_down);
                     true
                 }
                 Code::AltRight => {
-                    modifiers.alt = is_down;
+                    modifiers.set(IcedModifiers::ALT, is_down);
                     true
                 }
                 Code::ControlLeft => {
-                    modifiers.control = is_down;
+                    modifiers.set(IcedModifiers::CTRL, is_down);
                     true
                 }
                 Code::ControlRight => {
-                    modifiers.control = is_down;
+                    modifiers.set(IcedModifiers::CTRL, is_down);
                     true
                 }
                 Code::ShiftLeft => {
-                    modifiers.shift = is_down;
+                    modifiers.set(IcedModifiers::SHIFT, is_down);
                     true
                 }
                 Code::ShiftRight => {
-                    modifiers.shift = is_down;
+                    modifiers.set(IcedModifiers::SHIFT, is_down);
                     true
                 }
                 Code::MetaLeft => {
-                    modifiers.logo = is_down;
+                    modifiers.set(IcedModifiers::LOGO, is_down);
                     true
                 }
                 Code::MetaRight => {
-                    modifiers.logo = is_down;
+                    modifiers.set(IcedModifiers::LOGO, is_down);
                     true
                 }
                 _ => false,
@@ -156,10 +156,10 @@ pub fn baseview_to_iced_events(
                 }));
             }
             baseview::WindowEvent::Unfocused => {
-                modifiers.alt = false;
-                modifiers.shift = false;
-                modifiers.control = false;
-                modifiers.logo = false;
+                modifiers.set(IcedModifiers::ALT, false);
+                modifiers.set(IcedModifiers::SHIFT, false);
+                modifiers.set(IcedModifiers::CTRL, false);
+                modifiers.set(IcedModifiers::LOGO, false);
             }
             _ => {}
         },
