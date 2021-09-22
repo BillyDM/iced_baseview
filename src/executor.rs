@@ -38,7 +38,7 @@ mod platform {
         }
 
         fn enter<R>(&self, f: impl FnOnce() -> R) -> R {
-            self.0.enter(f)
+            super::Executor::enter(&self.0, f)
         }
     }
 }
