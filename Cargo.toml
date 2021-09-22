@@ -25,7 +25,7 @@ canvas = ["iced_wgpu/canvas"]
 # Enables using system fonts.
 default_system_font = ["iced_wgpu/default_system_font"]
 
-# Enables the `wgpu` rendering backend
+# Enables the `glow` rendering backend
 glow = ["iced_glow", "raw-gl-context"]
 # Enables the `Canvas` widget
 glow_canvas = ["iced_glow/canvas"]

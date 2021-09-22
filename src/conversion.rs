@@ -136,15 +136,13 @@ pub fn baseview_to_iced_events(
                         ));
                     }
                 }
-            } else {
-                if let Some(key_code) = opt_key_code {
-                    iced_events.push(IcedEvent::Keyboard(
-                        IcedKeyEvent::KeyReleased {
-                            key_code,
-                            modifiers: *modifiers,
-                        },
-                    ));
-                }
+            } else if let Some(key_code) = opt_key_code {
+                iced_events.push(IcedEvent::Keyboard(
+                    IcedKeyEvent::KeyReleased {
+                        key_code,
+                        modifiers: *modifiers,
+                    },
+                ));
             }
         }
 
