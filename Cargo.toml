@@ -1,6 +1,6 @@
 [package]
 name = "iced_baseview"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Billy Messenger <BillyDM@protonmail.com>"]
 edition = "2018"
 description = "A baseview runtime for Iced (WIP)"
@@ -50,5 +50,5 @@ iced_wgpu = { version = "0.4", optional = true }
 iced_glow = { version = "0.2", optional = true }
 raw-gl-context = { version = "0.1", optional = true }
 keyboard-types = { version = "0.5", default-features = false }
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "e7a6c661eff90000b5a62d28fb8e1eec3997d2aa" }
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "f6e99e9aa6f5aeb6b721cb05e4d882a51d995909" }
 raw-window-handle = "0.3"

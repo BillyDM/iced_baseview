@@ -1,7 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, Align, Application, Color, Column, Command, Container, Element,
-    IcedWindow, Length, Settings, Subscription, Text, WindowSubs,
+    button, executor, Align, Application, Button, Color, Column, Command,
+    Container, Element, IcedWindow, Length, Settings, Subscription, Text,
+    WindowQueue, WindowSubs,
 };
 use std::time::{Duration, Instant};
 
@@ -24,11 +25,14 @@ fn main() {
 enum Message {
     OnFrame,
     WillClose,
+    CloseWindow,
 }
 
 struct MyProgram {
     next_interval: Instant,
     count: usize,
+
+    close_btn_state: button::State,
 }
 
 impl Application for MyProgram {
@@ -41,6 +45,8 @@ impl Application for MyProgram {
             Self {
                 next_interval: Instant::now() + COUNT_INTERVAL,
                 count: 0,
+
+                close_btn_state: button::State::new(),
             },
             Command::none(),
         )
@@ -55,7 +61,11 @@ impl Application for MyProgram {
         Subscription::none()
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(
+        &mut self,
+        window: &mut WindowQueue,
+        message: Self::Message,
+    ) -> Command<Self::Message> {
         match message {
             Message::OnFrame => {
                 let now = Instant::now();
@@ -67,6 +77,10 @@ impl Application for MyProgram {
             Message::WillClose => {
                 println!("The window will close!");
             }
+            Message::CloseWindow => {
+                println!("Request to manually close the window.");
+                window.close_window().unwrap();
+            }
         }
 
         Command::none()
@@ -76,7 +90,14 @@ impl Application for MyProgram {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Align::Center)
-            .push(Text::new(format!("{}", self.count)));
+            .push(Text::new(format!("{}", self.count)))
+            .push(
+                Button::new(
+                    &mut self.close_btn_state,
+                    Text::new("Close window"),
+                )
+                .on_press(Message::CloseWindow),
+            );
 
         Container::new(content)
             .width(Length::Fill)

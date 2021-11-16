@@ -1,7 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, renderer, text_input, Align, Application, Color, Column, Command,
+    executor, text_input, Align, Application, Color, Column, Command,
     Container, Element, IcedWindow, Length, Settings, Text, TextInput,
+    WindowQueue,
 };
 
 fn main() {
@@ -42,7 +43,11 @@ impl Application for MyProgram {
         )
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(
+        &mut self,
+        _window: &mut WindowQueue,
+        message: Self::Message,
+    ) -> Command<Self::Message> {
         match message {
             Message::TextInputChanged(value) => {
                 self.text_input_str = value;

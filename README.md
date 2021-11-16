@@ -55,7 +55,7 @@ impl Application for MyProgram {
         )
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, _window: &mut WindowQueue, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::SliderChanged(value) => {
                 self.slider_value = value;

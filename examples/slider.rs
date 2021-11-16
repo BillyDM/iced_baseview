@@ -1,7 +1,7 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, renderer, slider, Align, Application, Color, Column, Command,
-    Container, Element, IcedWindow, Length, Settings, Slider, Text,
+    executor, slider, Align, Application, Color, Column, Command, Container,
+    Element, IcedWindow, Length, Settings, Slider, Text, WindowQueue,
 };
 
 fn main() {
@@ -44,7 +44,11 @@ impl Application for MyProgram {
         )
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(
+        &mut self,
+        _window: &mut WindowQueue,
+        message: Self::Message,
+    ) -> Command<Self::Message> {
         match message {
             Message::SliderChanged(value) => {
                 self.slider_value = value;

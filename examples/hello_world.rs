@@ -1,7 +1,7 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
     executor, Align, Application, Color, Column, Command, Container, Element,
-    IcedWindow, Length, Rule, Settings, Text,
+    IcedWindow, Length, Rule, Settings, Text, WindowQueue,
 };
 
 fn main() {
@@ -28,7 +28,11 @@ impl Application for MyProgram {
         (Self {}, Command::none())
     }
 
-    fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
+    fn update(
+        &mut self,
+        _window: &mut WindowQueue,
+        _message: Self::Message,
+    ) -> Command<Self::Message> {
         Command::none()
     }
 

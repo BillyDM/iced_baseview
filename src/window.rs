@@ -42,6 +42,30 @@ impl<Message: Clone> Default for WindowSubs<Message> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum WindowQueueMessage {
+    CloseWindow,
+}
+
+/// Used to request things from the `baseview` window.
+#[allow(missing_debug_implementations)]
+pub struct WindowQueue {
+    tx: mpsc::UnboundedSender<WindowQueueMessage>,
+}
+
+impl WindowQueue {
+    fn new() -> (Self, mpsc::UnboundedReceiver<WindowQueueMessage>) {
+        let (tx, rx) = mpsc::unbounded();
+
+        (Self { tx }, rx)
+    }
+
+    /// Quit the current application and close the window.
+    pub fn close_window(&mut self) -> Result<(), SendError> {
+        self.tx.start_send(WindowQueueMessage::CloseWindow)
+    }
+}
+
 /// Use this to send custom events to the iced window.
 ///
 /// Please note this channel is ***not*** realtime-safe and should never be
@@ -49,14 +73,16 @@ impl<Message: Clone> Default for WindowSubs<Message> {
 /// buffer instead.
 #[allow(missing_debug_implementations)]
 pub struct WindowHandle<Message: 'static + Send> {
+    bv_handle: baseview::WindowHandle,
     tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
 }
 
 impl<Message: 'static + Send> WindowHandle<Message> {
     pub(crate) fn new(
+        bv_handle: baseview::WindowHandle,
         tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
     ) -> Self {
-        Self { tx }
+        Self { bv_handle, tx }
     }
 
     /// Send a custom `baseview::Event` to the window.
@@ -81,12 +107,22 @@ impl<Message: 'static + Send> WindowHandle<Message> {
     }
 
     /// Signal the window to close.
-    ///
-    /// Please note this channel is ***not*** realtime-safe and should never be
-    /// be used to send events from the audio thread. Use a realtime-safe ring
-    /// buffer instead.
-    pub fn close_window(&mut self) -> Result<(), SendError> {
-        self.tx.start_send(RuntimeEvent::WillClose)
+    pub fn close_window(&mut self) {
+        self.bv_handle.close();
+    }
+
+    /// Returns `true` if the window is still open, and `false` if the window
+    /// was closed/dropped.
+    pub fn is_open(&self) -> bool {
+        self.bv_handle.is_open()
+    }
+}
+
+unsafe impl<Message: 'static + Send> HasRawWindowHandle
+    for WindowHandle<Message>
+{
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        self.bv_handle.raw_window_handle()
     }
 }
 
@@ -97,6 +133,7 @@ pub struct IcedWindow<A: Application + 'static + Send> {
     instance: Pin<Box<dyn futures::Future<Output = ()>>>,
     runtime_context: futures::task::Context<'static>,
     runtime_rx: mpsc::UnboundedReceiver<A::Message>,
+    window_queue_rx: mpsc::UnboundedReceiver<WindowQueueMessage>,
     event_status: Rc<RefCell<EventStatus>>,
 }
 
@@ -191,6 +228,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let event_status = Rc::new(RefCell::new(EventStatus::Ignored));
 
+        let (window_queue, window_queue_rx) = WindowQueue::new();
+
         #[cfg(feature = "wgpu")]
         let instance = Box::pin(run_instance(
             application,
@@ -199,6 +238,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             runtime,
             debug,
             receiver,
+            window_queue,
             surface,
             state,
             window_subs,
@@ -227,6 +267,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             instance,
             runtime_context,
             runtime_rx,
+            window_queue_rx,
             event_status,
         }
     }
@@ -248,9 +289,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let flags = settings.flags;
 
         let (sender, receiver) = mpsc::unbounded();
-        let handle = WindowHandle::new(sender.clone());
+        let sender_clone = sender.clone();
 
-        Window::open_parented(
+        let bv_handle = Window::open_parented(
             parent,
             settings.window,
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
@@ -260,52 +301,19 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
-                    sender,
+                    sender_clone,
                     receiver,
                 )
             },
         );
 
-        handle
+        WindowHandle::new(bv_handle, sender)
     }
 
     /// Open a new window as if it had a parent window.
     ///
     /// * `settings` - The settings of the window.
     pub fn open_as_if_parented(
-        settings: Settings<A::Flags>,
-    ) -> (RawWindowHandle, WindowHandle<A::Message>) {
-        let scale_policy = settings.window.scale;
-        let logical_width = settings.window.size.width as f64;
-        let logical_height = settings.window.size.height as f64;
-        let flags = settings.flags;
-
-        let (sender, receiver) = mpsc::unbounded();
-        let handle = WindowHandle::new(sender.clone());
-
-        (
-            Window::open_as_if_parented(
-                settings.window,
-                move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                    IcedWindow::new(
-                        window,
-                        flags,
-                        scale_policy,
-                        logical_width,
-                        logical_height,
-                        sender,
-                        receiver,
-                    )
-                },
-            ),
-            handle,
-        )
-    }
-
-    /// Open a new window that blocks the current thread until the window is destroyed.
-    ///
-    /// * `settings` - The settings of the window.
-    pub fn open_blocking(
         settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message> {
         let scale_policy = settings.window.scale;
@@ -314,7 +322,36 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let flags = settings.flags;
 
         let (sender, receiver) = mpsc::unbounded();
-        let handle = WindowHandle::new(sender.clone());
+        let sender_clone = sender.clone();
+
+        let bv_handle = Window::open_as_if_parented(
+            settings.window,
+            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
+                IcedWindow::new(
+                    window,
+                    flags,
+                    scale_policy,
+                    logical_width,
+                    logical_height,
+                    sender_clone,
+                    receiver,
+                )
+            },
+        );
+
+        WindowHandle::new(bv_handle, sender)
+    }
+
+    /// Open a new window that blocks the current thread until the window is destroyed.
+    ///
+    /// * `settings` - The settings of the window.
+    pub fn open_blocking(settings: Settings<A::Flags>) {
+        let scale_policy = settings.window.scale;
+        let logical_width = settings.window.size.width as f64;
+        let logical_height = settings.window.size.height as f64;
+        let flags = settings.flags;
+
+        let (sender, receiver) = mpsc::unbounded();
 
         Window::open_blocking(
             settings.window,
@@ -330,13 +367,11 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                 )
             },
         );
-
-        handle
     }
 }
 
 impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
-    fn on_frame(&mut self, _window: &mut Window<'_>) {
+    fn on_frame(&mut self, window: &mut Window<'_>) {
         // Send event to render the frame.
         self.sender
             .start_send(RuntimeEvent::UpdateSwapChain)
@@ -364,14 +399,22 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
 
         // Flush all messages. This will block until the instance is finished.
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+
+        while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
+            match msg {
+                WindowQueueMessage::CloseWindow => {
+                    window.close();
+                }
+            }
+        }
     }
 
     fn on_event(
         &mut self,
-        _window: &mut Window<'_>,
+        window: &mut Window<'_>,
         event: Event,
     ) -> EventStatus {
-        if requests_exit(&event) {
+        let status = if requests_exit(&event) {
             self.sender
                 .start_send(RuntimeEvent::WillClose)
                 .expect("Send event");
@@ -391,7 +434,17 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
 
             // TODO: make this Copy
             *self.event_status.borrow()
+        };
+
+        while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
+            match msg {
+                WindowQueueMessage::CloseWindow => {
+                    window.close();
+                }
+            }
         }
+
+        status
     }
 }
 
@@ -406,6 +459,7 @@ async fn run_instance<A, E>(
     mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
     mut debug: Debug,
     mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
+    mut window_queue: WindowQueue,
 
     #[rustfmt::skip]
     #[cfg(feature = "wgpu")]
@@ -564,6 +618,7 @@ async fn run_instance<A, E>(
                         &mut debug,
                         &mut messages,
                         &mut window_subs,
+                        &mut window_queue,
                     );
 
                     // Update window
@@ -695,6 +750,7 @@ async fn run_instance<A, E>(
                         &mut debug,
                         &mut messages,
                         &mut window_subs,
+                        &mut window_queue,
                     );
 
                     // Update window
@@ -768,12 +824,14 @@ pub fn update<A: Application, E: Executor>(
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
     window_subs: &mut WindowSubs<A::Message>,
+    window_queue: &mut WindowQueue,
 ) {
     for message in messages.drain(..) {
         debug.log_message(&message);
 
         debug.update_started();
-        let command = runtime.enter(|| application.update(message));
+        let command =
+            runtime.enter(|| application.update(window_queue, message));
         debug.update_finished();
 
         runtime.spawn(command);

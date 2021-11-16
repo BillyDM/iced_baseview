@@ -20,7 +20,7 @@ pub use application::Application;
 pub use element::Element;
 pub use executor::Executor;
 pub use settings::Settings;
-pub use window::{IcedWindow, WindowHandle, WindowSubs};
+pub use window::{IcedWindow, WindowHandle, WindowQueue, WindowSubs};
 
 #[cfg(feature = "wgpu")]
 type Renderer = iced_wgpu::Renderer;

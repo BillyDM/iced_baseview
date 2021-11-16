@@ -1,4 +1,6 @@
-use crate::{Color, Command, Element, Executor, Subscription, WindowSubs};
+use crate::{
+    Color, Command, Element, Executor, Subscription, WindowQueue, WindowSubs,
+};
 
 use baseview::WindowScalePolicy;
 
@@ -65,7 +67,7 @@ pub use state::State;
 /// says "Hello, world!":
 ///
 /// ```text
-/// use iced_baseview::{executor, Application, Command, Element, Settings, Text};
+/// use iced_baseview::{executor, Application, Command, Element, Settings, Text, WindowQueue};
 ///
 /// pub fn main() -> iced::Result {
 ///     Hello::run(Settings::default())
@@ -86,7 +88,7 @@ pub use state::State;
 ///         String::from("A cool application")
 ///     }
 ///
-///     fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
+///     fn update(&mut self, _window: &mut WindowQueue, _message: Self::Message) -> Command<Self::Message> {
 ///         Command::none()
 ///     }
 ///
@@ -135,11 +137,18 @@ pub trait Application: Sized + 'static {
     /// produced by either user interactions or commands, will be handled by
     /// this method.
     ///
+    /// You can use the given `WindowQueue` to request actions from the `baseview`
+    /// window.
+    ///
     /// Any [`Command`] returned will be executed immediately in the background.
     ///
     /// [`Application`]: trait.Application.html
     /// [`Command`]: struct.Command.html
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
+    fn update(
+        &mut self,
+        window: &mut WindowQueue,
+        message: Self::Message,
+    ) -> Command<Self::Message>;
 
     /// Returns the event [`Subscription`] for the current state of the
     /// application.
