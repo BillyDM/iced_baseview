@@ -254,6 +254,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             runtime,
             debug,
             receiver,
+            window_queue,
             context,
             state,
             window_subs,
