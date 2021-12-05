@@ -9,6 +9,7 @@ repository = "https://github.com/BillyDM/iced_baseview"
 documentation = "https://docs.rs/iced_baseview"
 keywords = ["gui", "ui", "graphics", "interface", "widgets"]
 categories = ["gui"]
+resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -42,12 +43,12 @@ async-std = ["iced_futures/async-std"]
 palette = ["iced_core/palette"]
 
 [dependencies]
-iced_core = "0.4"
-iced_futures = "0.3"
-iced_native =  "0.4"
-iced_graphics = "0.2"
-iced_wgpu = { version = "0.4", optional = true }
-iced_glow = { version = "0.2", optional = true }
+iced_core = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
+iced_futures = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
+iced_native =  { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
+iced_graphics = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
+iced_wgpu = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a", optional = true }
+iced_glow = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a", optional = true }
 raw-gl-context = { version = "0.1", optional = true }
 keyboard-types = { version = "0.5", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "f6e99e9aa6f5aeb6b721cb05e4d882a51d995909" }

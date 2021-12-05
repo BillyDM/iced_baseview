@@ -3,8 +3,8 @@ use futures::StreamExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
+use iced_native::{command::Action, Debug, Executor, Runtime, Size};
 use iced_native::{event::Status, Cache, UserInterface};
-use iced_native::{Debug, Executor, Runtime, Size};
 use mpsc::SendError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::cell::RefCell;
@@ -178,7 +178,17 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let subscription = application.subscription(&mut window_subs);
 
-        runtime.spawn(init_command);
+        for action in init_command.actions() {
+            match action {
+                Action::Future(future) => {
+                    runtime.spawn(future);
+                }
+                _ => {
+                    // TODO
+                }
+            }
+        }
+
         runtime.track(subscription);
 
         // Assume scale for now until there is an event with a new one.
@@ -198,7 +208,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         #[cfg(feature = "wgpu")]
         let (mut compositor, renderer) =
-            <Compositor as IGCompositor>::new(renderer_settings).unwrap();
+            <Compositor as IGCompositor>::new(renderer_settings, Some(window))
+                .unwrap();
 
         #[cfg(feature = "glow")]
         #[cfg(not(feature = "wgpu"))]
@@ -464,7 +475,7 @@ async fn run_instance<A, E>(
 
     #[rustfmt::skip]
     #[cfg(feature = "wgpu")]
-    surface: <Compositor as iced_graphics::window::Compositor>::Surface,
+    mut surface: <Compositor as iced_graphics::window::Compositor>::Surface,
 
     #[rustfmt::skip]
     #[cfg(feature = "glow")]
@@ -490,11 +501,11 @@ async fn run_instance<A, E>(
     let mut viewport_version = state.viewport_version();
 
     #[cfg(feature = "wgpu")]
-    let mut swap_chain = {
+    {
         let physical_size = state.physical_size();
 
-        compositor.create_swap_chain(
-            &surface,
+        compositor.configure_surface(
+            &mut surface,
             physical_size.width,
             physical_size.height,
         )
@@ -508,9 +519,8 @@ async fn run_instance<A, E>(
         &mut debug,
     ));
 
-    let mut primitive =
+    let mut mouse_interaction =
         user_interface.draw(&mut renderer, state.cursor_position());
-    let mut mouse_interaction = iced_native::mouse::Interaction::default();
 
     let mut events = Vec::new();
     let mut messages = Vec::new();
@@ -518,12 +528,7 @@ async fn run_instance<A, E>(
     let mut redraw_requested = true;
     let mut did_process_event = false;
 
-    let mut modifiers = iced_core::keyboard::Modifiers {
-        shift: false,
-        control: false,
-        alt: false,
-        logo: false,
-    };
+    let mut modifiers = iced_core::keyboard::Modifiers::empty();
 
     debug.startup_finished();
 
@@ -552,7 +557,7 @@ async fn run_instance<A, E>(
                 let statuses = user_interface.update(
                     &events,
                     state.cursor_position(),
-                    &renderer,
+                    &mut renderer,
                     &mut clipboard, // TODO: clipboard
                     &mut messages,
                 );
@@ -596,7 +601,7 @@ async fn run_instance<A, E>(
                     let statuses = user_interface.update(
                         &events,
                         state.cursor_position(),
-                        &renderer,
+                        &mut renderer,
                         &mut clipboard, // TODO: clipboard
                         &mut messages,
                     );
@@ -635,7 +640,7 @@ async fn run_instance<A, E>(
                 }
 
                 debug.draw_started();
-                primitive =
+                mouse_interaction =
                     user_interface.draw(&mut renderer, state.cursor_position());
                 debug.draw_finished();
 
@@ -651,13 +656,11 @@ async fn run_instance<A, E>(
                     let physical_size = state.physical_size();
 
                     #[cfg(feature = "wgpu")]
-                    {
-                        swap_chain = compositor.create_swap_chain(
-                            &surface,
-                            physical_size.width,
-                            physical_size.height,
-                        );
-                    }
+                    compositor.configure_surface(
+                        &mut surface,
+                        physical_size.width,
+                        physical_size.height,
+                    );
 
                     #[cfg(feature = "glow")]
                     #[cfg(not(feature = "wgpu"))]
@@ -677,7 +680,7 @@ async fn run_instance<A, E>(
                     debug.layout_finished();
 
                     debug.draw_started();
-                    primitive = user_interface
+                    mouse_interaction = user_interface
                         .draw(&mut renderer, state.cursor_position());
                     debug.draw_finished();
 
@@ -689,46 +692,41 @@ async fn run_instance<A, E>(
                     debug.render_started();
 
                     #[cfg(feature = "wgpu")]
-                    let new_mouse_interaction = compositor.draw(
-                        &mut renderer,
-                        &mut swap_chain,
-                        state.viewport(),
-                        state.background_color(),
-                        &primitive,
-                        &debug.overlay(),
-                    );
+                    compositor
+                        .present(
+                            &mut renderer,
+                            &mut surface,
+                            state.viewport(),
+                            state.background_color(),
+                            // &primitive,
+                            &debug.overlay(),
+                        )
+                        .unwrap();
 
                     #[cfg(feature = "glow")]
                     #[cfg(not(feature = "wgpu"))]
-                    let new_mouse_interaction = {
+                    {
                         gl_context.make_current();
 
-                        let new_mouse_interaction = compositor.draw(
+                        compositor.present(
                             &mut renderer,
                             state.viewport(),
                             state.background_color(),
-                            &primitive,
                             &debug.overlay(),
                         );
 
                         gl_context.swap_buffers();
                         gl_context.make_not_current();
-
-                        new_mouse_interaction
                     };
 
                     debug.render_finished();
 
-                    if new_mouse_interaction != mouse_interaction {
-                        // TODO: set window cursor icon
-                        /*
-                        window.set_cursor_icon(conversion::mouse_interaction(
-                            new_mouse_interaction,
-                        ));
-                        */
-
-                        mouse_interaction = new_mouse_interaction;
-                    }
+                    // TODO: set window cursor icon
+                    /*
+                    window.set_cursor_icon(conversion::mouse_interaction(
+                        new_mouse_interaction,
+                    ));
+                    */
 
                     redraw_requested = false;
 
@@ -835,7 +833,16 @@ pub fn update<A: Application, E: Executor>(
             runtime.enter(|| application.update(window_queue, message));
         debug.update_finished();
 
-        runtime.spawn(command);
+        for action in command.actions() {
+            match action {
+                Action::Future(future) => {
+                    runtime.spawn(future);
+                }
+                _ => {
+                    // TODO
+                }
+            }
+        }
     }
 
     let subscription = application.subscription(window_subs);

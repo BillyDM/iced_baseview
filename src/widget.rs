@@ -32,21 +32,21 @@ mod platform {
     #[cfg_attr(docsrs, doc(cfg(feature = "image")))]
     pub mod image {
         //! Display images in your user interface.
-        pub use iced_native::image::{Handle, Image};
+        pub use iced_native::image::{Data, Handle};
     }
 
     #[cfg_attr(docsrs, doc(cfg(feature = "svg")))]
     pub mod svg {
         //! Display vector graphics in your user interface.
-        pub use iced_native::svg::{Handle, Svg};
+        pub use iced_native::svg::{Data, Handle};
     }
 
     #[doc(no_inline)]
     pub use {
-        button::Button, checkbox::Checkbox, container::Container, image::Image,
+        button::Button, checkbox::Checkbox, container::Container,
         pane_grid::PaneGrid, pick_list::PickList, progress_bar::ProgressBar,
         radio::Radio, rule::Rule, scrollable::Scrollable, slider::Slider,
-        svg::Svg, text_input::TextInput,
+        text_input::TextInput,
     };
 
     #[cfg(any(feature = "canvas", feature = "glow_canvas"))]

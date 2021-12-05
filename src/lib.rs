@@ -41,8 +41,9 @@ pub use iced_glow as renderer;
 
 #[doc(no_inline)]
 pub use iced_native::{
-    futures, Align, Background, Color, Command, Font, HorizontalAlignment,
-    Length, Point, Rectangle, Size, Subscription, Vector, VerticalAlignment,
+    alignment::Alignment, alignment::Horizontal, alignment::Vertical, futures,
+    Background, Color, Command, Font, Length, Point, Rectangle, Size,
+    Subscription, Vector,
 };
 
 #[doc(no_inline)]
