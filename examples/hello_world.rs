@@ -1,7 +1,7 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, Align, Application, Color, Column, Command, Container, Element,
-    IcedWindow, Length, Rule, Settings, Text, WindowQueue,
+    executor, Alignment, Application, Color, Column, Command, Container,
+    Element, IcedWindow, Length, Rule, Settings, Text, WindowQueue,
 };
 
 fn main() {
@@ -39,7 +39,7 @@ impl Application for MyProgram {
     fn view(&mut self) -> Element<'_, Self::Message> {
         let content = Column::new()
             .width(Length::Fill)
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .push(Text::new("Hello World!"))
             .push(Rule::horizontal(10));
 

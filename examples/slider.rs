@@ -1,7 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, slider, Align, Application, Color, Column, Command, Container,
-    Element, IcedWindow, Length, Settings, Slider, Text, WindowQueue,
+    executor, slider, Alignment, Application, Color, Column, Command,
+    Container, Element, IcedWindow, Length, Settings, Slider, Text,
+    WindowQueue,
 };
 
 fn main() {
@@ -69,7 +70,7 @@ impl Application for MyProgram {
 
         let content = Column::new()
             .width(Length::Fill)
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .padding(20)
             .spacing(20)
             .push(Text::new("Slide me!"))

@@ -78,35 +78,35 @@ pub fn baseview_to_iced_events(
             // is fixed in baseview.
             let is_modifier = match event.code {
                 Code::AltLeft => {
-                    modifiers.alt = is_down;
+                    *modifiers = *modifiers | IcedModifiers::ALT;
                     true
                 }
                 Code::AltRight => {
-                    modifiers.alt = is_down;
+                    *modifiers = *modifiers | IcedModifiers::ALT;
                     true
                 }
                 Code::ControlLeft => {
-                    modifiers.control = is_down;
+                    *modifiers = *modifiers | IcedModifiers::CTRL;
                     true
                 }
                 Code::ControlRight => {
-                    modifiers.control = is_down;
+                    *modifiers = *modifiers | IcedModifiers::CTRL;
                     true
                 }
                 Code::ShiftLeft => {
-                    modifiers.shift = is_down;
+                    *modifiers = *modifiers | IcedModifiers::SHIFT;
                     true
                 }
                 Code::ShiftRight => {
-                    modifiers.shift = is_down;
+                    *modifiers = *modifiers | IcedModifiers::SHIFT;
                     true
                 }
                 Code::MetaLeft => {
-                    modifiers.logo = is_down;
+                    *modifiers = *modifiers | IcedModifiers::COMMAND;
                     true
                 }
                 Code::MetaRight => {
-                    modifiers.logo = is_down;
+                    *modifiers = *modifiers | IcedModifiers::COMMAND;
                     true
                 }
                 _ => false,
@@ -154,10 +154,7 @@ pub fn baseview_to_iced_events(
                 }));
             }
             baseview::WindowEvent::Unfocused => {
-                modifiers.alt = false;
-                modifiers.shift = false;
-                modifiers.control = false;
-                modifiers.logo = false;
+                *modifiers = IcedModifiers::empty();
             }
             _ => {}
         },

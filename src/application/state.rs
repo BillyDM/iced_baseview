@@ -126,14 +126,21 @@ impl<A: Application + Send> State<A> {
                 // TODO: Encode cursor moving outside of the window.
             }
             baseview::Event::Keyboard(event) => {
+                use keyboard::Modifiers as IcedModifiers;
                 use keyboard_types::Modifiers as KeyModifiers;
 
-                self.modifiers = keyboard::Modifiers {
-                    shift: event.modifiers.contains(KeyModifiers::SHIFT),
-                    control: event.modifiers.contains(KeyModifiers::CONTROL),
-                    alt: event.modifiers.contains(KeyModifiers::ALT),
-                    logo: event.modifiers.contains(KeyModifiers::META),
-                };
+                if event.modifiers.contains(KeyModifiers::SHIFT) {
+                    self.modifiers |= IcedModifiers::SHIFT;
+                }
+                if event.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.modifiers |= IcedModifiers::CTRL;
+                }
+                if event.modifiers.contains(KeyModifiers::ALT) {
+                    self.modifiers |= IcedModifiers::ALT;
+                }
+                if event.modifiers.contains(KeyModifiers::META) {
+                    self.modifiers |= IcedModifiers::COMMAND;
+                }
 
                 #[cfg(feature = "debug")]
                 {
