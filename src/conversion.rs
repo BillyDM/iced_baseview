@@ -77,36 +77,40 @@ pub fn baseview_to_iced_events(
             // TODO: Remove manual setting of modifiers once the issue
             // is fixed in baseview.
             let is_modifier = match event.code {
-                Code::AltLeft => {
-                    *modifiers = *modifiers | IcedModifiers::ALT;
+                Code::AltLeft | Code::AltRight => {
+                    if is_down {
+                        modifiers.insert(IcedModifiers::ALT);
+                    } else {
+                        modifiers.remove(IcedModifiers::ALT);
+                    }
+
                     true
                 }
-                Code::AltRight => {
-                    *modifiers = *modifiers | IcedModifiers::ALT;
+                Code::ControlLeft | Code::ControlRight => {
+                    if is_down {
+                        modifiers.insert(IcedModifiers::CTRL);
+                    } else {
+                        modifiers.remove(IcedModifiers::CTRL);
+                    }
+
                     true
                 }
-                Code::ControlLeft => {
-                    *modifiers = *modifiers | IcedModifiers::CTRL;
+                Code::ShiftLeft | Code::ShiftRight => {
+                    if is_down {
+                        modifiers.insert(IcedModifiers::SHIFT);
+                    } else {
+                        modifiers.remove(IcedModifiers::SHIFT);
+                    }
+
                     true
                 }
-                Code::ControlRight => {
-                    *modifiers = *modifiers | IcedModifiers::CTRL;
-                    true
-                }
-                Code::ShiftLeft => {
-                    *modifiers = *modifiers | IcedModifiers::SHIFT;
-                    true
-                }
-                Code::ShiftRight => {
-                    *modifiers = *modifiers | IcedModifiers::SHIFT;
-                    true
-                }
-                Code::MetaLeft => {
-                    *modifiers = *modifiers | IcedModifiers::COMMAND;
-                    true
-                }
-                Code::MetaRight => {
-                    *modifiers = *modifiers | IcedModifiers::COMMAND;
+                Code::MetaLeft | Code::MetaRight => {
+                    if is_down {
+                        modifiers.insert(IcedModifiers::COMMAND);
+                    } else {
+                        modifiers.remove(IcedModifiers::COMMAND);
+                    }
+
                     true
                 }
                 _ => false,

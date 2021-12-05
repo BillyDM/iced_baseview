@@ -129,18 +129,22 @@ impl<A: Application + Send> State<A> {
                 use keyboard::Modifiers as IcedModifiers;
                 use keyboard_types::Modifiers as KeyModifiers;
 
+                let mut modifiers = IcedModifiers::default();
+
                 if event.modifiers.contains(KeyModifiers::SHIFT) {
-                    self.modifiers |= IcedModifiers::SHIFT;
+                    modifiers.insert(IcedModifiers::SHIFT);
                 }
                 if event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.modifiers |= IcedModifiers::CTRL;
+                    modifiers.insert(IcedModifiers::CTRL);
                 }
                 if event.modifiers.contains(KeyModifiers::ALT) {
-                    self.modifiers |= IcedModifiers::ALT;
+                    modifiers.insert(IcedModifiers::ALT);
                 }
                 if event.modifiers.contains(KeyModifiers::META) {
-                    self.modifiers |= IcedModifiers::COMMAND;
+                    modifiers.insert(IcedModifiers::COMMAND);
                 }
+
+                self.modifiers = modifiers;
 
                 #[cfg(feature = "debug")]
                 {
