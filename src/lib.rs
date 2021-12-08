@@ -53,5 +53,8 @@ pub use iced_native::{
 pub use widget::*;
 
 #[cfg(all(any(feature = "with-tokio", feature = "with-async-std"),))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "with-tokio", feature = "with-async-std"))))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(feature = "with-tokio", feature = "with-async-std")))
+)]
 pub mod time;

@@ -15,6 +15,8 @@ fn main() {
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
         },
+        #[cfg(feature = "with-glow")]
+        use_max_aa_samples: false,
         flags: (),
     };
 
