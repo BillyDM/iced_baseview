@@ -23,8 +23,8 @@ jobs:
         toolchain: stable
         override: true
     - name: Build (wgpu)
-      run: cargo build --examples --workspace --verbose --features wgpu,image,svg,canvas,default_system_font,palette
+      run: cargo build --examples --workspace --verbose --features with-wgpu,with-wgpu-image,with-wgpu-svg,with-wgpu-canvas,with-wgpu-default-system-font,with-palette
     - name: Build (glow)
-      run: cargo build --examples --workspace --verbose --no-default-features --features glow,glow_canvas,glow_default_system_font,palette
+      run: cargo build --examples --workspace --verbose --no-default-features --features with-glow,with-glow-canvas,with-glow-default-system-font,with-palette
     - name: Run tests
       run: cargo test --examples --workspace --verbose

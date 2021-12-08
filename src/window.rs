@@ -149,11 +149,11 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     ) -> IcedWindow<A> {
         use futures::task;
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "with-wgpu")]
         use iced_graphics::window::Compositor as IGCompositor;
 
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
+        #[cfg(feature = "with-glow")]
+        #[cfg(not(feature = "with-wgpu"))]
         use iced_graphics::window::GLCompositor as IGCompositor;
 
         let mut debug = Debug::new();
@@ -206,13 +206,13 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let renderer_settings = A::renderer_settings();
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "with-wgpu")]
         let (mut compositor, renderer) =
             <Compositor as IGCompositor>::new(renderer_settings, Some(window))
                 .unwrap();
 
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
+        #[cfg(feature = "with-glow")]
+        #[cfg(not(feature = "with-wgpu"))]
         let (context, compositor, renderer) = {
             let context =
                 raw_gl_context::GlContext::create(window, renderer_settings.0)
@@ -232,7 +232,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             (context, compositor, renderer)
         };
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "with-wgpu")]
         let surface = compositor.create_surface(window);
 
         let state = State::new(&application, viewport, scale_policy);
@@ -241,7 +241,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let (window_queue, window_queue_rx) = WindowQueue::new();
 
-        #[cfg(feature = "wgpu")]
+        #[cfg(feature = "with-wgpu")]
         let instance = Box::pin(run_instance(
             application,
             compositor,
@@ -256,8 +256,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             event_status.clone(),
         ));
 
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
+        #[cfg(feature = "with-glow")]
+        #[cfg(not(feature = "with-wgpu"))]
         let instance = Box::pin(run_instance(
             application,
             compositor,
@@ -474,12 +474,12 @@ async fn run_instance<A, E>(
     mut window_queue: WindowQueue,
 
     #[rustfmt::skip]
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "with-wgpu")]
     mut surface: <Compositor as iced_graphics::window::Compositor>::Surface,
 
     #[rustfmt::skip]
-    #[cfg(feature = "glow")]
-    #[cfg(not(feature = "wgpu"))]
+    #[cfg(feature = "with-glow")]
+    #[cfg(not(feature = "with-wgpu"))]
     gl_context: raw_gl_context::GlContext,
 
     mut state: State<A>,
@@ -489,18 +489,18 @@ async fn run_instance<A, E>(
     A: Application + 'static + Send,
     E: Executor + 'static,
 {
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "with-wgpu")]
     use iced_graphics::window::Compositor as IGCompositor;
 
-    #[cfg(feature = "glow")]
-    #[cfg(not(feature = "wgpu"))]
+    #[cfg(feature = "with-glow")]
+    #[cfg(not(feature = "with-wgpu"))]
     use iced_graphics::window::GLCompositor as IGCompositor;
 
     //let clipboard = Clipboard::new(window);  // TODO: clipboard
 
     let mut viewport_version = state.viewport_version();
 
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "with-wgpu")]
     {
         let physical_size = state.physical_size();
 
@@ -655,15 +655,15 @@ async fn run_instance<A, E>(
                 if viewport_version != current_viewport_version {
                     let physical_size = state.physical_size();
 
-                    #[cfg(feature = "wgpu")]
+                    #[cfg(feature = "with-wgpu")]
                     compositor.configure_surface(
                         &mut surface,
                         physical_size.width,
                         physical_size.height,
                     );
 
-                    #[cfg(feature = "glow")]
-                    #[cfg(not(feature = "wgpu"))]
+                    #[cfg(feature = "with-glow")]
+                    #[cfg(not(feature = "with-wgpu"))]
                     {
                         gl_context.make_current();
                         compositor.resize_viewport(physical_size);
@@ -691,7 +691,7 @@ async fn run_instance<A, E>(
                 if redraw_requested {
                     debug.render_started();
 
-                    #[cfg(feature = "wgpu")]
+                    #[cfg(feature = "with-wgpu")]
                     compositor
                         .present(
                             &mut renderer,
@@ -703,8 +703,8 @@ async fn run_instance<A, E>(
                         )
                         .unwrap();
 
-                    #[cfg(feature = "glow")]
-                    #[cfg(not(feature = "wgpu"))]
+                    #[cfg(feature = "with-glow")]
+                    #[cfg(not(feature = "with-wgpu"))]
                     {
                         gl_context.make_current();
 
