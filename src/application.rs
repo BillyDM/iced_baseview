@@ -196,7 +196,7 @@ pub trait Application: Sized + 'static {
     }
 
     /// Returns the renderer settings
-    #[cfg(feature = "wgpu")]
+    #[cfg(feature = "with-wgpu")]
     fn renderer_settings() -> iced_wgpu::settings::Settings {
         iced_wgpu::settings::Settings {
             // We usually don't want vsync for audio plugins.
@@ -206,8 +206,8 @@ pub trait Application: Sized + 'static {
     }
 
     /// Returns the renderer settings
-    #[cfg(feature = "glow")]
-    #[cfg(not(feature = "wgpu"))]
+    #[cfg(feature = "with-glow")]
+    #[cfg(not(feature = "with-wgpu"))]
     fn renderer_settings(
     ) -> (raw_gl_context::GlConfig, iced_glow::settings::Settings) {
         (

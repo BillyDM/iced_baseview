@@ -6,13 +6,13 @@ pub use platform::Default;
 mod platform {
     use iced_futures::{executor, futures};
 
-    #[cfg(feature = "tokio")]
+    #[cfg(feature = "with-tokio")]
     type Executor = executor::Tokio;
 
-    #[cfg(all(not(feature = "tokio"), feature = "async-std"))]
+    #[cfg(all(not(feature = "with-tokio"), feature = "with-async-std"))]
     type Executor = executor::AsyncStd;
 
-    #[cfg(not(any(feature = "tokio", feature = "async-std")))]
+    #[cfg(not(any(feature = "with-tokio", feature = "with-async-std")))]
     type Executor = executor::ThreadPool;
 
     /// A default cross-platform executor.

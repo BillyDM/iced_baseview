@@ -22,21 +22,24 @@ pub use executor::Executor;
 pub use settings::Settings;
 pub use window::{IcedWindow, WindowHandle, WindowQueue, WindowSubs};
 
-#[cfg(feature = "wgpu")]
+#[cfg(all(feature = "with-wgpu", feature = "with-glow"))]
+compile_error!("Can't use both 'with-wgpu' and 'with-glow' features");
+
+#[cfg(feature = "with-wgpu")]
 type Renderer = iced_wgpu::Renderer;
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "with-wgpu")]
 type Compositor = iced_wgpu::window::Compositor;
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "with-wgpu")]
 pub use iced_wgpu as renderer;
 
-#[cfg(feature = "glow")]
-#[cfg(not(feature = "wgpu"))]
+#[cfg(feature = "with-glow")]
+#[cfg(not(feature = "with-wgpu"))]
 type Renderer = iced_glow::Renderer;
-#[cfg(feature = "glow")]
-#[cfg(not(feature = "wgpu"))]
+#[cfg(feature = "with-glow")]
+#[cfg(not(feature = "with-wgpu"))]
 type Compositor = iced_glow::window::Compositor;
-#[cfg(feature = "glow")]
-#[cfg(not(feature = "wgpu"))]
+#[cfg(feature = "with-glow")]
+#[cfg(not(feature = "with-wgpu"))]
 pub use iced_glow as renderer;
 
 #[doc(no_inline)]
@@ -49,6 +52,6 @@ pub use iced_native::{
 #[doc(no_inline)]
 pub use widget::*;
 
-#[cfg(all(any(feature = "tokio", feature = "async-std"),))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-std"))))]
+#[cfg(all(any(feature = "with-tokio", feature = "with-async-std"),))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "with-tokio", feature = "with-async-std"))))]
 pub mod time;

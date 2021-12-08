@@ -146,7 +146,7 @@ impl<A: Application + Send> State<A> {
 
                 self.modifiers = modifiers;
 
-                #[cfg(feature = "debug")]
+                #[cfg(feature = "with-debug")]
                 {
                     use keyboard_types::{Key, KeyState};
                     if event.key == Key::F12 && event.state == KeyState::Down {

@@ -22,20 +22,20 @@ mod platform {
         rule, scrollable, slider, text_input, Column, Row, Space, Text,
     };
 
-    #[cfg(any(feature = "canvas", feature = "glow_canvas"))]
+    #[cfg(any(feature = "with-wgpu-canvas", feature = "with-glow-canvas"))]
     #[cfg_attr(
         docsrs,
-        doc(cfg(any(feature = "canvas", feature = "glow_canvas")))
+        doc(cfg(any(feature = "with-wgpu-canvas", feature = "with-glow-canvas")))
     )]
     pub use crate::renderer::widget::canvas;
 
-    #[cfg_attr(docsrs, doc(cfg(feature = "image")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "with-wgpu-image")))]
     pub mod image {
         //! Display images in your user interface.
         pub use iced_native::image::{Data, Handle};
     }
 
-    #[cfg_attr(docsrs, doc(cfg(feature = "svg")))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "with-wgpu-svg")))]
     pub mod svg {
         //! Display vector graphics in your user interface.
         pub use iced_native::svg::{Data, Handle};
@@ -49,7 +49,7 @@ mod platform {
         text_input::TextInput,
     };
 
-    #[cfg(any(feature = "canvas", feature = "glow_canvas"))]
+    #[cfg(any(feature = "with-wgpu-canvas", feature = "with-glow-canvas"))]
     #[doc(no_inline)]
     pub use canvas::Canvas;
 }

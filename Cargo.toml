@@ -14,33 +14,33 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["wgpu", "default_system_font"]
+default = ["with-wgpu", "with-wgpu-default-system-font"]
 # Enables the `wgpu` rendering backend
-wgpu = ["iced_wgpu"]
+with-wgpu = ["iced_wgpu"]
 # Enables the `Image` widget
-image = ["iced_wgpu/image"]
+with-wgpu-image = ["iced_wgpu/image"]
 # Enables the `Svg` widget
-svg = ["iced_wgpu/svg"]
+with-wgpu-svg = ["iced_wgpu/svg"]
 # Enables the `Canvas` widget
-canvas = ["iced_wgpu/canvas"]
+with-wgpu-canvas = ["iced_wgpu/canvas"]
 # Enables using system fonts.
-default_system_font = ["iced_wgpu/default_system_font"]
+with-wgpu-default-system-font = ["iced_wgpu/default_system_font"]
 
 # Enables the `glow` rendering backend
-glow = ["iced_glow", "raw-gl-context"]
+with-glow = ["iced_glow", "raw-gl-context", "glow"]
 # Enables the `Canvas` widget
-glow_canvas = ["iced_glow/canvas"]
+with-glow-canvas = ["iced_glow/canvas"]
 # Enables using system fonts.
-glow_default_system_font = ["iced_glow/default_system_font"]
+with-glow-default-system-font = ["iced_glow/default_system_font"]
 
 # Enables a debug view in native platforms (press F12)
-debug = ["iced_native/debug"]
+with-debug = ["iced_native/debug"]
 # Enables `tokio` as the `executor::Default` on native platforms
-tokio = ["iced_futures/tokio"]
+with-tokio = ["iced_futures/tokio"]
 # Enables `async-std` as the `executor::Default` on native platforms
-async-std = ["iced_futures/async-std"]
+with-async-std = ["iced_futures/async-std"]
 # Enables advanced color conversion via `palette`
-palette = ["iced_core/palette"]
+with-palette = ["iced_core/palette"]
 
 [dependencies]
 iced_core = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
@@ -49,6 +49,7 @@ iced_native =  { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
 iced_graphics = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
 iced_wgpu = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a", optional = true }
 iced_glow = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a", optional = true }
+glow = { version = "0.11", optional = true }
 raw-gl-context = { version = "0.1", optional = true }
 keyboard-types = { version = "0.5", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "f6e99e9aa6f5aeb6b721cb05e4d882a51d995909" }
