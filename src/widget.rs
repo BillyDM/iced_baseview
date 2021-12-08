@@ -22,10 +22,16 @@ mod platform {
         rule, scrollable, slider, text_input, Column, Row, Space, Text,
     };
 
-    #[cfg(any(feature = "with-wgpu-canvas", feature = "with-glow-canvas"))]
+    #[cfg(any(
+        feature = "with-wgpu-canvas",
+        feature = "with-glow-canvas"
+    ))]
     #[cfg_attr(
         docsrs,
-        doc(cfg(any(feature = "with-wgpu-canvas", feature = "with-glow-canvas")))
+        doc(cfg(any(
+            feature = "with-wgpu-canvas",
+            feature = "with-glow-canvas"
+        )))
     )]
     pub use crate::renderer::widget::canvas;
 
@@ -49,7 +55,10 @@ mod platform {
         text_input::TextInput,
     };
 
-    #[cfg(any(feature = "with-wgpu-canvas", feature = "with-glow-canvas"))]
+    #[cfg(any(
+        feature = "with-wgpu-canvas",
+        feature = "with-glow-canvas"
+    ))]
     #[doc(no_inline)]
     pub use canvas::Canvas;
 }

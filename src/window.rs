@@ -144,6 +144,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         scale_policy: WindowScalePolicy,
         logical_width: f64,
         logical_height: f64,
+        #[cfg(feature = "with-glow")]
+        #[cfg(not(feature = "with-wgpu"))]
+        use_max_aa_samples: bool,
         sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
         receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     ) -> IcedWindow<A> {
@@ -214,14 +217,51 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         #[cfg(feature = "with-glow")]
         #[cfg(not(feature = "with-wgpu"))]
         let (context, compositor, renderer) = {
+            let mut gl_config = renderer_settings.0;
+            let mut iced_config = renderer_settings.1;
+
+            if use_max_aa_samples {
+                use crate::renderer::settings::Antialiasing;
+                use glow::{Context, HasContext};
+
+                let context = raw_gl_context::GlContext::create(
+                    window,
+                    raw_gl_context::GlConfig::default(),
+                )
+                .unwrap();
+                context.make_current();
+
+                #[allow(unsafe_code)]
+                let max_samples = unsafe {
+                    let context = Context::from_loader_function(|s| {
+                        context.get_proc_address(s)
+                    });
+
+                    context.get_parameter_i32(glow::MAX_SAMPLES)
+                };
+
+                context.make_not_current();
+
+                if max_samples >= 2 {
+                    gl_config.samples = Some(max_samples as u8);
+                }
+
+                iced_config.antialiasing = match max_samples {
+                    16 => Some(Antialiasing::MSAAx16),
+                    8 => Some(Antialiasing::MSAAx8),
+                    4 => Some(Antialiasing::MSAAx4),
+                    2 => Some(Antialiasing::MSAAx2),
+                    _ => None,
+                };
+            };
+
             let context =
-                raw_gl_context::GlContext::create(window, renderer_settings.0)
-                    .unwrap();
+                raw_gl_context::GlContext::create(window, gl_config).unwrap();
             context.make_current();
 
             #[allow(unsafe_code)]
             let (compositor, renderer) = unsafe {
-                <Compositor as IGCompositor>::new(renderer_settings.1, |s| {
+                <Compositor as IGCompositor>::new(iced_config, |s| {
                     context.get_proc_address(s)
                 })
                 .unwrap()
@@ -299,6 +339,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
+        #[cfg(feature = "with-glow")]
+        #[cfg(not(feature = "with-wgpu"))]
+        let use_max_aa_samples = settings.use_max_aa_samples;
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
@@ -313,6 +356,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    #[cfg(feature = "with-glow")]
+                    #[cfg(not(feature = "with-wgpu"))]
+                    use_max_aa_samples,
                     sender_clone,
                     receiver,
                 )
@@ -332,6 +378,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
+        #[cfg(feature = "with-glow")]
+        #[cfg(not(feature = "with-wgpu"))]
+        let use_max_aa_samples = settings.use_max_aa_samples;
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
@@ -345,6 +394,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    #[cfg(feature = "with-glow")]
+                    #[cfg(not(feature = "with-wgpu"))]
+                    use_max_aa_samples,
                     sender_clone,
                     receiver,
                 )
@@ -362,6 +414,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
+        #[cfg(feature = "with-glow")]
+        #[cfg(not(feature = "with-wgpu"))]
+        let use_max_aa_samples = settings.use_max_aa_samples;
 
         let (sender, receiver) = mpsc::unbounded();
 
@@ -374,6 +429,9 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    #[cfg(feature = "with-glow")]
+                    #[cfg(not(feature = "with-wgpu"))]
+                    use_max_aa_samples,
                     sender,
                     receiver,
                 )
