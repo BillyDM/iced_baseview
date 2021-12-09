@@ -240,6 +240,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     context.get_parameter_i32(glow::MAX_SAMPLES)
                 };
 
+                ::log::info!("GL max samples: {}", max_samples);
+
                 context.make_not_current();
 
                 if max_samples >= 2 {
