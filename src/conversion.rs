@@ -11,6 +11,7 @@ pub fn baseview_to_iced_events(
     event: BaseEvent,
     iced_events: &mut Vec<IcedEvent>,
     modifiers: &mut IcedModifiers,
+    ignore_non_modifier_keys: bool,
 ) {
     match event {
         BaseEvent::Mouse(mouse_event) => {
@@ -119,6 +120,10 @@ pub fn baseview_to_iced_events(
                 iced_events.push(IcedEvent::Keyboard(
                     iced_native::keyboard::Event::ModifiersChanged(*modifiers),
                 ));
+            }
+
+            if ignore_non_modifier_keys {
+                return;
             }
 
             let opt_key_code = baseview_to_iced_keycode(event.code);
