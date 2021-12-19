@@ -15,6 +15,9 @@ pub struct Settings<Flags> {
     #[cfg(feature = "with-glow")]
     pub use_max_aa_samples: bool,
 
+    /// Ignore key inputs, except for modifier keys such as SHIFT and ALT
+    pub ignore_non_modifier_keys: bool,
+
     /// The data needed to initialize an [`Application`].
     ///
     /// [`Application`]: trait.Application.html

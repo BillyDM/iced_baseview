@@ -147,6 +147,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         #[cfg(feature = "with-glow")]
         #[cfg(not(feature = "with-wgpu"))]
         use_max_aa_samples: bool,
+        ignore_non_modifier_keys: bool,
         sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
         receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     ) -> IcedWindow<A> {
@@ -240,6 +241,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     context.get_parameter_i32(glow::MAX_SAMPLES)
                 };
 
+                ::log::info!("GL max samples: {}", max_samples);
+
                 context.make_not_current();
 
                 if max_samples >= 2 {
@@ -293,6 +296,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             surface,
             state,
             window_subs,
+            ignore_non_modifier_keys,
             event_status.clone(),
         ));
 
@@ -309,6 +313,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             context,
             state,
             window_subs,
+            ignore_non_modifier_keys,
             event_status.clone(),
         ));
 
@@ -342,6 +347,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         #[cfg(feature = "with-glow")]
         #[cfg(not(feature = "with-wgpu"))]
         let use_max_aa_samples = settings.use_max_aa_samples;
+        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
@@ -359,6 +365,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     #[cfg(feature = "with-glow")]
                     #[cfg(not(feature = "with-wgpu"))]
                     use_max_aa_samples,
+                    ignore_non_modifier_keys,
                     sender_clone,
                     receiver,
                 )
@@ -381,6 +388,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         #[cfg(feature = "with-glow")]
         #[cfg(not(feature = "with-wgpu"))]
         let use_max_aa_samples = settings.use_max_aa_samples;
+        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
@@ -397,6 +405,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     #[cfg(feature = "with-glow")]
                     #[cfg(not(feature = "with-wgpu"))]
                     use_max_aa_samples,
+                    ignore_non_modifier_keys,
                     sender_clone,
                     receiver,
                 )
@@ -417,6 +426,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         #[cfg(feature = "with-glow")]
         #[cfg(not(feature = "with-wgpu"))]
         let use_max_aa_samples = settings.use_max_aa_samples;
+        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
 
         let (sender, receiver) = mpsc::unbounded();
 
@@ -432,6 +442,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     #[cfg(feature = "with-glow")]
                     #[cfg(not(feature = "with-wgpu"))]
                     use_max_aa_samples,
+                    ignore_non_modifier_keys,
                     sender,
                     receiver,
                 )
@@ -542,6 +553,7 @@ async fn run_instance<A, E>(
 
     mut state: State<A>,
     mut window_subs: WindowSubs<A::Message>,
+    ignore_non_modifier_keys: bool,
     event_status: Rc<RefCell<EventStatus>>,
 ) where
     A: Application + 'static + Send,
@@ -601,6 +613,7 @@ async fn run_instance<A, E>(
                     event,
                     &mut events,
                     &mut modifiers,
+                    ignore_non_modifier_keys,
                 );
 
                 if events.is_empty() {

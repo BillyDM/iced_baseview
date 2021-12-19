@@ -13,6 +13,7 @@ fn main() {
         },
         #[cfg(feature = "with-glow")]
         use_max_aa_samples: false,
+        ignore_non_modifier_keys: false,
         flags: (),
     };
 
