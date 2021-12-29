@@ -5,7 +5,7 @@
 #![forbid(rust_2018_idioms)]
 
 mod application;
-mod conversion;
+pub mod conversion;
 mod element;
 mod proxy;
 mod window;
