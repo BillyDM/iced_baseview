@@ -754,7 +754,6 @@ async fn run_instance<A, E>(
                 }
             }
             RuntimeEvent::WillClose => {
-                /*
                 if let Some(message) = &window_subs.on_window_will_close {
                     // Send message to user before exiting the loop.
 
@@ -783,7 +782,6 @@ async fn run_instance<A, E>(
                         &mut debug,
                     ));
                 }
-                */
 
                 break;
             }
