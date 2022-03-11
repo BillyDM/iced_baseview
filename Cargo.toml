@@ -49,6 +49,6 @@ iced_graphics = "0.2"
 iced_wgpu = { version = "0.4", optional = true }
 iced_glow = { version = "0.2", optional = true }
 raw-gl-context = { version = "0.1", optional = true }
-keyboard-types = { version = "0.5", default-features = false }
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "f6e99e9aa6f5aeb6b721cb05e4d882a51d995909" }
-raw-window-handle = "0.3"
+keyboard-types = { version = "0.6.1", default-features = false }
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "b3712638bacb3fdf2883cb5aa3f6caed0e91ac8c" }
+raw-window-handle = "0.4.2"

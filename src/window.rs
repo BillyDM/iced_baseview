@@ -774,7 +774,7 @@ async fn run_instance<A, E>(
     receiver.close();
 
     // Manually drop the user interface
-    drop(ManuallyDrop::into_inner(user_interface));
+    let _ = ManuallyDrop::into_inner(user_interface);
 }
 
 /// Returns true if the provided event should cause an [`Application`] to
