@@ -10,6 +10,10 @@ fn main() {
             title: String::from("iced_baseview hello world"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
+
+            #[cfg(feature = "glow")]
+            #[cfg(not(feature = "wgpu"))]
+            gl_config: Some(baseview::gl::GlConfig::default()),
         },
         flags: (),
     };

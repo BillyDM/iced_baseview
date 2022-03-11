@@ -26,7 +26,7 @@ canvas = ["iced_wgpu/canvas"]
 default_system_font = ["iced_wgpu/default_system_font"]
 
 # Enables the `glow` rendering backend
-glow = ["iced_glow", "raw-gl-context"]
+glow = ["iced_glow", "baseview/opengl"]
 # Enables the `Canvas` widget
 glow_canvas = ["iced_glow/canvas"]
 # Enables using system fonts.
@@ -48,7 +48,6 @@ iced_native =  "0.4"
 iced_graphics = "0.2"
 iced_wgpu = { version = "0.4", optional = true }
 iced_glow = { version = "0.2", optional = true }
-raw-gl-context = { version = "0.1", optional = true }
 keyboard-types = { version = "0.6.1", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "b3712638bacb3fdf2883cb5aa3f6caed0e91ac8c" }
 raw-window-handle = "0.4.2"

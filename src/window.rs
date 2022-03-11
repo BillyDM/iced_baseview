@@ -204,23 +204,23 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         #[cfg(feature = "glow")]
         #[cfg(not(feature = "wgpu"))]
-        let (context, compositor, renderer) = {
-            let context =
-                raw_gl_context::GlContext::create(window, renderer_settings.0)
-                    .unwrap();
-            context.make_current();
+        let (compositor, renderer) = {
+            let context = window
+                .gl_context()
+                .expect("Window was created without OpenGL support");
+            unsafe { context.make_current() };
 
             #[allow(unsafe_code)]
             let (compositor, renderer) = unsafe {
-                <Compositor as IGCompositor>::new(renderer_settings.1, |s| {
+                <Compositor as IGCompositor>::new(renderer_settings, |s| {
                     context.get_proc_address(s)
                 })
                 .unwrap()
             };
 
-            context.make_not_current();
+            unsafe { context.make_not_current() };
 
-            (context, compositor, renderer)
+            (compositor, renderer)
         };
 
         #[cfg(feature = "wgpu")]
@@ -257,7 +257,6 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             debug,
             receiver,
             window_queue,
-            context,
             state,
             window_subs,
             event_status.clone(),
@@ -283,11 +282,18 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     /// * `settings` - The settings of the window.
     pub fn open_parented<P>(
         parent: &P,
-        settings: Settings<A::Flags>,
+        #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message>
     where
         P: HasRawWindowHandle,
     {
+        // Glow support requires, well, OpenGL
+        #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
+        if settings.window.gl_config.is_none() {
+            settings.window.gl_config = Some(baseview::gl::GlConfig::default());
+        }
+
         let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
@@ -319,8 +325,14 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     ///
     /// * `settings` - The settings of the window.
     pub fn open_as_if_parented(
-        settings: Settings<A::Flags>,
+        #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message> {
+        #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
+        if settings.window.gl_config.is_none() {
+            settings.window.gl_config = Some(baseview::gl::GlConfig::default());
+        }
+
         let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
@@ -350,7 +362,15 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     /// Open a new window that blocks the current thread until the window is destroyed.
     ///
     /// * `settings` - The settings of the window.
-    pub fn open_blocking(settings: Settings<A::Flags>) {
+    pub fn open_blocking(
+        #[allow(unused_mut)] mut settings: Settings<A::Flags>,
+    ) {
+        #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
+        if settings.window.gl_config.is_none() {
+            settings.window.gl_config = Some(baseview::gl::GlConfig::default());
+        }
+
         let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
@@ -381,6 +401,17 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
             return;
         }
 
+        #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
+        let gl_context = window
+            .gl_context()
+            .expect("Window was created without OpenGL support");
+        #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
+        unsafe {
+            gl_context.make_current()
+        };
+
         // Send event to render the frame.
         self.sender
             .start_send(RuntimeEvent::UpdateSwapChain)
@@ -408,6 +439,15 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
 
         // Flush all messages. This will block until the instance is finished.
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+
+        // FIXME: We can't do this inside of the `run_instance()` future. That should probably be
+        //        replaced entirely.
+        #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
+        {
+            gl_context.swap_buffers();
+            unsafe { gl_context.make_not_current() };
+        }
 
         while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
             match msg {
@@ -460,7 +500,6 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
                 }
             }
         }
-        
 
         status
     }
@@ -482,11 +521,6 @@ async fn run_instance<A, E>(
     #[rustfmt::skip]
     #[cfg(feature = "wgpu")]
     surface: <Compositor as iced_graphics::window::Compositor>::Surface,
-
-    #[rustfmt::skip]
-    #[cfg(feature = "glow")]
-    #[cfg(not(feature = "wgpu"))]
-    gl_context: raw_gl_context::GlContext,
 
     mut state: State<A>,
     mut window_subs: WindowSubs<A::Message>,
@@ -676,13 +710,10 @@ async fn run_instance<A, E>(
                         );
                     }
 
+                    // The swap will be performed in `IcedWindow::on_frame`
                     #[cfg(feature = "glow")]
                     #[cfg(not(feature = "wgpu"))]
-                    {
-                        gl_context.make_current();
-                        compositor.resize_viewport(physical_size);
-                        gl_context.make_not_current();
-                    }
+                    compositor.resize_viewport(physical_size);
 
                     let logical_size = state.logical_size();
 
@@ -718,8 +749,6 @@ async fn run_instance<A, E>(
                     #[cfg(feature = "glow")]
                     #[cfg(not(feature = "wgpu"))]
                     let new_mouse_interaction = {
-                        gl_context.make_current();
-
                         let new_mouse_interaction = compositor.draw(
                             &mut renderer,
                             state.viewport(),
@@ -728,8 +757,7 @@ async fn run_instance<A, E>(
                             &debug.overlay(),
                         );
 
-                        gl_context.swap_buffers();
-                        gl_context.make_not_current();
+                        // The swap will be performed in `IcedWindow::on_frame`
 
                         new_mouse_interaction
                     };
