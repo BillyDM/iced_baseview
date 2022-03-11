@@ -428,14 +428,14 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
         }
 
         let status = if requests_exit(&event) {
+            self.processed_close_signal = true;
+
             self.sender
                 .start_send(RuntimeEvent::WillClose)
                 .expect("Send event");
 
             // Flush all messages so the application receives the close event. This will block until the instance is finished.
             let _ = self.instance.as_mut().poll(&mut self.runtime_context);
-
-            self.processed_close_signal = true;
 
             EventStatus::Ignored
         } else {
@@ -451,13 +451,16 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
             *self.event_status.borrow()
         };
 
-        while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
-            match msg {
-                WindowQueueMessage::CloseWindow => {
-                    window.close();
+        if !self.processed_close_signal {
+            while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
+                match msg {
+                    WindowQueueMessage::CloseWindow => {
+                        window.close();
+                    }
                 }
             }
         }
+        
 
         status
     }
