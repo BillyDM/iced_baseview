@@ -6,16 +6,35 @@ use iced_native::mouse::Button as IcedMouseButton;
 use iced_native::mouse::Event as IcedMouseEvent;
 use iced_native::window::Event as IcedWindowEvent;
 use iced_native::Event as IcedEvent;
+use keyboard_types::Modifiers;
 
 pub fn baseview_to_iced_events(
     event: BaseEvent,
     iced_events: &mut Vec<IcedEvent>,
-    modifiers: &mut IcedModifiers,
+    iced_modifiers: &mut IcedModifiers,
 ) {
+    let mut maybe_update_modifiers = |modifiers: Modifiers| {
+        let old_modifiers = *iced_modifiers;
+
+        iced_modifiers.shift = modifiers.contains(Modifiers::SHIFT);
+        iced_modifiers.control = modifiers.contains(Modifiers::CONTROL);
+        iced_modifiers.alt = modifiers.contains(Modifiers::ALT);
+        iced_modifiers.logo = modifiers.contains(Modifiers::META);
+        if *iced_modifiers != old_modifiers {
+            iced_events.push(IcedEvent::Keyboard(
+                iced_native::keyboard::Event::ModifiersChanged(*iced_modifiers),
+            ));
+        }
+    };
+
     match event {
         BaseEvent::Mouse(mouse_event) => {
             match mouse_event {
-                baseview::MouseEvent::CursorMoved { position } => {
+                baseview::MouseEvent::CursorMoved {
+                    position,
+                    modifiers,
+                } => {
+                    maybe_update_modifiers(modifiers);
                     iced_events.push(IcedEvent::Mouse(
                         IcedMouseEvent::CursorMoved {
                             position: Point::new(
@@ -25,22 +44,25 @@ pub fn baseview_to_iced_events(
                         },
                     ));
                 }
-                baseview::MouseEvent::ButtonPressed(button) => {
+                baseview::MouseEvent::ButtonPressed { button, modifiers } => {
+                    maybe_update_modifiers(modifiers);
                     iced_events.push(IcedEvent::Mouse(
                         IcedMouseEvent::ButtonPressed(
                             baseview_mouse_button_to_iced(button),
                         ),
                     ));
                 }
-                baseview::MouseEvent::ButtonReleased(button) => {
+                baseview::MouseEvent::ButtonReleased { button, modifiers } => {
+                    maybe_update_modifiers(modifiers);
                     iced_events.push(IcedEvent::Mouse(
                         IcedMouseEvent::ButtonReleased(
                             baseview_mouse_button_to_iced(button),
                         ),
                     ));
                 }
-                baseview::MouseEvent::WheelScrolled(scroll_delta) => {
-                    match scroll_delta {
+                baseview::MouseEvent::WheelScrolled { delta, modifiers } => {
+                    maybe_update_modifiers(modifiers);
+                    match delta {
                         baseview::ScrollDelta::Lines { x, y } => {
                             iced_events.push(IcedEvent::Mouse(
                                 IcedMouseEvent::WheelScrolled {
@@ -78,42 +100,44 @@ pub fn baseview_to_iced_events(
             // is fixed in baseview.
             let is_modifier = match event.code {
                 Code::AltLeft => {
-                    modifiers.alt = is_down;
+                    iced_modifiers.alt = is_down;
                     true
                 }
                 Code::AltRight => {
-                    modifiers.alt = is_down;
+                    iced_modifiers.alt = is_down;
                     true
                 }
                 Code::ControlLeft => {
-                    modifiers.control = is_down;
+                    iced_modifiers.control = is_down;
                     true
                 }
                 Code::ControlRight => {
-                    modifiers.control = is_down;
+                    iced_modifiers.control = is_down;
                     true
                 }
                 Code::ShiftLeft => {
-                    modifiers.shift = is_down;
+                    iced_modifiers.shift = is_down;
                     true
                 }
                 Code::ShiftRight => {
-                    modifiers.shift = is_down;
+                    iced_modifiers.shift = is_down;
                     true
                 }
                 Code::MetaLeft => {
-                    modifiers.logo = is_down;
+                    iced_modifiers.logo = is_down;
                     true
                 }
                 Code::MetaRight => {
-                    modifiers.logo = is_down;
+                    iced_modifiers.logo = is_down;
                     true
                 }
                 _ => false,
             };
             if is_modifier {
                 iced_events.push(IcedEvent::Keyboard(
-                    iced_native::keyboard::Event::ModifiersChanged(*modifiers),
+                    iced_native::keyboard::Event::ModifiersChanged(
+                        *iced_modifiers,
+                    ),
                 ));
             }
 
@@ -124,7 +148,7 @@ pub fn baseview_to_iced_events(
                     iced_events.push(IcedEvent::Keyboard(
                         IcedKeyEvent::KeyPressed {
                             key_code,
-                            modifiers: *modifiers,
+                            modifiers: *iced_modifiers,
                         },
                     ));
                 }
@@ -140,7 +164,7 @@ pub fn baseview_to_iced_events(
                 iced_events.push(IcedEvent::Keyboard(
                     IcedKeyEvent::KeyReleased {
                         key_code,
-                        modifiers: *modifiers,
+                        modifiers: *iced_modifiers,
                     },
                 ));
             }
@@ -154,10 +178,10 @@ pub fn baseview_to_iced_events(
                 }));
             }
             baseview::WindowEvent::Unfocused => {
-                modifiers.alt = false;
-                modifiers.shift = false;
-                modifiers.control = false;
-                modifiers.logo = false;
+                iced_modifiers.alt = false;
+                iced_modifiers.shift = false;
+                iced_modifiers.control = false;
+                iced_modifiers.logo = false;
             }
             _ => {}
         },

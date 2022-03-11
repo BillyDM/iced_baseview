@@ -1,6 +1,7 @@
 use iced_graphics::Viewport;
 use iced_native::keyboard;
 use iced_native::Debug;
+use keyboard_types::Modifiers;
 use std::marker::PhantomData;
 
 use crate::{Application, Color, Point, Size};
@@ -119,21 +120,24 @@ impl<A: Application + Send> State<A> {
             }
             baseview::Event::Mouse(baseview::MouseEvent::CursorMoved {
                 position,
+                modifiers,
             }) => {
+                self.update_modifiers(*modifiers);
+
                 self.cursor_position.x = position.x as f32;
                 self.cursor_position.y = position.y as f32;
 
                 // TODO: Encode cursor moving outside of the window.
             }
+            baseview::Event::Mouse(
+                baseview::MouseEvent::ButtonPressed { modifiers, .. }
+                | baseview::MouseEvent::ButtonReleased { modifiers, .. }
+                | baseview::MouseEvent::WheelScrolled { modifiers, .. },
+            ) => {
+                self.update_modifiers(*modifiers);
+            }
             baseview::Event::Keyboard(event) => {
-                use keyboard_types::Modifiers as KeyModifiers;
-
-                self.modifiers = keyboard::Modifiers {
-                    shift: event.modifiers.contains(KeyModifiers::SHIFT),
-                    control: event.modifiers.contains(KeyModifiers::CONTROL),
-                    alt: event.modifiers.contains(KeyModifiers::ALT),
-                    logo: event.modifiers.contains(KeyModifiers::META),
-                };
+                self.update_modifiers(event.modifiers);
 
                 #[cfg(feature = "debug")]
                 {
@@ -212,5 +216,14 @@ impl<A: Application + Send> State<A> {
                 }
             }
         }
+    }
+
+    fn update_modifiers(&mut self, modifiers: Modifiers) {
+        self.modifiers = keyboard::Modifiers {
+            shift: modifiers.contains(Modifiers::SHIFT),
+            control: modifiers.contains(Modifiers::CONTROL),
+            alt: modifiers.contains(Modifiers::ALT),
+            logo: modifiers.contains(Modifiers::META),
+        };
     }
 }
