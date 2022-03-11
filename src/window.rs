@@ -135,6 +135,8 @@ pub struct IcedWindow<A: Application + 'static + Send> {
     runtime_rx: mpsc::UnboundedReceiver<A::Message>,
     window_queue_rx: mpsc::UnboundedReceiver<WindowQueueMessage>,
     event_status: Rc<RefCell<EventStatus>>,
+
+    processed_close_signal: bool,
 }
 
 impl<A: Application + 'static + Send> IcedWindow<A> {
@@ -270,6 +272,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             runtime_rx,
             window_queue_rx,
             event_status,
+
+            processed_close_signal: false,
         }
     }
 
@@ -373,6 +377,10 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
 impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
     fn on_frame(&mut self, window: &mut Window<'_>) {
+        if self.processed_close_signal {
+            return;
+        }
+
         // Send event to render the frame.
         self.sender
             .start_send(RuntimeEvent::UpdateSwapChain)
@@ -415,6 +423,10 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
         window: &mut Window<'_>,
         event: Event,
     ) -> EventStatus {
+        if self.processed_close_signal {
+            return EventStatus::Ignored;
+        }
+
         let status = if requests_exit(&event) {
             self.sender
                 .start_send(RuntimeEvent::WillClose)
@@ -422,6 +434,8 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
 
             // Flush all messages so the application receives the close event. This will block until the instance is finished.
             let _ = self.instance.as_mut().poll(&mut self.runtime_context);
+
+            self.processed_close_signal = true;
 
             EventStatus::Ignored
         } else {
