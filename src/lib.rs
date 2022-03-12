@@ -4,7 +4,11 @@
 //#![forbid(unsafe_code)]
 #![forbid(rust_2018_idioms)]
 
+#[doc(no_inline)]
+pub use iced_native::*;
+
 mod application;
+// TODO: Clipboard handling
 pub mod conversion;
 mod element;
 mod proxy;
@@ -14,6 +18,7 @@ pub mod executor;
 pub mod keyboard;
 pub mod mouse;
 pub mod settings;
+pub mod time;
 pub mod widget;
 
 pub use application::Application;
@@ -40,14 +45,4 @@ type Compositor = iced_glow::window::Compositor;
 pub use iced_glow as renderer;
 
 #[doc(no_inline)]
-pub use iced_native::{
-    futures, Align, Background, Color, Command, Font, HorizontalAlignment,
-    Length, Point, Rectangle, Size, Subscription, Vector, VerticalAlignment,
-};
-
-#[doc(no_inline)]
 pub use widget::*;
-
-#[cfg(all(any(feature = "tokio", feature = "async-std"),))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-std"))))]
-pub mod time;

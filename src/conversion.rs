@@ -16,10 +16,14 @@ pub fn baseview_to_iced_events(
     let mut maybe_update_modifiers = |modifiers: Modifiers| {
         let old_modifiers = *iced_modifiers;
 
-        iced_modifiers.shift = modifiers.contains(Modifiers::SHIFT);
-        iced_modifiers.control = modifiers.contains(Modifiers::CONTROL);
-        iced_modifiers.alt = modifiers.contains(Modifiers::ALT);
-        iced_modifiers.logo = modifiers.contains(Modifiers::META);
+        iced_modifiers
+            .set(IcedModifiers::SHIFT, modifiers.contains(Modifiers::SHIFT));
+        iced_modifiers
+            .set(IcedModifiers::CTRL, modifiers.contains(Modifiers::CONTROL));
+        iced_modifiers
+            .set(IcedModifiers::ALT, modifiers.contains(Modifiers::ALT));
+        iced_modifiers
+            .set(IcedModifiers::LOGO, modifiers.contains(Modifiers::META));
         if *iced_modifiers != old_modifiers {
             iced_events.push(IcedEvent::Keyboard(
                 iced_native::keyboard::Event::ModifiersChanged(*iced_modifiers),
@@ -99,36 +103,20 @@ pub fn baseview_to_iced_events(
             // TODO: Remove manual setting of modifiers once the issue
             // is fixed in baseview.
             let is_modifier = match event.code {
-                Code::AltLeft => {
-                    iced_modifiers.alt = is_down;
+                Code::AltLeft | Code::AltRight => {
+                    iced_modifiers.set(IcedModifiers::ALT, is_down);
                     true
                 }
-                Code::AltRight => {
-                    iced_modifiers.alt = is_down;
+                Code::ControlLeft | Code::ControlRight => {
+                    iced_modifiers.set(IcedModifiers::COMMAND, is_down);
                     true
                 }
-                Code::ControlLeft => {
-                    iced_modifiers.control = is_down;
+                Code::ShiftLeft | Code::ShiftRight => {
+                    iced_modifiers.set(IcedModifiers::SHIFT, is_down);
                     true
                 }
-                Code::ControlRight => {
-                    iced_modifiers.control = is_down;
-                    true
-                }
-                Code::ShiftLeft => {
-                    iced_modifiers.shift = is_down;
-                    true
-                }
-                Code::ShiftRight => {
-                    iced_modifiers.shift = is_down;
-                    true
-                }
-                Code::MetaLeft => {
-                    iced_modifiers.logo = is_down;
-                    true
-                }
-                Code::MetaRight => {
-                    iced_modifiers.logo = is_down;
+                Code::MetaLeft | Code::MetaRight => {
+                    iced_modifiers.set(IcedModifiers::LOGO, is_down);
                     true
                 }
                 _ => false,
@@ -178,10 +166,7 @@ pub fn baseview_to_iced_events(
                 }));
             }
             baseview::WindowEvent::Unfocused => {
-                iced_modifiers.alt = false;
-                iced_modifiers.shift = false;
-                iced_modifiers.control = false;
-                iced_modifiers.logo = false;
+                *iced_modifiers = IcedModifiers::empty();
             }
             _ => {}
         },
