@@ -8,12 +8,12 @@
 pub use iced_native::*;
 
 mod application;
-// TODO: Clipboard handling
 pub mod conversion;
 mod element;
 mod proxy;
 mod window;
 
+pub mod clipboard;
 pub mod executor;
 pub mod keyboard;
 pub mod mouse;
