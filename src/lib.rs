@@ -4,7 +4,11 @@
 //#![forbid(unsafe_code)]
 #![forbid(rust_2018_idioms)]
 
+#[doc(no_inline)]
+pub use iced_native::*;
+
 mod application;
+// TODO: Clipboard handling
 pub mod conversion;
 mod element;
 mod proxy;
@@ -38,12 +42,6 @@ type Compositor = iced_glow::window::Compositor;
 #[cfg(feature = "glow")]
 #[cfg(not(feature = "wgpu"))]
 pub use iced_glow as renderer;
-
-#[doc(no_inline)]
-pub use iced_native::{
-    futures, Align, Background, Color, Command, Font, HorizontalAlignment,
-    Length, Point, Rectangle, Size, Subscription, Vector, VerticalAlignment,
-};
 
 #[doc(no_inline)]
 pub use widget::*;

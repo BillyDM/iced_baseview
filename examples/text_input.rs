@@ -1,6 +1,6 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, text_input, Align, Application, Color, Column, Command,
+    executor, text_input, Alignment, Application, Color, Column, Command,
     Container, Element, IcedWindow, Length, Settings, Text, TextInput,
     WindowQueue,
 };
@@ -71,7 +71,7 @@ impl Application for MyProgram {
 
         let content = Column::new()
             .width(Length::Fill)
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .padding(20)
             .spacing(20)
             .push(Text::new("Write text!"))

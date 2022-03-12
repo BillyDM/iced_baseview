@@ -1,6 +1,6 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    button, executor, Align, Application, Button, Color, Column, Command,
+    button, executor, Alignment, Application, Button, Color, Column, Command,
     Container, Element, IcedWindow, Length, Settings, Subscription, Text,
     WindowQueue, WindowSubs,
 };
@@ -93,7 +93,7 @@ impl Application for MyProgram {
     fn view(&mut self) -> Element<'_, Self::Message> {
         let content = Column::new()
             .width(Length::Fill)
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .push(Text::new(format!("{}", self.count)))
             .push(
                 Button::new(
