@@ -59,4 +59,5 @@ iced_glow = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf37
 keyboard-types = { version = "0.6.1", default-features = false }
 # This includes changes to make the OpenGL context creation
 baseview = { git = "https://github.com/robbert-vdh/baseview.git", branch = "feature/mouse-event-modifiers" }
+copypasta = "0.7.1"
 raw-window-handle = "0.4.2"

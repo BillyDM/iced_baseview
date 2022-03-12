@@ -3,11 +3,10 @@ use futures::StreamExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
+use iced_native::clipboard::Clipboard as IcedClipboard;
 use iced_native::event::Status;
 use iced_native::user_interface::{self, UserInterface};
-use iced_native::{
-    clipboard, Clipboard, Command, Debug, Executor, Runtime, Size,
-};
+use iced_native::{clipboard, Command, Debug, Executor, Runtime, Size};
 use mpsc::SendError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::cell::RefCell;
@@ -16,7 +15,9 @@ use std::pin::Pin;
 use std::rc::Rc;
 
 use crate::application::State;
-use crate::{proxy::Proxy, Application, Compositor, Renderer, Settings};
+use crate::clipboard::Clipboard;
+use crate::proxy::Proxy;
+use crate::{Application, Compositor, Renderer, Settings};
 
 pub(crate) enum RuntimeEvent<Message: 'static + Send> {
     Baseview((baseview::Event, bool)),
@@ -183,8 +184,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let mut window_subs = WindowSubs::default();
 
-        // TODO: Implement the clipboard
-        let mut clipboard = iced_native::clipboard::Null;
+        let mut clipboard = Clipboard::default();
         let subscription = application.subscription(&mut window_subs);
 
         run_command(init_command, &mut runtime, &mut clipboard);
@@ -522,7 +522,7 @@ async fn run_instance<A, E>(
     mut compositor: Compositor,
     mut renderer: Renderer,
     mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
-    mut clipboard: iced_native::clipboard::Null,
+    mut clipboard: Clipboard,
     mut debug: Debug,
     mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     mut window_queue: WindowQueue,
@@ -604,7 +604,7 @@ async fn run_instance<A, E>(
                     &events,
                     state.cursor_position(),
                     &mut renderer,
-                    &mut clipboard, // TODO: clipboard
+                    &mut clipboard,
                     &mut messages,
                 );
                 // Will trigger an update when the next frame gets drawn
@@ -651,7 +651,7 @@ async fn run_instance<A, E>(
                         &events,
                         state.cursor_position(),
                         &mut renderer,
-                        &mut clipboard, // TODO: clipboard
+                        &mut clipboard,
                         &mut messages,
                     );
                     needs_update |= matches!(
@@ -895,7 +895,7 @@ pub fn build_user_interface<'a, A: Application + 'static + Send>(
 pub fn update<A: Application, E: Executor>(
     application: &mut A,
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
-    clipboard: &mut iced_native::clipboard::Null,
+    clipboard: &mut Clipboard,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
     window_subs: &mut WindowSubs<A::Message>,
@@ -915,11 +915,12 @@ pub fn update<A: Application, E: Executor>(
     let subscription = application.subscription(window_subs);
     runtime.track(subscription);
 }
-/// Runs the actions of a [`Command`].
+
+/// Runs the actions of a [`Command`], potentially yielding a new message.
 pub fn run_command<Message: 'static + std::fmt::Debug + Send, E: Executor>(
     command: Command<Message>,
     runtime: &mut Runtime<E, Proxy<Message>, Message>,
-    clipboard: &mut iced_native::clipboard::Null,
+    clipboard: &mut Clipboard,
 ) {
     use iced_native::command;
     use iced_native::window;
@@ -930,16 +931,15 @@ pub fn run_command<Message: 'static + std::fmt::Debug + Send, E: Executor>(
                 runtime.spawn(future);
             }
             command::Action::Clipboard(action) => match action {
-                // TODO: Handle the clipboard
-                clipboard::Action::Read(tag) => {
-                    let _message = tag(clipboard.read());
+                clipboard::Action::Read(set_clipboard) => {
+                    let message = set_clipboard(clipboard.read());
 
-                    // proxy
-                    //     .send_event(message)
-                    //     .expect("Send message to event loop");
+                    // TODO: Is this what you're supposed to do? The winit example sends an event to
+                    //       the window which would end up doing the same thing.
+                    runtime.spawn(Box::pin(futures::future::ready(message)));
                 }
-                clipboard::Action::Write(_contents) => {
-                    // clipboard.write(contents);
+                clipboard::Action::Write(contents) => {
+                    clipboard.write(contents);
                 }
             },
             command::Action::Window(action) => match action {
