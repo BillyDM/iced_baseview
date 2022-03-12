@@ -39,7 +39,7 @@ glow_qr_code = ["iced_glow/qr_code"]
 # Enables using system fonts for `iced_glow`
 glow_default_system_font = ["iced_glow/default_system_font"]
 # Enables a debug view in native platforms (press F12)
-debug = []
+debug = ["iced_native/debug"]
 # Enables `tokio` as the `executor::Default` on native platforms
 tokio = ["iced_futures/tokio"]
 # Enables `async-std` as the `executor::Default` on native platforms
