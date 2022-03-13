@@ -19,21 +19,21 @@ pub use crate::renderer::widget::{
     Text,
 };
 
-#[cfg(any(feature = "canvas", feature = "glow_canvas"))]
+#[cfg(any(feature = "wgpu_canvas", feature = "glow_canvas"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(any(feature = "canvas", feature = "glow_canvas")))
+    doc(cfg(any(feature = "wgpu_canvas", feature = "glow_canvas")))
 )]
 pub use crate::renderer::widget::canvas;
 
-#[cfg(any(feature = "qr_code", feature = "glow_qr_code"))]
+#[cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(any(feature = "qr_code", feature = "glow_qr_code")))
+    doc(cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code")))
 )]
 pub use crate::renderer::widget::qr_code;
 
-#[cfg_attr(docsrs, doc(cfg(feature = "image")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_image")))]
 pub mod image {
     //! Display images in your user interface.
     pub use iced_native::image::Handle;
@@ -41,7 +41,7 @@ pub mod image {
     pub use iced_native::widget::image::{Image, Viewer};
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "svg")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_svg")))]
 pub mod svg {
     //! Display vector graphics in your user interface.
     pub use iced_native::svg::Handle;
@@ -56,10 +56,10 @@ pub use {
     text_input::TextInput, toggler::Toggler, tooltip::Tooltip,
 };
 
-#[cfg(any(feature = "canvas", feature = "glow_canvas"))]
+#[cfg(any(feature = "wgpu_canvas", feature = "glow_canvas"))]
 #[doc(no_inline)]
 pub use canvas::Canvas;
 
-#[cfg(any(feature = "qr_code", feature = "glow_qr_code"))]
+#[cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code"))]
 #[doc(no_inline)]
 pub use qr_code::QRCode;
