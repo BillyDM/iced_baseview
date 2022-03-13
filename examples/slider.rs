@@ -12,9 +12,14 @@ fn main() {
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
 
+            // FIXME: The current glow_glpyh version does not enable the correct extension in their
+            //        shader so this currently won't work with OpenGL <= 3.2
             #[cfg(feature = "glow")]
             #[cfg(not(feature = "wgpu"))]
-            gl_config: Some(baseview::gl::GlConfig::default()),
+            gl_config: Some(baseview::gl::GlConfig {
+                version: (3, 3),
+                ..baseview::gl::GlConfig::default()
+            }),
         },
         ignore_non_modifier_keys: false,
         flags: (),
