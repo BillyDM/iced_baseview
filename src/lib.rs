@@ -35,7 +35,7 @@ type Renderer = iced_wgpu::Renderer;
 #[cfg(feature = "wgpu")]
 type Compositor = iced_wgpu::window::Compositor;
 #[cfg(feature = "wgpu")]
-pub use iced_wgpu as renderer;
+pub use iced_wgpu as backend;
 
 #[cfg(feature = "glow")]
 #[cfg(not(feature = "wgpu"))]
@@ -45,7 +45,7 @@ type Renderer = iced_glow::Renderer;
 type Compositor = iced_glow::window::Compositor;
 #[cfg(feature = "glow")]
 #[cfg(not(feature = "wgpu"))]
-pub use iced_glow as renderer;
+pub use iced_glow as backend;
 
 #[doc(no_inline)]
 pub use widget::*;

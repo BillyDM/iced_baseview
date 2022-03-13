@@ -13,7 +13,7 @@
 //!
 //! These widgets have their own module with a `State` type. For instance, a
 //! [`TextInput`] has some [`text_input::State`].
-pub use crate::renderer::widget::{
+pub use crate::backend::widget::{
     button, checkbox, container, pane_grid, pick_list, progress_bar, radio,
     rule, scrollable, slider, text_input, toggler, tooltip, Column, Row, Space,
     Text,
@@ -24,14 +24,14 @@ pub use crate::renderer::widget::{
     docsrs,
     doc(cfg(any(feature = "wgpu_canvas", feature = "glow_canvas")))
 )]
-pub use crate::renderer::widget::canvas;
+pub use crate::backend::widget::canvas;
 
 #[cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code"))]
 #[cfg_attr(
     docsrs,
     doc(cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code")))
 )]
-pub use crate::renderer::widget::qr_code;
+pub use crate::backend::widget::qr_code;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "wgpu_image")))]
 pub mod image {
