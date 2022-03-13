@@ -5,9 +5,12 @@
 
 A [`baseview`] backend for the [`Iced`] GUI library.
 
+
 <div align="center">
     <img src="screenshot.png">
 </div>
+
+The [main branch](https://github.com/BillyDM/iced_baseview/tree/main) of this repository tracks the latest crates.io release of iced, while [iced_git  branch](https://github.com/BillyDM/iced_baseview/tree/iced_git) tracks its git repository.
 
 ## Simple Usage Example
 
