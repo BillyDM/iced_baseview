@@ -149,6 +149,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         scale_policy: WindowScalePolicy,
         logical_width: f64,
         logical_height: f64,
+        ignore_non_modifier_keys: bool,
         sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
         receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     ) -> IcedWindow<A> {
@@ -251,6 +252,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             surface,
             state,
             window_subs,
+            ignore_non_modifier_keys,
             event_status.clone(),
         ));
 
@@ -267,6 +269,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             window_queue,
             state,
             window_subs,
+            ignore_non_modifier_keys,
             event_status.clone(),
         ));
 
@@ -286,12 +289,12 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
     /// Make sure the OpenGL context settings on the window open flags are consistent with the
     /// renderer configuration.
-    fn update_gl_context(settings: &mut Settings<A::Flags>) {
+    fn update_gl_context(_settings: &mut Settings<A::Flags>) {
         #[cfg(feature = "glow")]
         #[cfg(not(feature = "wgpu"))]
         {
             // Glow support requires, well, OpenGL
-            let gl_config = settings
+            let gl_config = _settings
                 .window
                 .gl_config
                 // FIXME: The current glow_glpyh version does not enable the correct extension in their
@@ -326,6 +329,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
+        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
@@ -340,6 +344,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    ignore_non_modifier_keys,
                     sender_clone,
                     receiver,
                 )
@@ -361,6 +366,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
+        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
@@ -374,6 +380,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    ignore_non_modifier_keys,
                     sender_clone,
                     receiver,
                 )
@@ -395,6 +402,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         let logical_width = settings.window.size.width as f64;
         let logical_height = settings.window.size.height as f64;
         let flags = settings.flags;
+        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
 
         let (sender, receiver) = mpsc::unbounded();
 
@@ -407,6 +415,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                     scale_policy,
                     logical_width,
                     logical_height,
+                    ignore_non_modifier_keys,
                     sender,
                     receiver,
                 )
@@ -543,6 +552,7 @@ async fn run_instance<A, E>(
 
     mut state: State<A>,
     mut window_subs: WindowSubs<A::Message>,
+    ignore_non_modifier_keys: bool,
     event_status: Rc<RefCell<EventStatus>>,
 ) where
     A: Application + 'static + Send,
@@ -599,6 +609,7 @@ async fn run_instance<A, E>(
                     event,
                     &mut events,
                     &mut modifiers,
+                    ignore_non_modifier_keys,
                 );
 
                 if events.is_empty() {

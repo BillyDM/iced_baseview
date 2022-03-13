@@ -27,6 +27,9 @@ pub use executor::Executor;
 pub use settings::Settings;
 pub use window::{IcedWindow, WindowHandle, WindowQueue, WindowSubs};
 
+#[cfg(all(feature = "wgpu", feature = "glow"))]
+compile_error!("Can't use both 'wgpu' and 'glow' features");
+
 #[cfg(feature = "wgpu")]
 type Renderer = iced_wgpu::Renderer;
 #[cfg(feature = "wgpu")]

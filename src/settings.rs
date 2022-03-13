@@ -10,6 +10,9 @@ pub struct Settings<Flags> {
     /// [`Window`]: struct.Window.html
     pub window: WindowOpenOptions,
 
+    /// Ignore key inputs, except for modifier keys such as SHIFT and ALT
+    pub ignore_non_modifier_keys: bool,
+
     /// The data needed to initialize an [`Application`].
     ///
     /// [`Application`]: trait.Application.html

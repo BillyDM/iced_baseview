@@ -12,6 +12,7 @@ pub fn baseview_to_iced_events(
     event: BaseEvent,
     iced_events: &mut Vec<IcedEvent>,
     iced_modifiers: &mut IcedModifiers,
+    ignore_non_modifier_keys: bool,
 ) {
     let mut maybe_update_modifiers = |modifiers: Modifiers| {
         let old_modifiers = *iced_modifiers;
@@ -127,6 +128,10 @@ pub fn baseview_to_iced_events(
                         *iced_modifiers,
                     ),
                 ));
+            }
+
+            if ignore_non_modifier_keys {
+                return;
             }
 
             let opt_key_code = baseview_to_iced_keycode(event.code);

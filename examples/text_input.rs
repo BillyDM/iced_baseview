@@ -21,6 +21,7 @@ fn main() {
                 ..baseview::gl::GlConfig::default()
             }),
         },
+        ignore_non_modifier_keys: false,
         flags: (),
     };
 

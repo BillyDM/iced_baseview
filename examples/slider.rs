@@ -16,6 +16,7 @@ fn main() {
             #[cfg(not(feature = "wgpu"))]
             gl_config: Some(baseview::gl::GlConfig::default()),
         },
+        ignore_non_modifier_keys: false,
         flags: (),
     };
 
