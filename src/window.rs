@@ -284,6 +284,31 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         }
     }
 
+    /// Make sure the OpenGL context settings on the window open flags are consistent with the
+    /// renderer configuration.
+    fn update_gl_context(settings: &mut Settings<A::Flags>) {
+        #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
+        {
+            // Glow support requires, well, OpenGL
+            let gl_config = settings
+                .window
+                .gl_config
+                // FIXME: The current glow_glpyh version does not enable the correct extension in their
+                //        shader so this currently won't work with OpenGL <= 3.2
+                .get_or_insert_with(|| baseview::gl::GlConfig {
+                    version: (3, 3),
+                    ..baseview::gl::GlConfig::default()
+                });
+
+            // Make sure the anti aliasing settings match up if they have been set on renderer's
+            // settings
+            if let Some(antialiasing) = A::renderer_settings().antialiasing {
+                gl_config.samples = Some(antialiasing.sample_count() as u8);
+            }
+        }
+    }
+
     /// Open a new child window.
     ///
     /// * `parent` - The parent window.
@@ -295,14 +320,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     where
         P: HasRawWindowHandle,
     {
-        // Glow support requires, well, OpenGL
-        // FIXME: The current glow_glpyh version does not enable the correct extension in their
-        //        shader so this currently won't work with OpenGL <= 3.2
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
-        if settings.window.gl_config.is_none() {
-            settings.window.gl_config = Some(baseview::gl::GlConfig::default());
-        }
+        Self::update_gl_context(&mut settings);
 
         let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
@@ -337,11 +355,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     pub fn open_as_if_parented(
         #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message> {
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
-        if settings.window.gl_config.is_none() {
-            settings.window.gl_config = Some(baseview::gl::GlConfig::default());
-        }
+        Self::update_gl_context(&mut settings);
 
         let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
@@ -375,11 +389,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     pub fn open_blocking(
         #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) {
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
-        if settings.window.gl_config.is_none() {
-            settings.window.gl_config = Some(baseview::gl::GlConfig::default());
-        }
+        Self::update_gl_context(&mut settings);
 
         let scale_policy = settings.window.scale;
         let logical_width = settings.window.size.width as f64;
