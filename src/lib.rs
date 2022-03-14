@@ -22,7 +22,7 @@ pub mod widget;
 pub use application::Application;
 pub use element::Element;
 pub use executor::Executor;
-pub use settings::Settings;
+pub use settings::{IcedBaseviewSettings, Settings};
 pub use window::{IcedWindow, WindowHandle, WindowQueue, WindowSubs};
 
 #[cfg(all(feature = "wgpu", feature = "glow"))]

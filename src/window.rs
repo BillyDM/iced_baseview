@@ -1,4 +1,7 @@
-use baseview::{Event, EventStatus, Window, WindowHandler, WindowScalePolicy};
+use baseview::{
+    Event, EventStatus, Window, WindowHandler, WindowOpenOptions,
+    WindowScalePolicy,
+};
 use futures::StreamExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
@@ -17,7 +20,9 @@ use std::rc::Rc;
 use crate::application::State;
 use crate::clipboard::Clipboard;
 use crate::proxy::Proxy;
-use crate::{Application, Compositor, Renderer, Settings};
+use crate::{
+    Application, Compositor, IcedBaseviewSettings, Renderer, Settings,
+};
 
 pub(crate) enum RuntimeEvent<Message: 'static + Send> {
     Baseview((baseview::Event, bool)),
@@ -145,11 +150,7 @@ pub struct IcedWindow<A: Application + 'static + Send> {
 impl<A: Application + 'static + Send> IcedWindow<A> {
     fn new(
         window: &mut baseview::Window<'_>,
-        flags: A::Flags,
-        scale_policy: WindowScalePolicy,
-        logical_width: f64,
-        logical_height: f64,
-        ignore_non_modifier_keys: bool,
+        settings: Settings<A::Flags>,
         sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
         receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     ) -> IcedWindow<A> {
@@ -177,11 +178,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             Runtime::new(executor, proxy)
         };
 
-        let (application, init_command) = {
-            let flags = flags;
-
-            runtime.enter(|| A::new(flags))
-        };
+        let (application, init_command) =
+            runtime.enter(|| A::new(settings.flags));
 
         let mut window_subs = WindowSubs::default();
 
@@ -192,14 +190,14 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         runtime.track(subscription);
 
         // Assume scale for now until there is an event with a new one.
-        let scale = match scale_policy {
+        let scale = match settings.window.scale {
             WindowScalePolicy::ScaleFactor(scale) => scale,
             WindowScalePolicy::SystemScaleFactor => 1.0,
         };
 
         let physical_size = Size::new(
-            (logical_width * scale) as u32,
-            (logical_height * scale) as u32,
+            (settings.window.size.width * scale) as u32,
+            (settings.window.size.height * scale) as u32,
         );
 
         let viewport = Viewport::with_physical_size(physical_size, scale);
@@ -233,7 +231,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
         #[cfg(feature = "wgpu")]
         let surface = compositor.create_surface(window);
 
-        let state = State::new(&application, viewport, scale_policy);
+        let state = State::new(&application, viewport, settings.window.scale);
 
         let event_status = Rc::new(RefCell::new(EventStatus::Ignored));
 
@@ -252,7 +250,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             surface,
             state,
             window_subs,
-            ignore_non_modifier_keys,
+            settings.iced_baseview,
             event_status.clone(),
         ));
 
@@ -269,7 +267,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             window_queue,
             state,
             window_subs,
-            ignore_non_modifier_keys,
+            settings.iced_baseview,
             event_status.clone(),
         ));
 
@@ -284,6 +282,20 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             event_status,
 
             processed_close_signal: false,
+        }
+    }
+
+    /// There's no clone implementation, but this is fine.
+    fn clone_window_options(window: &WindowOpenOptions) -> WindowOpenOptions {
+        WindowOpenOptions {
+            title: window.title.clone(),
+            #[cfg(feature = "glow")]
+            #[cfg(not(feature = "wgpu"))]
+            gl_config: window
+                .gl_config
+                .as_ref()
+                .map(|config| baseview::gl::GlConfig { ..*config }),
+            ..*window
         }
     }
 
@@ -325,29 +337,14 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     {
         Self::update_gl_context(&mut settings);
 
-        let scale_policy = settings.window.scale;
-        let logical_width = settings.window.size.width as f64;
-        let logical_height = settings.window.size.height as f64;
-        let flags = settings.flags;
-        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
-
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
 
         let bv_handle = Window::open_parented(
             parent,
-            settings.window,
+            Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                IcedWindow::new(
-                    window,
-                    flags,
-                    scale_policy,
-                    logical_width,
-                    logical_height,
-                    ignore_non_modifier_keys,
-                    sender_clone,
-                    receiver,
-                )
+                IcedWindow::new(window, settings, sender_clone, receiver)
             },
         );
 
@@ -362,28 +359,13 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     ) -> WindowHandle<A::Message> {
         Self::update_gl_context(&mut settings);
 
-        let scale_policy = settings.window.scale;
-        let logical_width = settings.window.size.width as f64;
-        let logical_height = settings.window.size.height as f64;
-        let flags = settings.flags;
-        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
-
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
 
         let bv_handle = Window::open_as_if_parented(
-            settings.window,
+            Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                IcedWindow::new(
-                    window,
-                    flags,
-                    scale_policy,
-                    logical_width,
-                    logical_height,
-                    ignore_non_modifier_keys,
-                    sender_clone,
-                    receiver,
-                )
+                IcedWindow::new(window, settings, sender_clone, receiver)
             },
         );
 
@@ -398,27 +380,12 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     ) {
         Self::update_gl_context(&mut settings);
 
-        let scale_policy = settings.window.scale;
-        let logical_width = settings.window.size.width as f64;
-        let logical_height = settings.window.size.height as f64;
-        let flags = settings.flags;
-        let ignore_non_modifier_keys = settings.ignore_non_modifier_keys;
-
         let (sender, receiver) = mpsc::unbounded();
 
         Window::open_blocking(
-            settings.window,
+            Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                IcedWindow::new(
-                    window,
-                    flags,
-                    scale_policy,
-                    logical_width,
-                    logical_height,
-                    ignore_non_modifier_keys,
-                    sender,
-                    receiver,
-                )
+                IcedWindow::new(window, settings, sender, receiver)
             },
         );
     }
@@ -552,7 +519,7 @@ async fn run_instance<A, E>(
 
     mut state: State<A>,
     mut window_subs: WindowSubs<A::Message>,
-    ignore_non_modifier_keys: bool,
+    settings: IcedBaseviewSettings,
     event_status: Rc<RefCell<EventStatus>>,
 ) where
     A: Application + 'static + Send,
@@ -609,7 +576,7 @@ async fn run_instance<A, E>(
                     event,
                     &mut events,
                     &mut modifiers,
-                    ignore_non_modifier_keys,
+                    settings.ignore_non_modifier_keys,
                 );
 
                 if events.is_empty() {
@@ -738,8 +705,9 @@ async fn run_instance<A, E>(
                 messages.push(message);
             }
             RuntimeEvent::RedrawRequested => {
-                // Set whenever a baseview event is triggered
-                if !redraw_requested {
+                // Set whenever a baseview event or message gets handled. Or as a stopgap workaround
+                // we can also just always redraw.
+                if !(redraw_requested || settings.always_redraw) {
                     continue;
                 }
 

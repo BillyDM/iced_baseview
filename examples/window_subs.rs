@@ -1,8 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
     button, executor, Alignment, Application, Button, Color, Column, Command,
-    Container, Element, IcedWindow, Length, Settings, Subscription, Text,
-    WindowQueue, WindowSubs,
+    Container, Element, IcedBaseviewSettings, IcedWindow, Length, Settings,
+    Subscription, Text, WindowQueue, WindowSubs,
 };
 use std::time::{Duration, Instant};
 
@@ -24,7 +24,10 @@ fn main() {
                 ..baseview::gl::GlConfig::default()
             }),
         },
-        ignore_non_modifier_keys: false,
+        iced_baseview: IcedBaseviewSettings {
+            ignore_non_modifier_keys: false,
+            always_redraw: true,
+        },
         flags: (),
     };
 

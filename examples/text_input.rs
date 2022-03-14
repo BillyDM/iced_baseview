@@ -1,8 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
     executor, text_input, Alignment, Application, Color, Column, Command,
-    Container, Element, IcedWindow, Length, Settings, Text, TextInput,
-    WindowQueue,
+    Container, Element, IcedBaseviewSettings, IcedWindow, Length, Settings,
+    Text, TextInput, WindowQueue,
 };
 
 fn main() {
@@ -21,7 +21,10 @@ fn main() {
                 ..baseview::gl::GlConfig::default()
             }),
         },
-        ignore_non_modifier_keys: false,
+        iced_baseview: IcedBaseviewSettings {
+            ignore_non_modifier_keys: false,
+            always_redraw: true,
+        },
         flags: (),
     };
 
