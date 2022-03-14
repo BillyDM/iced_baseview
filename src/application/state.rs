@@ -120,21 +120,11 @@ impl<A: Application + Send> State<A> {
             }
             baseview::Event::Mouse(baseview::MouseEvent::CursorMoved {
                 position,
-                modifiers,
             }) => {
-                self.update_modifiers(*modifiers);
-
                 self.cursor_position.x = position.x as f32;
                 self.cursor_position.y = position.y as f32;
 
                 // TODO: Encode cursor moving outside of the window.
-            }
-            baseview::Event::Mouse(
-                baseview::MouseEvent::ButtonPressed { modifiers, .. }
-                | baseview::MouseEvent::ButtonReleased { modifiers, .. }
-                | baseview::MouseEvent::WheelScrolled { modifiers, .. },
-            ) => {
-                self.update_modifiers(*modifiers);
             }
             baseview::Event::Keyboard(event) => {
                 self.update_modifiers(event.modifiers);

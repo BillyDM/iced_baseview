@@ -6,7 +6,6 @@ use iced_native::mouse::Button as IcedMouseButton;
 use iced_native::mouse::Event as IcedMouseEvent;
 use iced_native::window::Event as IcedWindowEvent;
 use iced_native::Event as IcedEvent;
-use keyboard_types::Modifiers;
 
 pub fn baseview_to_iced_events(
     event: BaseEvent,
@@ -14,84 +13,56 @@ pub fn baseview_to_iced_events(
     iced_modifiers: &mut IcedModifiers,
     ignore_non_modifier_keys: bool,
 ) {
-    let mut maybe_update_modifiers = |modifiers: Modifiers| {
-        let old_modifiers = *iced_modifiers;
-
-        iced_modifiers
-            .set(IcedModifiers::SHIFT, modifiers.contains(Modifiers::SHIFT));
-        iced_modifiers
-            .set(IcedModifiers::CTRL, modifiers.contains(Modifiers::CONTROL));
-        iced_modifiers
-            .set(IcedModifiers::ALT, modifiers.contains(Modifiers::ALT));
-        iced_modifiers
-            .set(IcedModifiers::LOGO, modifiers.contains(Modifiers::META));
-        if *iced_modifiers != old_modifiers {
-            iced_events.push(IcedEvent::Keyboard(
-                iced_native::keyboard::Event::ModifiersChanged(*iced_modifiers),
-            ));
-        }
-    };
-
     match event {
-        BaseEvent::Mouse(mouse_event) => {
-            match mouse_event {
-                baseview::MouseEvent::CursorMoved {
-                    position,
-                    modifiers,
-                } => {
-                    maybe_update_modifiers(modifiers);
+        BaseEvent::Mouse(mouse_event) => match mouse_event {
+            baseview::MouseEvent::CursorMoved { position } => {
+                iced_events.push(IcedEvent::Mouse(
+                    IcedMouseEvent::CursorMoved {
+                        position: Point::new(
+                            position.x as f32,
+                            position.y as f32,
+                        ),
+                    },
+                ));
+            }
+            baseview::MouseEvent::ButtonPressed(button) => {
+                iced_events.push(IcedEvent::Mouse(
+                    IcedMouseEvent::ButtonPressed(
+                        baseview_mouse_button_to_iced(button),
+                    ),
+                ));
+            }
+            baseview::MouseEvent::ButtonReleased(button) => {
+                iced_events.push(IcedEvent::Mouse(
+                    IcedMouseEvent::ButtonReleased(
+                        baseview_mouse_button_to_iced(button),
+                    ),
+                ));
+            }
+            baseview::MouseEvent::WheelScrolled(delta) => match delta {
+                baseview::ScrollDelta::Lines { x, y } => {
                     iced_events.push(IcedEvent::Mouse(
-                        IcedMouseEvent::CursorMoved {
-                            position: Point::new(
-                                position.x as f32,
-                                position.y as f32,
-                            ),
+                        IcedMouseEvent::WheelScrolled {
+                            delta: iced_native::mouse::ScrollDelta::Lines {
+                                x,
+                                y,
+                            },
                         },
                     ));
                 }
-                baseview::MouseEvent::ButtonPressed { button, modifiers } => {
-                    maybe_update_modifiers(modifiers);
+                baseview::ScrollDelta::Pixels { x, y } => {
                     iced_events.push(IcedEvent::Mouse(
-                        IcedMouseEvent::ButtonPressed(
-                            baseview_mouse_button_to_iced(button),
-                        ),
-                    ));
-                }
-                baseview::MouseEvent::ButtonReleased { button, modifiers } => {
-                    maybe_update_modifiers(modifiers);
-                    iced_events.push(IcedEvent::Mouse(
-                        IcedMouseEvent::ButtonReleased(
-                            baseview_mouse_button_to_iced(button),
-                        ),
-                    ));
-                }
-                baseview::MouseEvent::WheelScrolled { delta, modifiers } => {
-                    maybe_update_modifiers(modifiers);
-                    match delta {
-                        baseview::ScrollDelta::Lines { x, y } => {
-                            iced_events.push(IcedEvent::Mouse(
-                                IcedMouseEvent::WheelScrolled {
-                                    delta:
-                                        iced_native::mouse::ScrollDelta::Lines {
-                                            x,
-                                            y,
-                                        },
-                                },
-                            ));
-                        }
-                        baseview::ScrollDelta::Pixels { x, y } => {
-                            iced_events.push(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
+                        IcedMouseEvent::WheelScrolled {
                             delta: iced_native::mouse::ScrollDelta::Pixels {
                                 x,
                                 y,
                             },
-                        }));
-                        }
-                    }
+                        },
+                    ));
                 }
-                _ => {}
-            }
-        }
+            },
+            _ => {}
+        },
 
         BaseEvent::Keyboard(event) => {
             use keyboard_types::Code;
