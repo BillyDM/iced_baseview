@@ -5,7 +5,7 @@
 //! module. Therefore, you can directly type:
 //!
 //! ```
-//! use iced_baseview::{button, Button};
+//! use iced::{button, Button};
 //! ```
 //!
 //! # Stateful widgets
@@ -13,54 +13,53 @@
 //!
 //! These widgets have their own module with a `State` type. For instance, a
 //! [`TextInput`] has some [`text_input::State`].
-//!
-//! [`TextInput`]: text_input/struct.TextInput.html
-//! [`text_input::State`]: text_input/struct.State.html
-mod platform {
-    pub use crate::renderer::widget::{
-        button, checkbox, container, pane_grid, pick_list, progress_bar, radio,
-        rule, scrollable, slider, text_input, Column, Row, Space, Text,
-    };
+pub use crate::backend::widget::{
+    button, checkbox, container, pane_grid, pick_list, progress_bar, radio,
+    rule, scrollable, slider, text_input, toggler, tooltip, Column, Row, Space,
+    Text,
+};
 
-    #[cfg(any(
-        feature = "with-wgpu-canvas",
-        feature = "with-glow-canvas"
-    ))]
-    #[cfg_attr(
-        docsrs,
-        doc(cfg(any(
-            feature = "with-wgpu-canvas",
-            feature = "with-glow-canvas"
-        )))
-    )]
-    pub use crate::renderer::widget::canvas;
+#[cfg(any(feature = "wgpu_canvas", feature = "glow_canvas"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(feature = "wgpu_canvas", feature = "glow_canvas")))
+)]
+pub use crate::backend::widget::canvas;
 
-    #[cfg_attr(docsrs, doc(cfg(feature = "with-wgpu-image")))]
-    pub mod image {
-        //! Display images in your user interface.
-        pub use iced_native::image::{Data, Handle};
-    }
+#[cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code")))
+)]
+pub use crate::backend::widget::qr_code;
 
-    #[cfg_attr(docsrs, doc(cfg(feature = "with-wgpu-svg")))]
-    pub mod svg {
-        //! Display vector graphics in your user interface.
-        pub use iced_native::svg::{Data, Handle};
-    }
-
-    #[doc(no_inline)]
-    pub use {
-        button::Button, checkbox::Checkbox, container::Container,
-        pane_grid::PaneGrid, pick_list::PickList, progress_bar::ProgressBar,
-        radio::Radio, rule::Rule, scrollable::Scrollable, slider::Slider,
-        text_input::TextInput,
-    };
-
-    #[cfg(any(
-        feature = "with-wgpu-canvas",
-        feature = "with-glow-canvas"
-    ))]
-    #[doc(no_inline)]
-    pub use canvas::Canvas;
+#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_image")))]
+pub mod image {
+    //! Display images in your user interface.
+    pub use iced_native::image::Handle;
+    pub use iced_native::widget::image::viewer;
+    pub use iced_native::widget::image::{Image, Viewer};
 }
 
-pub use platform::*;
+#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_svg")))]
+pub mod svg {
+    //! Display vector graphics in your user interface.
+    pub use iced_native::svg::Handle;
+    pub use iced_native::widget::svg::Svg;
+}
+
+#[doc(no_inline)]
+pub use {
+    button::Button, checkbox::Checkbox, container::Container, image::Image,
+    pane_grid::PaneGrid, pick_list::PickList, progress_bar::ProgressBar,
+    radio::Radio, rule::Rule, scrollable::Scrollable, slider::Slider, svg::Svg,
+    text_input::TextInput, toggler::Toggler, tooltip::Tooltip,
+};
+
+#[cfg(any(feature = "wgpu_canvas", feature = "glow_canvas"))]
+#[doc(no_inline)]
+pub use canvas::Canvas;
+
+#[cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code"))]
+#[doc(no_inline)]
+pub use qr_code::QRCode;

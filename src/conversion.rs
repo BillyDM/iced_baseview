@@ -10,62 +10,59 @@ use iced_native::Event as IcedEvent;
 pub fn baseview_to_iced_events(
     event: BaseEvent,
     iced_events: &mut Vec<IcedEvent>,
-    modifiers: &mut IcedModifiers,
+    iced_modifiers: &mut IcedModifiers,
     ignore_non_modifier_keys: bool,
 ) {
     match event {
-        BaseEvent::Mouse(mouse_event) => {
-            match mouse_event {
-                baseview::MouseEvent::CursorMoved { position } => {
+        BaseEvent::Mouse(mouse_event) => match mouse_event {
+            baseview::MouseEvent::CursorMoved { position } => {
+                iced_events.push(IcedEvent::Mouse(
+                    IcedMouseEvent::CursorMoved {
+                        position: Point::new(
+                            position.x as f32,
+                            position.y as f32,
+                        ),
+                    },
+                ));
+            }
+            baseview::MouseEvent::ButtonPressed(button) => {
+                iced_events.push(IcedEvent::Mouse(
+                    IcedMouseEvent::ButtonPressed(
+                        baseview_mouse_button_to_iced(button),
+                    ),
+                ));
+            }
+            baseview::MouseEvent::ButtonReleased(button) => {
+                iced_events.push(IcedEvent::Mouse(
+                    IcedMouseEvent::ButtonReleased(
+                        baseview_mouse_button_to_iced(button),
+                    ),
+                ));
+            }
+            baseview::MouseEvent::WheelScrolled(delta) => match delta {
+                baseview::ScrollDelta::Lines { x, y } => {
                     iced_events.push(IcedEvent::Mouse(
-                        IcedMouseEvent::CursorMoved {
-                            position: Point::new(
-                                position.x as f32,
-                                position.y as f32,
-                            ),
+                        IcedMouseEvent::WheelScrolled {
+                            delta: iced_native::mouse::ScrollDelta::Lines {
+                                x,
+                                y,
+                            },
                         },
                     ));
                 }
-                baseview::MouseEvent::ButtonPressed(button) => {
+                baseview::ScrollDelta::Pixels { x, y } => {
                     iced_events.push(IcedEvent::Mouse(
-                        IcedMouseEvent::ButtonPressed(
-                            baseview_mouse_button_to_iced(button),
-                        ),
-                    ));
-                }
-                baseview::MouseEvent::ButtonReleased(button) => {
-                    iced_events.push(IcedEvent::Mouse(
-                        IcedMouseEvent::ButtonReleased(
-                            baseview_mouse_button_to_iced(button),
-                        ),
-                    ));
-                }
-                baseview::MouseEvent::WheelScrolled(scroll_delta) => {
-                    match scroll_delta {
-                        baseview::ScrollDelta::Lines { x, y } => {
-                            iced_events.push(IcedEvent::Mouse(
-                                IcedMouseEvent::WheelScrolled {
-                                    delta:
-                                        iced_native::mouse::ScrollDelta::Lines {
-                                            x,
-                                            y,
-                                        },
-                                },
-                            ));
-                        }
-                        baseview::ScrollDelta::Pixels { x, y } => {
-                            iced_events.push(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
+                        IcedMouseEvent::WheelScrolled {
                             delta: iced_native::mouse::ScrollDelta::Pixels {
                                 x,
                                 y,
                             },
-                        }));
-                        }
-                    }
+                        },
+                    ));
                 }
-                _ => {}
-            }
-        }
+            },
+            _ => {}
+        },
 
         BaseEvent::Keyboard(event) => {
             use keyboard_types::Code;
@@ -79,46 +76,28 @@ pub fn baseview_to_iced_events(
             // is fixed in baseview.
             let is_modifier = match event.code {
                 Code::AltLeft | Code::AltRight => {
-                    if is_down {
-                        modifiers.insert(IcedModifiers::ALT);
-                    } else {
-                        modifiers.remove(IcedModifiers::ALT);
-                    }
-
+                    iced_modifiers.set(IcedModifiers::ALT, is_down);
                     true
                 }
                 Code::ControlLeft | Code::ControlRight => {
-                    if is_down {
-                        modifiers.insert(IcedModifiers::CTRL);
-                    } else {
-                        modifiers.remove(IcedModifiers::CTRL);
-                    }
-
+                    iced_modifiers.set(IcedModifiers::COMMAND, is_down);
                     true
                 }
                 Code::ShiftLeft | Code::ShiftRight => {
-                    if is_down {
-                        modifiers.insert(IcedModifiers::SHIFT);
-                    } else {
-                        modifiers.remove(IcedModifiers::SHIFT);
-                    }
-
+                    iced_modifiers.set(IcedModifiers::SHIFT, is_down);
                     true
                 }
                 Code::MetaLeft | Code::MetaRight => {
-                    if is_down {
-                        modifiers.insert(IcedModifiers::COMMAND);
-                    } else {
-                        modifiers.remove(IcedModifiers::COMMAND);
-                    }
-
+                    iced_modifiers.set(IcedModifiers::LOGO, is_down);
                     true
                 }
                 _ => false,
             };
             if is_modifier {
                 iced_events.push(IcedEvent::Keyboard(
-                    iced_native::keyboard::Event::ModifiersChanged(*modifiers),
+                    iced_native::keyboard::Event::ModifiersChanged(
+                        *iced_modifiers,
+                    ),
                 ));
             }
 
@@ -133,7 +112,7 @@ pub fn baseview_to_iced_events(
                     iced_events.push(IcedEvent::Keyboard(
                         IcedKeyEvent::KeyPressed {
                             key_code,
-                            modifiers: *modifiers,
+                            modifiers: *iced_modifiers,
                         },
                     ));
                 }
@@ -149,7 +128,7 @@ pub fn baseview_to_iced_events(
                 iced_events.push(IcedEvent::Keyboard(
                     IcedKeyEvent::KeyReleased {
                         key_code,
-                        modifiers: *modifiers,
+                        modifiers: *iced_modifiers,
                     },
                 ));
             }
@@ -163,7 +142,7 @@ pub fn baseview_to_iced_events(
                 }));
             }
             baseview::WindowEvent::Unfocused => {
-                *modifiers = IcedModifiers::empty();
+                *iced_modifiers = IcedModifiers::empty();
             }
             _ => {}
         },

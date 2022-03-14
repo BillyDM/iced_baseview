@@ -1,6 +1,7 @@
 use iced_graphics::Viewport;
-use iced_native::keyboard;
+use iced_native::keyboard::Modifiers as IcedModifiers;
 use iced_native::Debug;
+use keyboard_types::Modifiers;
 use std::marker::PhantomData;
 
 use crate::{Application, Color, Point, Size};
@@ -16,7 +17,7 @@ pub struct State<A: Application + Send> {
     viewport: Viewport,
     viewport_version: usize,
     cursor_position: Point,
-    modifiers: keyboard::Modifiers,
+    modifiers: IcedModifiers,
     application: PhantomData<A>,
 }
 
@@ -39,7 +40,7 @@ impl<A: Application + Send> State<A> {
             viewport_version: 0,
             // TODO: Encode cursor availability in the type-system
             cursor_position: Point::new(-1.0, -1.0),
-            modifiers: keyboard::Modifiers::default(),
+            modifiers: IcedModifiers::default(),
             application: PhantomData,
         }
     }
@@ -126,27 +127,9 @@ impl<A: Application + Send> State<A> {
                 // TODO: Encode cursor moving outside of the window.
             }
             baseview::Event::Keyboard(event) => {
-                use keyboard::Modifiers as IcedModifiers;
-                use keyboard_types::Modifiers as KeyModifiers;
+                self.update_modifiers(event.modifiers);
 
-                let mut modifiers = IcedModifiers::default();
-
-                if event.modifiers.contains(KeyModifiers::SHIFT) {
-                    modifiers.insert(IcedModifiers::SHIFT);
-                }
-                if event.modifiers.contains(KeyModifiers::CONTROL) {
-                    modifiers.insert(IcedModifiers::CTRL);
-                }
-                if event.modifiers.contains(KeyModifiers::ALT) {
-                    modifiers.insert(IcedModifiers::ALT);
-                }
-                if event.modifiers.contains(KeyModifiers::META) {
-                    modifiers.insert(IcedModifiers::COMMAND);
-                }
-
-                self.modifiers = modifiers;
-
-                #[cfg(feature = "with-debug")]
+                #[cfg(feature = "debug")]
                 {
                     use keyboard_types::{Key, KeyState};
                     if event.key == Key::F12 && event.state == KeyState::Down {
@@ -223,5 +206,16 @@ impl<A: Application + Send> State<A> {
                 }
             }
         }
+    }
+
+    fn update_modifiers(&mut self, modifiers: Modifiers) {
+        self.modifiers
+            .set(IcedModifiers::SHIFT, modifiers.contains(Modifiers::SHIFT));
+        self.modifiers
+            .set(IcedModifiers::CTRL, modifiers.contains(Modifiers::CONTROL));
+        self.modifiers
+            .set(IcedModifiers::ALT, modifiers.contains(Modifiers::ALT));
+        self.modifiers
+            .set(IcedModifiers::LOGO, modifiers.contains(Modifiers::META));
     }
 }

@@ -1,57 +1,71 @@
 [package]
 name = "iced_baseview"
 version = "0.0.3"
-authors = ["Billy Messenger <BillyDM@protonmail.com>"]
-edition = "2018"
+authors = [
+  "Billy Messenger <BillyDM@protonmail.com>",
+  "Robbert van der Helm <mail@robbertvanderhelm.nl>",
+]
+edition = "2021"
 description = "A baseview runtime for Iced (WIP)"
 license = "MIT"
 repository = "https://github.com/BillyDM/iced_baseview"
 documentation = "https://docs.rs/iced_baseview"
 keywords = ["gui", "ui", "graphics", "interface", "widgets"]
 categories = ["gui"]
-resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["with-wgpu", "with-wgpu-default-system-font"]
-# Enables the `wgpu` rendering backend
-with-wgpu = ["iced_wgpu"]
-# Enables the `Image` widget
-with-wgpu-image = ["iced_wgpu/image"]
-# Enables the `Svg` widget
-with-wgpu-svg = ["iced_wgpu/svg"]
-# Enables the `Canvas` widget
-with-wgpu-canvas = ["iced_wgpu/canvas"]
-# Enables using system fonts.
-with-wgpu-default-system-font = ["iced_wgpu/default_system_font"]
+default = ["wgpu"]
 
-# Enables the `glow` rendering backend
-with-glow = ["iced_glow", "raw-gl-context", "glow"]
-# Enables the `Canvas` widget
-with-glow-canvas = ["iced_glow/canvas"]
-# Enables using system fonts.
-with-glow-default-system-font = ["iced_glow/default_system_font"]
+# Enables the `iced_wgpu` renderer. Cannot be used together with the `glow`
+# feature.
+wgpu = ["iced_wgpu"]
+# Enables the `iced_glow` renderer. Cannot be used together with the `wgpu`
+# feature.
+glow = ["iced_glow", "baseview/opengl"]
 
 # Enables a debug view in native platforms (press F12)
-with-debug = ["iced_native/debug"]
-# Enables `tokio` as the `executor::Default` on native platforms
-with-tokio = ["iced_futures/tokio"]
-# Enables `async-std` as the `executor::Default` on native platforms
-with-async-std = ["iced_futures/async-std"]
+debug = ["iced_native/debug"]
+
+# Enables the `Image` widget for the `wgpu` backend
+wgpu_image = ["iced_wgpu/image"]
+# Enables the `Svg` widget for the `wgpu` backend
+wgpu_svg = ["iced_wgpu/svg"]
+
+# Enables the `Canvas` widget for the `wgpu` backend
+wgpu_canvas = ["iced_wgpu/canvas"]
+# Enables the `Canvas` widget for the `glow` backend
+glow_canvas = ["iced_glow/canvas"]
+
+# Enables the `QRCode` widget for the `wgpu` backend
+wgpu_qr_code = ["iced_wgpu/qr_code"]
+# Enables the `QRCode` widget for the `glow` backend
+glow_qr_code = ["iced_glow/qr_code"]
+
+# Enables using system fonts for the `wgpu` backend
+wgpu_default_system_font = ["iced_wgpu/default_system_font"]
+# Enables using system fonts for the `glow` backend
+glow_default_system_font = ["iced_glow/default_system_font"]
+
 # Enables advanced color conversion via `palette`
-with-palette = ["iced_core/palette"]
+palette = ["iced_core/palette"]
+
+# Enables `tokio` as the `executor::Default` on native platforms
+tokio = ["iced_futures/tokio"]
+# Enables `async-std` as the `executor::Default` on native platforms
+async-std = ["iced_futures/async-std"]
+# Enables `smol` as the `executor::Default` on native platforms
+smol = ["iced_futures/smol"]
 
 [dependencies]
-iced_core = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
-iced_futures = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
-iced_native =  { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
-iced_graphics = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a" }
-iced_wgpu = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a", optional = true }
-iced_glow = { git = "https://github.com/iced-rs/iced.git", rev = "26d053a", optional = true }
-glow = { version = "0.11", optional = true }
-raw-gl-context = { version = "0.1", optional = true }
-keyboard-types = { version = "0.5", default-features = false }
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "004065e9a43e79751040879c572d95b9b63e0edc" }
-raw-window-handle = "0.3"
-log = "0.4"
+iced_core = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
+iced_futures = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
+iced_native = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
+iced_graphics = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
+iced_wgpu = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d", optional = true }
+iced_glow = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d", optional = true }
+keyboard-types = { version = "0.6.1", default-features = false }
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "b3712638bacb3fdf2883cb5aa3f6caed0e91ac8c" }
+copypasta = "0.7.1"
+raw-window-handle = "0.4.2"

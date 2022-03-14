@@ -1,8 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
     button, executor, Alignment, Application, Button, Color, Column, Command,
-    Container, Element, IcedWindow, Length, Settings, Subscription, Text,
-    WindowQueue, WindowSubs,
+    Container, Element, IcedBaseviewSettings, IcedWindow, Length, Settings,
+    Subscription, Text, WindowQueue, WindowSubs,
 };
 use std::time::{Duration, Instant};
 
@@ -14,10 +14,20 @@ fn main() {
             title: String::from("iced_baseview window subscriptions"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
+
+            // FIXME: The current glow_glpyh version does not enable the correct extension in their
+            //        shader so this currently won't work with OpenGL <= 3.2
+            #[cfg(feature = "glow")]
+            #[cfg(not(feature = "wgpu"))]
+            gl_config: Some(baseview::gl::GlConfig {
+                version: (3, 3),
+                ..baseview::gl::GlConfig::default()
+            }),
         },
-        #[cfg(feature = "with-glow")]
-        use_max_aa_samples: false,
-        ignore_non_modifier_keys: false,
+        iced_baseview: IcedBaseviewSettings {
+            ignore_non_modifier_keys: false,
+            always_redraw: true,
+        },
         flags: (),
     };
 
