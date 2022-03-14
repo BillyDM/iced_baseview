@@ -15,8 +15,6 @@ mod window;
 
 pub mod clipboard;
 pub mod executor;
-pub mod keyboard;
-pub mod mouse;
 pub mod settings;
 pub mod time;
 pub mod widget;
