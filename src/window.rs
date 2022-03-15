@@ -627,6 +627,7 @@ async fn run_instance<A, E>(
                 if !did_process_event
                     && events.is_empty()
                     && messages.is_empty()
+                    && !settings.always_redraw
                 {
                     continue;
                 }
@@ -655,7 +656,7 @@ async fn run_instance<A, E>(
                 }
 
                 // The user interface update may have pushed a new message onto the stack
-                needs_update |= !messages.is_empty();
+                needs_update |= !messages.is_empty() || settings.always_redraw;
                 if needs_update {
                     needs_update = false;
 
