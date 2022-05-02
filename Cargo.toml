@@ -68,4 +68,4 @@ iced_glow = { version = "0.3", optional = true }
 keyboard-types = { version = "0.6.1", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "b3712638bacb3fdf2883cb5aa3f6caed0e91ac8c" }
 copypasta = "0.7.1"
-raw-window-handle = "0.4.2"
+raw-window-handle = "0.4.3"
