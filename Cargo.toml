@@ -59,12 +59,12 @@ async-std = ["iced_futures/async-std"]
 smol = ["iced_futures/smol"]
 
 [dependencies]
-iced_core = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
-iced_futures = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
-iced_native = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
-iced_graphics = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d" }
-iced_wgpu = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d", optional = true }
-iced_glow = { git = "https://github.com/iced-rs/iced.git", rev = "a53fa91e0ddf374bbeb66d5e831b79127ed47a9d", optional = true }
+iced_core = "0.5"
+iced_futures = "0.4"
+iced_native = "0.5"
+iced_graphics = "0.3"
+iced_wgpu = { version = "0.5", optional = true }
+iced_glow = { version = "0.3", optional = true }
 keyboard-types = { version = "0.6.1", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "b3712638bacb3fdf2883cb5aa3f6caed0e91ac8c" }
 copypasta = "0.7.1"
