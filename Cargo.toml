@@ -4,6 +4,7 @@ version = "0.0.3"
 authors = [
   "Billy Messenger <BillyDM@protonmail.com>",
   "Robbert van der Helm <mail@robbertvanderhelm.nl>",
+  "Joakim Frostegård <joakim.frostegard@gmail.com>",
 ]
 edition = "2021"
 description = "A baseview runtime for Iced (WIP)"
