@@ -1,6 +1,7 @@
 use iced_graphics::Viewport;
-use iced_native::keyboard;
+use iced_native::keyboard::Modifiers as IcedModifiers;
 use iced_native::Debug;
+use keyboard_types::Modifiers;
 use std::marker::PhantomData;
 
 use crate::{Application, Color, Point, Size};
@@ -16,7 +17,7 @@ pub struct State<A: Application + Send> {
     viewport: Viewport,
     viewport_version: usize,
     cursor_position: Point,
-    modifiers: keyboard::Modifiers,
+    modifiers: IcedModifiers,
     application: PhantomData<A>,
 }
 
@@ -39,7 +40,7 @@ impl<A: Application + Send> State<A> {
             viewport_version: 0,
             // TODO: Encode cursor availability in the type-system
             cursor_position: Point::new(-1.0, -1.0),
-            modifiers: keyboard::Modifiers::default(),
+            modifiers: IcedModifiers::default(),
             application: PhantomData,
         }
     }
@@ -126,14 +127,7 @@ impl<A: Application + Send> State<A> {
                 // TODO: Encode cursor moving outside of the window.
             }
             baseview::Event::Keyboard(event) => {
-                use keyboard_types::Modifiers as KeyModifiers;
-
-                self.modifiers = keyboard::Modifiers {
-                    shift: event.modifiers.contains(KeyModifiers::SHIFT),
-                    control: event.modifiers.contains(KeyModifiers::CONTROL),
-                    alt: event.modifiers.contains(KeyModifiers::ALT),
-                    logo: event.modifiers.contains(KeyModifiers::META),
-                };
+                self.update_modifiers(event.modifiers);
 
                 #[cfg(feature = "debug")]
                 {
@@ -212,5 +206,16 @@ impl<A: Application + Send> State<A> {
                 }
             }
         }
+    }
+
+    fn update_modifiers(&mut self, modifiers: Modifiers) {
+        self.modifiers
+            .set(IcedModifiers::SHIFT, modifiers.contains(Modifiers::SHIFT));
+        self.modifiers
+            .set(IcedModifiers::CTRL, modifiers.contains(Modifiers::CONTROL));
+        self.modifiers
+            .set(IcedModifiers::ALT, modifiers.contains(Modifiers::ALT));
+        self.modifiers
+            .set(IcedModifiers::LOGO, modifiers.contains(Modifiers::META));
     }
 }

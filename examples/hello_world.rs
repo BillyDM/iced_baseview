@@ -1,7 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, Align, Application, Color, Column, Command, Container, Element,
-    IcedWindow, Length, Rule, Settings, Text, WindowQueue,
+    executor, Alignment, Application, Color, Column, Command, Container,
+    Element, IcedBaseviewSettings, IcedWindow, Length, Rule, Settings, Text,
+    WindowQueue,
 };
 
 fn main() {
@@ -10,6 +11,19 @@ fn main() {
             title: String::from("iced_baseview hello world"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
+
+            // FIXME: The current glow_glpyh version does not enable the correct extension in their
+            //        shader so this currently won't work with OpenGL <= 3.2
+            #[cfg(feature = "glow")]
+            #[cfg(not(feature = "wgpu"))]
+            gl_config: Some(baseview::gl::GlConfig {
+                version: (3, 3),
+                ..baseview::gl::GlConfig::default()
+            }),
+        },
+        iced_baseview: IcedBaseviewSettings {
+            ignore_non_modifier_keys: false,
+            always_redraw: true,
         },
         flags: (),
     };
@@ -39,7 +53,7 @@ impl Application for MyProgram {
     fn view(&mut self) -> Element<'_, Self::Message> {
         let content = Column::new()
             .width(Length::Fill)
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .push(Text::new("Hello World!"))
             .push(Rule::horizontal(10));
 

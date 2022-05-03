@@ -15,7 +15,7 @@ jobs:
       run: |
         sudo apt update
         # baseview dependencies
-        sudo apt install libx11-xcb-dev libxcb-dri2-0-dev libgl1-mesa-dev libxcb-icccm4-dev libxcursor-dev
+        sudo apt install libgl-dev libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev
       if: contains(matrix.os, 'ubuntu')
     - name: Install rust stable
       uses: actions-rs/toolchain@v1
@@ -23,7 +23,7 @@ jobs:
         toolchain: stable
         override: true
     - name: Build (wgpu)
-      run: cargo build --examples --workspace --verbose --features wgpu,image,svg,canvas,default_system_font,palette
+      run: cargo build --examples --workspace --verbose --features wgpu,wgpu_image,wgpu_svg,wgpu_canvas,wgpu_default_system_font,palette
     - name: Build (glow)
       run: cargo build --examples --workspace --verbose --no-default-features --features glow,glow_canvas,glow_default_system_font,palette
     - name: Run tests

@@ -8,95 +8,20 @@ mod state;
 
 pub use state::State;
 
-/// An interactive cross-platform application.
-///
-///
-/// TODO: Update this example to the correct `iced_baseview` use case.
-///
+/// An interactive, native cross-platform application.
 ///
 /// This trait is the main entrypoint of Iced. Once implemented, you can run
-/// your GUI application by simply calling [`run`](#method.run).
-///
-/// - On native platforms, it will run in its own window.
-/// - On the web, it will take control of the `<title>` and the `<body>` of the
-///   document.
+/// your GUI application by simply calling [`run`]. It will run in
+/// its own window.
 ///
 /// An [`Application`] can execute asynchronous actions by returning a
-/// [`Command`](struct.Command.html) in some of its methods. If
-/// you do not intend to perform any background work in your program, the
-/// [`Sandbox`](trait.Sandbox.html) trait offers a simplified interface.
+/// [`Command`] in some of its methods.
 ///
 /// When using an [`Application`] with the `debug` feature enabled, a debug view
 /// can be toggled by pressing `F12`.
 ///
-/// [`Application`]: trait.Application.html
-///
-/// # Examples
-/// [The repository has a bunch of examples] that use the [`Application`] trait:
-///
-/// - [`clock`], an application that uses the [`Canvas`] widget to draw a clock
-/// and its hands to display the current time.
-/// - [`download_progress`], a basic application that asynchronously downloads
-/// a dummy file of 100 MB and tracks the download progress.
-/// - [`events`], a log of native events displayed using a conditional
-/// [`Subscription`].
-/// - [`pokedex`], an application that displays a random Pokédex entry (sprite
-/// included!) by using the [PokéAPI].
-/// - [`solar_system`], an animated solar system drawn using the [`Canvas`] widget
-/// and showcasing how to compose different transforms.
-/// - [`stopwatch`], a watch with start/stop and reset buttons showcasing how
-/// to listen to time.
-/// - [`todos`], a todos tracker inspired by [TodoMVC].
-///
-/// [The repository has a bunch of examples]: https://github.com/hecrj/iced/tree/0.1/examples
-/// [`clock`]: https://github.com/hecrj/iced/tree/0.1/examples/clock
-/// [`download_progress`]: https://github.com/hecrj/iced/tree/0.1/examples/download_progress
-/// [`events`]: https://github.com/hecrj/iced/tree/0.1/examples/events
-/// [`pokedex`]: https://github.com/hecrj/iced/tree/0.1/examples/pokedex
-/// [`solar_system`]: https://github.com/hecrj/iced/tree/0.1/examples/solar_system
-/// [`stopwatch`]: https://github.com/hecrj/iced/tree/0.1/examples/stopwatch
-/// [`todos`]: https://github.com/hecrj/iced/tree/0.1/examples/todos
-/// [`Canvas`]: widget/canvas/struct.Canvas.html
-/// [PokéAPI]: https://pokeapi.co/
-/// [`Subscription`]: type.Subscription.html
-/// [TodoMVC]: http://todomvc.com/
-///
-/// ## A simple "Hello, world!"
-///
-/// If you just want to get started, here is a simple [`Application`] that
-/// says "Hello, world!":
-///
-/// ```text
-/// use iced_baseview::{executor, Application, Command, Element, Settings, Text, WindowQueue};
-///
-/// pub fn main() -> iced::Result {
-///     Hello::run(Settings::default())
-/// }
-///
-/// struct Hello;
-///
-/// impl Application for Hello {
-///     type Executor = executor::Default;
-///     type Message = ();
-///     type Flags = ();
-///
-///     fn new(_flags: ()) -> (Hello, Command<Self::Message>) {
-///         (Hello, Command::none())
-///     }
-///
-///     fn title(&self) -> String {
-///         String::from("A cool application")
-///     }
-///
-///     fn update(&mut self, _window: &mut WindowQueue, _message: Self::Message) -> Command<Self::Message> {
-///         Command::none()
-///     }
-///
-///     fn view(&mut self) -> Element<Self::Message> {
-///         Text::new("Hello, world!").into()
-///     }
-/// }
-/// ```
+/// See the [examples](https://github.com/BillyDM/iced_baseview/tree/main/examples) directory for
+/// examples on how to use this.
 pub trait Application: Sized + 'static {
     /// The [`Executor`] that will run commands and subscriptions.
     ///
@@ -208,11 +133,7 @@ pub trait Application: Sized + 'static {
     /// Returns the renderer settings
     #[cfg(feature = "glow")]
     #[cfg(not(feature = "wgpu"))]
-    fn renderer_settings(
-    ) -> (raw_gl_context::GlConfig, iced_glow::settings::Settings) {
-        (
-            raw_gl_context::GlConfig::default(),
-            iced_glow::settings::Settings::default(),
-        )
+    fn renderer_settings() -> iced_glow::settings::Settings {
+        iced_glow::settings::Settings::default()
     }
 }
