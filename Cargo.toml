@@ -28,26 +28,16 @@ glow = ["iced_glow", "baseview/opengl"]
 # Enables a debug view in native platforms (press F12)
 debug = ["iced_native/debug"]
 
-# Enables the `Image` widget for the `wgpu` backend
-wgpu_image = ["iced_wgpu/image"]
-# Enables the `Svg` widget for the `wgpu` backend
-wgpu_svg = ["iced_wgpu/svg"]
-
-# Enables the `Canvas` widget for the `wgpu` backend
-wgpu_canvas = ["iced_wgpu/canvas"]
-# Enables the `Canvas` widget for the `glow` backend
-glow_canvas = ["iced_glow/canvas"]
-
+# Enables the `Image` widget
+image = ["iced_wgpu?/image", "iced_glow?/image"]
+# Enables the `Svg` widget
+svg = ["iced_wgpu/svg", "iced_glow?/svg"]
+# Enables the `Canvas` widget
+canvas = ["iced_wgpu?/canvas", "iced_glow?/canvas"]
 # Enables the `QRCode` widget for the `wgpu` backend
-wgpu_qr_code = ["iced_wgpu/qr_code"]
-# Enables the `QRCode` widget for the `glow` backend
-glow_qr_code = ["iced_glow/qr_code"]
-
-# Enables using system fonts for the `wgpu` backend
-wgpu_default_system_font = ["iced_wgpu/default_system_font"]
-# Enables using system fonts for the `glow` backend
-glow_default_system_font = ["iced_glow/default_system_font"]
-
+qr_code = ["iced_wgpu?/qr_code", "iced_glow?/qr_code"]
+# Enables using system fonts
+default_system_font = ["iced_wgpu?/default_system_font", "iced_glow?/default_system_font"]
 # Enables advanced color conversion via `palette`
 palette = ["iced_core/palette"]
 
