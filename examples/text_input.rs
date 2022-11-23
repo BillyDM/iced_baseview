@@ -1,8 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, text_input, Alignment, Application, Color, Column, Command,
-    Container, Element, IcedBaseviewSettings, IcedWindow, Length, Settings,
-    Text, TextInput, WindowQueue,
+    executor, Alignment, Application, Color, Column, Command, Container,
+    Element, IcedBaseviewSettings, IcedWindow, Length, Settings, Text,
+    TextInput, WindowQueue,
 };
 
 fn main() {
@@ -37,7 +37,6 @@ pub enum Message {
 }
 
 struct MyProgram {
-    text_input_state: text_input::State,
     text_input_str: String,
 }
 
@@ -49,7 +48,6 @@ impl Application for MyProgram {
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (
             Self {
-                text_input_state: text_input::State::new(),
                 text_input_str: String::from(""),
             },
             Command::none(),
@@ -70,9 +68,8 @@ impl Application for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         let text_input_widget = TextInput::new(
-            &mut self.text_input_state,
             "Hello!",
             &self.text_input_str,
             Message::TextInputChanged,
@@ -96,6 +93,14 @@ impl Application for MyProgram {
 
     fn background_color(&self) -> Color {
         Color::WHITE
+    }
+
+    fn title(&self) -> String {
+        "Text input".into()
+    }
+
+    fn theme(&self) -> iced_baseview::Theme {
+        Default::default()
     }
 
     /*

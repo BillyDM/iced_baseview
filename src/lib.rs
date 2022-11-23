@@ -4,6 +4,7 @@
 //#![forbid(unsafe_code)]
 #![forbid(rust_2018_idioms)]
 
+use cfg_if::cfg_if;
 #[doc(no_inline)]
 pub use iced_native::*;
 
@@ -28,22 +29,19 @@ pub use window::{IcedWindow, WindowHandle, WindowQueue, WindowSubs};
 #[cfg(all(feature = "wgpu", feature = "glow"))]
 compile_error!("Can't use both 'wgpu' and 'glow' features");
 
-#[cfg(feature = "wgpu")]
-type Renderer = iced_wgpu::Renderer;
-#[cfg(feature = "wgpu")]
-type Compositor = iced_wgpu::window::Compositor;
-#[cfg(feature = "wgpu")]
-pub use iced_wgpu as backend;
-
-#[cfg(feature = "glow")]
-#[cfg(not(feature = "wgpu"))]
-type Renderer = iced_glow::Renderer;
-#[cfg(feature = "glow")]
-#[cfg(not(feature = "wgpu"))]
-type Compositor = iced_glow::window::Compositor;
-#[cfg(feature = "glow")]
-#[cfg(not(feature = "wgpu"))]
-pub use iced_glow as backend;
+cfg_if! {
+    if #[cfg(feature = "wgpu")] {
+        pub type Theme = iced_wgpu::Theme;
+        type Renderer = iced_wgpu::Renderer;
+        type Compositor = iced_wgpu::window::Compositor<Theme>;
+        pub use iced_wgpu as backend;
+    } else {
+        pub type Theme = iced_glow::Theme;
+        type Renderer = iced_glow::Renderer;
+        type Compositor = iced_glow::window::Compositor<Theme>;
+        pub use iced_glow as backend;
+    }
+}
 
 #[doc(no_inline)]
 pub use widget::*;

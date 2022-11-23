@@ -6,6 +6,7 @@ use baseview::WindowScalePolicy;
 
 mod state;
 
+use iced_native::application::StyleSheet;
 pub use state::State;
 
 /// An interactive, native cross-platform application.
@@ -97,7 +98,7 @@ pub trait Application: Sized + 'static {
     /// These widgets can produce __messages__ based on user interaction.
     ///
     /// [`Application`]: trait.Application.html
-    fn view(&mut self) -> Element<'_, Self::Message>;
+    fn view(&self) -> Element<'_, Self::Message>;
 
     /// Returns the background [`Color`] of the [`Application`].
     ///
@@ -118,6 +119,20 @@ pub trait Application: Sized + 'static {
     /// [`Application`]: trait.Application.html
     fn scale_policy(&self) -> WindowScalePolicy {
         WindowScalePolicy::SystemScaleFactor
+    }
+
+    /// Returns the current title of the [`Application`].
+    ///
+    /// This title can be dynamic! The runtime will automatically update the
+    /// title of your application when necessary.
+    fn title(&self) -> String;
+
+    /// Returns the current `Theme` of the [`Application`].
+    fn theme(&self) -> crate::Theme;
+
+    /// Returns the `Style` variation of the `Theme`.
+    fn style(&self) -> <crate::Theme as StyleSheet>::Style {
+        Default::default()
     }
 
     /// Returns the renderer settings

@@ -50,7 +50,7 @@ impl Application for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
@@ -67,5 +67,13 @@ impl Application for MyProgram {
 
     fn background_color(&self) -> Color {
         Color::WHITE
+    }
+
+    fn title(&self) -> String {
+        "Hello World!".into()
+    }
+
+    fn theme(&self) -> iced_baseview::Theme {
+        Default::default()
     }
 }
