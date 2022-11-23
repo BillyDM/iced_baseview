@@ -62,4 +62,5 @@ keyboard-types = { version = "0.6", default-features = false }
 raw-window-handle = "0.5"
 
 [patch."https://github.com/RustAudio/baseview"]
-baseview = { path = "../baseview" }
+baseview = { git = "https://github.com/greatest-ape/baseview.git", branch = "raw-window-handle-0.5" }
+# baseview = { path = "../baseview" }
