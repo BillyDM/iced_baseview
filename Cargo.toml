@@ -58,7 +58,7 @@ iced_glow = { version = "0.4", optional = true }
 iced_wgpu = { version = "0.6", optional = true }
 keyboard-types = { version = "0.6", default-features = false }
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "b3712638bacb3fdf2883cb5aa3f6caed0e91ac8c" }
-copypasta = "0.7"
+copypasta = "0.8"
 raw-window-handle = "0.5"
 
 [patch."https://github.com/RustAudio/baseview"]
