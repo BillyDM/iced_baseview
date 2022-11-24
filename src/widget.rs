@@ -173,15 +173,12 @@ pub use text_input::TextInput;
 pub use toggler::Toggler;
 pub use tooltip::Tooltip;
 
-#[cfg(any(feature = "wgpu_canvas", feature = "glow_canvas"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(any(feature = "wgpu_canvas", feature = "glow_canvas")))
-)]
+#[cfg(feature = "canvas")]
+#[cfg_attr(docsrs, doc(cfg(feature = "canvas")))]
 pub use iced_graphics::widget::canvas;
 
-#[cfg(feature = "wgpu_image")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_image")))]
+#[cfg(feature = "image")]
+#[cfg_attr(docsrs, doc(cfg(feature = "image")))]
 pub mod image {
     //! Display images in your user interface.
     pub use iced_native::image::Handle;
@@ -193,39 +190,30 @@ pub mod image {
     pub use viewer::Viewer;
 }
 
-#[cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code")))
-)]
+#[cfg(feature = "qr_code")]
+#[cfg_attr(docsrs, doc(cfg(feature = "qr_code")))]
 pub use iced_graphics::widget::qr_code;
 
-#[cfg(feature = "wgpu_svg")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_svg")))]
+#[cfg(feature = "svg")]
+#[cfg_attr(docsrs, doc(cfg(feature = "svg")))]
 pub mod svg {
     //! Display vector graphics in your application.
     pub use iced_native::svg::Handle;
     pub use iced_native::widget::Svg;
 }
 
-#[cfg(any())]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(feature = "wgpu_canvas", feature = "glow_canvas"))
-)]
+#[cfg(feature = "canvas")]
+#[cfg_attr(docsrs, doc(cfg(feature = "canvas")))]
 pub use canvas::Canvas;
 
-#[cfg(feature = "wgpu_image")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_image")))]
+#[cfg(feature = "image")]
+#[cfg_attr(docsrs, doc(cfg(feature = "image")))]
 pub use image::Image;
 
-#[cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(any(feature = "wgpu_qr_code", feature = "glow_qr_code")))
-)]
+#[cfg(feature = "qr_code")]
+#[cfg_attr(docsrs, doc(cfg(feature = "qr_code")))]
 pub use qr_code::QRCode;
 
-#[cfg(feature = "wgpu_svg")]
-#[cfg_attr(docsrs, doc(cfg(feature = "wgpu_svg")))]
+#[cfg(feature = "svg")]
+#[cfg_attr(docsrs, doc(cfg(feature = "svg")))]
 pub use svg::Svg;
