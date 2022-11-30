@@ -37,7 +37,7 @@ pub mod button {
     //! Allow your users to perform actions by pressing a button.
     //!
     //! A [`Button`] has some local [`State`].
-    pub use iced_native::widget::button::{State, StyleSheet};
+    pub use iced_native::widget::button::{StyleSheet, Appearance};
 
     /// A widget that produces a message when clicked.
     pub type Button<'a, Message> =
@@ -46,7 +46,7 @@ pub mod button {
 
 pub mod checkbox {
     //! Show toggle controls using checkboxes.
-    pub use iced_native::widget::checkbox::StyleSheet;
+    pub use iced_native::widget::checkbox::{Appearance, StyleSheet};
 
     /// A box that can be checked.
     pub type Checkbox<'a, Message> =
@@ -55,7 +55,7 @@ pub mod checkbox {
 
 pub mod container {
     //! Decorate content and apply alignment.
-    pub use iced_native::widget::container::StyleSheet;
+    pub use iced_native::widget::container::{Appearance, StyleSheet};
 
     /// An element decorating some content.
     pub type Container<'a, Message> =
@@ -95,7 +95,7 @@ pub mod pane_grid {
 
 pub mod pick_list {
     //! Display a dropdown list of selectable values.
-    pub use iced_native::widget::pick_list::{State, StyleSheet};
+    pub use iced_native::widget::pick_list::{Appearance, StyleSheet};
 
     /// A widget allowing the selection of a single value from a list of options.
     pub type PickList<'a, T, Message> =
@@ -104,7 +104,7 @@ pub mod pick_list {
 
 pub mod radio {
     //! Create choices using radio buttons.
-    pub use iced_native::widget::radio::StyleSheet;
+    pub use iced_native::widget::radio::{Appearance, StyleSheet};
 
     /// A circular button representing a choice.
     pub type Radio<Message> =
@@ -114,7 +114,7 @@ pub mod radio {
 pub mod scrollable {
     //! Navigate an endless amount of content with a scrollbar.
     pub use iced_native::widget::scrollable::{
-        style::Scrollbar, style::Scroller, State, StyleSheet,
+        style::Scrollbar, style::Scroller, StyleSheet,
     };
 
     /// A widget that can vertically display an infinite amount of content
@@ -125,7 +125,7 @@ pub mod scrollable {
 
 pub mod toggler {
     //! Show toggle controls using togglers.
-    pub use iced_native::widget::toggler::StyleSheet;
+    pub use iced_native::widget::toggler::{Appearance, StyleSheet};
 
     /// A toggler widget.
     pub type Toggler<'a, Message> =
@@ -138,7 +138,7 @@ pub mod text_input {
     //! A [`TextInput`] has some local [`State`].
     use crate::Renderer;
 
-    pub use iced_native::widget::text_input::{State, StyleSheet};
+    pub use iced_native::widget::text_input::{Appearance, StyleSheet};
 
     /// A field that can be filled with text.
     pub type TextInput<'a, Message> =
