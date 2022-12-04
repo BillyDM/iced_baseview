@@ -22,9 +22,9 @@ pub mod time;
 pub mod widget;
 
 pub mod baseview {
-    pub use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
     #[cfg(feature = "glow")]
     pub use baseview::gl;
+    pub use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 }
 
 pub use application::Application;
