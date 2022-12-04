@@ -30,9 +30,6 @@ pub type Column<'a, Message> =
 pub type Row<'a, Message> =
     iced_native::widget::Row<'a, Message, crate::Renderer>;
 
-/// A paragraph of text.
-pub type Text<'a> = iced_native::widget::Text<'a, crate::Renderer>;
-
 pub mod button {
     //! Allow your users to perform actions by pressing a button.
     //!
@@ -132,6 +129,13 @@ pub mod toggler {
         iced_native::widget::Toggler<'a, Message, crate::Renderer>;
 }
 
+pub mod text {
+    pub use iced_native::widget::text::{Appearance, StyleSheet};
+
+    /// A paragraph of text.
+    pub type Text<'a> = iced_native::widget::Text<'a, crate::Renderer>;
+}
+
 pub mod text_input {
     //! Display fields that can be filled with text.
     //!
@@ -169,6 +173,7 @@ pub use radio::Radio;
 pub use rule::Rule;
 pub use scrollable::Scrollable;
 pub use slider::Slider;
+pub use text::Text;
 pub use text_input::TextInput;
 pub use toggler::Toggler;
 pub use tooltip::Tooltip;
