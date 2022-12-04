@@ -32,6 +32,7 @@ cfg_if! {
 use crate::application::State;
 use crate::clipboard::Clipboard;
 use crate::proxy::Proxy;
+use crate::wrapper::WindowHandleWrapper;
 use crate::{
     Application, Compositor, IcedBaseviewSettings, Renderer, Settings,
 };
@@ -204,9 +205,10 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         cfg_if! {
             if #[cfg(feature = "wgpu")] {
+                let window = WindowHandleWrapper(window);
                 let (mut compositor, renderer) =
-                    Compositor::new(renderer_settings, Some(window)).unwrap();
-                let surface = compositor.create_surface(window);
+                    Compositor::new(renderer_settings, Some(&window)).unwrap();
+                let surface = compositor.create_surface(&window);
             } else {
                 let (compositor, renderer) = {
                     let context = window

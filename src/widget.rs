@@ -34,7 +34,7 @@ pub mod button {
     //! Allow your users to perform actions by pressing a button.
     //!
     //! A [`Button`] has some local [`State`].
-    pub use iced_native::widget::button::{StyleSheet, Appearance};
+    pub use iced_native::widget::button::{Appearance, StyleSheet};
 
     /// A widget that produces a message when clicked.
     pub type Button<'a, Message> =

@@ -49,8 +49,7 @@ async-std = ["iced_futures/async-std"]
 smol = ["iced_futures/smol"]
 
 [dependencies]
-# baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "b3712638bacb3fdf2883cb5aa3f6caed0e91ac8c" }
-baseview = { git = "https://github.com/greatest-ape/baseview.git", rev = "472eacf" } # branch: raw-window-handle-0.5
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "ee156fb" }
 cfg-if = "1"
 copypasta = "0.8"
 iced_core = "0.6"
@@ -60,7 +59,5 @@ iced_graphics = "0.4"
 iced_native = "0.6"
 iced_wgpu = { version = "0.6", optional = true }
 keyboard-types = { version = "0.6", default-features = false }
-raw-window-handle = "0.5"
-
-# [patch."https://github.com/RustAudio/baseview"]
-# baseview = { path = "../baseview" }
+raw-window-handle = "0.4"
+rwh05 = { package = "raw-window-handle", version = "0.5" }

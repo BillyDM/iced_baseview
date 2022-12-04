@@ -13,6 +13,7 @@ pub mod conversion;
 mod element;
 mod proxy;
 mod window;
+mod wrapper;
 
 pub mod clipboard;
 pub mod executor;
