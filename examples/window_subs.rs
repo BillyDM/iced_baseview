@@ -1,6 +1,6 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    button, executor, Alignment, Application, Button, Color, Column, Command,
+    executor, Alignment, Application, Button, Color, Column, Command,
     Container, Element, IcedBaseviewSettings, IcedWindow, Length, Settings,
     Subscription, Text, WindowQueue, WindowSubs,
 };
@@ -44,8 +44,6 @@ enum Message {
 struct MyProgram {
     next_interval: Instant,
     count: usize,
-
-    close_btn_state: button::State,
 }
 
 impl Application for MyProgram {
@@ -58,8 +56,6 @@ impl Application for MyProgram {
             Self {
                 next_interval: Instant::now() + COUNT_INTERVAL,
                 count: 0,
-
-                close_btn_state: button::State::new(),
             },
             Command::none(),
         )
@@ -99,17 +95,14 @@ impl Application for MyProgram {
         Command::none()
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
             .push(Text::new(format!("{}", self.count)))
             .push(
-                Button::new(
-                    &mut self.close_btn_state,
-                    Text::new("Close window"),
-                )
-                .on_press(Message::CloseWindow),
+                Button::new(Text::new("Close window"))
+                    .on_press(Message::CloseWindow),
             );
 
         Container::new(content)
@@ -122,5 +115,13 @@ impl Application for MyProgram {
 
     fn background_color(&self) -> Color {
         Color::WHITE
+    }
+
+    fn title(&self) -> String {
+        "Window subs".into()
+    }
+
+    fn theme(&self) -> iced_baseview::Theme {
+        Default::default()
     }
 }

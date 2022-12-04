@@ -2,6 +2,7 @@ use baseview::{
     Event, EventStatus, Window, WindowHandler, WindowOpenOptions,
     WindowScalePolicy,
 };
+use cfg_if::cfg_if;
 use futures::StreamExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
@@ -9,7 +10,10 @@ use iced_graphics::Viewport;
 use iced_native::clipboard::Clipboard as IcedClipboard;
 use iced_native::event::Status;
 use iced_native::user_interface::{self, UserInterface};
-use iced_native::{clipboard, Command, Debug, Executor, Runtime, Size};
+use iced_native::widget::operation;
+use iced_native::{
+    clipboard, renderer, Command, Debug, Executor, Runtime, Size,
+};
 use mpsc::SendError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::cell::RefCell;
@@ -17,9 +21,18 @@ use std::mem::ManuallyDrop;
 use std::pin::Pin;
 use std::rc::Rc;
 
+cfg_if! {
+    if #[cfg(feature = "wgpu")] {
+        use iced_graphics::window::Compositor as IGCompositor;
+    } else {
+        use iced_graphics::window::GLCompositor as IGCompositor;
+    }
+}
+
 use crate::application::State;
 use crate::clipboard::Clipboard;
 use crate::proxy::Proxy;
+use crate::wrapper::WindowHandleWrapper;
 use crate::{
     Application, Compositor, IcedBaseviewSettings, Renderer, Settings,
 };
@@ -159,35 +172,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         use futures::task;
 
-        #[cfg(feature = "wgpu")]
-        use iced_graphics::window::Compositor as IGCompositor;
-
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
-        use iced_graphics::window::GLCompositor as IGCompositor;
-
         let mut debug = Debug::new();
         debug.startup_started();
-
-        let (runtime_tx, runtime_rx) = mpsc::unbounded::<A::Message>();
-
-        let mut runtime = {
-            let proxy = Proxy::new(runtime_tx);
-            let executor = <A::Executor as Executor>::new().unwrap();
-
-            Runtime::new(executor, proxy)
-        };
-
-        let (application, init_command) =
-            runtime.enter(|| A::new(settings.flags));
-
-        let mut window_subs = WindowSubs::default();
-
-        let mut clipboard = Clipboard::default();
-        let subscription = application.subscription(&mut window_subs);
-
-        run_command(init_command, &mut runtime, &mut clipboard);
-        runtime.track(subscription);
 
         // Assume scale for now until there is an event with a new one.
         let scale = match settings.window.scale {
@@ -204,34 +190,45 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let renderer_settings = A::renderer_settings();
 
-        #[cfg(feature = "wgpu")]
-        let (mut compositor, renderer) =
-            Compositor::new(renderer_settings, Some(window)).unwrap();
+        let (runtime_tx, runtime_rx) = mpsc::unbounded::<A::Message>();
 
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
-        let (compositor, renderer) = {
-            let context = window
-                .gl_context()
-                .expect("Window was created without OpenGL support");
-            unsafe { context.make_current() };
+        let runtime = {
+            let proxy = Proxy::new(runtime_tx);
+            let executor = <A::Executor as Executor>::new().unwrap();
 
-            let (compositor, renderer) = unsafe {
-                Compositor::new(renderer_settings, |s| {
-                    context.get_proc_address(s)
-                })
-                .unwrap()
-            };
-
-            unsafe { context.make_not_current() };
-
-            (compositor, renderer)
+            Runtime::new(executor, proxy)
         };
 
-        #[cfg(feature = "wgpu")]
-        let surface = compositor.create_surface(window);
-
+        let (application, init_command) =
+            runtime.enter(|| A::new(settings.flags));
         let state = State::new(&application, viewport, settings.window.scale);
+
+        cfg_if! {
+            if #[cfg(feature = "wgpu")] {
+                let window = WindowHandleWrapper(window);
+                let (mut compositor, renderer) =
+                    Compositor::new(renderer_settings, Some(&window)).unwrap();
+                let surface = compositor.create_surface(&window);
+            } else {
+                let (compositor, renderer) = {
+                    let context = window
+                        .gl_context()
+                        .expect("Window was created without OpenGL support");
+                    unsafe { context.make_current() };
+
+                    let (compositor, renderer) = unsafe {
+                        Compositor::new(renderer_settings, |s| {
+                            context.get_proc_address(s)
+                        })
+                        .unwrap()
+                    };
+
+                    unsafe { context.make_not_current() };
+
+                    (compositor, renderer)
+                };
+            }
+        }
 
         let event_status = Rc::new(RefCell::new(EventStatus::Ignored));
 
@@ -243,15 +240,14 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             compositor,
             renderer,
             runtime,
-            clipboard,
             debug,
             receiver,
             window_queue,
             surface,
             state,
-            window_subs,
             settings.iced_baseview,
             event_status.clone(),
+            init_command,
         ));
 
         #[cfg(feature = "glow")]
@@ -261,14 +257,13 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             compositor,
             renderer,
             runtime,
-            clipboard,
             debug,
             receiver,
             window_queue,
             state,
-            window_subs,
             settings.iced_baseview,
             event_status.clone(),
+            init_command,
         ));
 
         let runtime_context = task::Context::from_waker(task::noop_waker_ref());
@@ -508,7 +503,6 @@ async fn run_instance<A, E>(
     mut compositor: Compositor,
     mut renderer: Renderer,
     mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
-    mut clipboard: Clipboard,
     mut debug: Debug,
     mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     mut window_queue: WindowQueue,
@@ -518,25 +512,22 @@ async fn run_instance<A, E>(
     mut surface: <Compositor as iced_graphics::window::Compositor>::Surface,
 
     mut state: State<A>,
-    mut window_subs: WindowSubs<A::Message>,
     settings: IcedBaseviewSettings,
     event_status: Rc<RefCell<EventStatus>>,
+    init_command: Command<A::Message>,
 ) where
     A: Application + 'static + Send,
     E: Executor + 'static,
 {
-    #[cfg(feature = "wgpu")]
-    use iced_graphics::window::Compositor as IGCompositor;
-
-    #[cfg(feature = "glow")]
-    #[cfg(not(feature = "wgpu"))]
-    use iced_graphics::window::GLCompositor as IGCompositor;
-
     let mut viewport_version = state.viewport_version();
+    let mut cache = user_interface::Cache::default();
+    let mut clipboard = Clipboard::default();
+    let mut window_subs = WindowSubs::default();
 
     #[cfg(feature = "wgpu")]
     {
         let physical_size = state.physical_size();
+
         compositor.configure_surface(
             &mut surface,
             physical_size.width,
@@ -544,9 +535,21 @@ async fn run_instance<A, E>(
         );
     }
 
+    run_command(
+        &mut application,
+        &mut cache,
+        &state,
+        &mut renderer,
+        init_command,
+        &mut runtime,
+        &mut clipboard,
+        &mut debug,
+    );
+    runtime.track(application.subscription(&mut window_subs));
+
     let mut user_interface = ManuallyDrop::new(build_user_interface(
         &mut application,
-        user_interface::Cache::default(),
+        cache,
         &mut renderer,
         state.logical_size(),
         &mut debug,
@@ -563,8 +566,6 @@ async fn run_instance<A, E>(
     let mut needs_update = true;
     let mut did_process_event = false;
 
-    let mut modifiers = iced_core::keyboard::Modifiers::empty();
-
     debug.startup_finished();
 
     while let Some(event) = receiver.next().await {
@@ -575,7 +576,7 @@ async fn run_instance<A, E>(
                 crate::conversion::baseview_to_iced_events(
                     event,
                     &mut events,
-                    &mut modifiers,
+                    state.modifiers_mut(),
                     settings.ignore_non_modifier_keys,
                 );
 
@@ -660,12 +661,15 @@ async fn run_instance<A, E>(
                 if needs_update {
                     needs_update = false;
 
-                    let cache =
+                    let mut cache =
                         ManuallyDrop::into_inner(user_interface).into_cache();
 
                     // Update application
                     update(
                         &mut application,
+                        &mut cache,
+                        &state,
+                        &mut renderer,
                         &mut runtime,
                         &mut clipboard,
                         &mut debug,
@@ -687,8 +691,15 @@ async fn run_instance<A, E>(
                 }
 
                 debug.draw_started();
-                let new_mouse_interaction =
-                    user_interface.draw(&mut renderer, state.cursor_position());
+                let style = renderer::Style {
+                    text_color: state.text_color(),
+                };
+                let new_mouse_interaction = user_interface.draw(
+                    &mut renderer,
+                    state.theme(),
+                    &style,
+                    state.cursor_position(),
+                );
                 debug.draw_finished();
 
                 if new_mouse_interaction != mouse_interaction {
@@ -727,8 +738,15 @@ async fn run_instance<A, E>(
                     debug.layout_finished();
 
                     debug.draw_started();
-                    let new_mouse_interaction = user_interface
-                        .draw(&mut renderer, state.cursor_position());
+                    let style = renderer::Style {
+                        text_color: state.text_color(),
+                    };
+                    let new_mouse_interaction = user_interface.draw(
+                        &mut renderer,
+                        state.theme(),
+                        &style,
+                        state.cursor_position(),
+                    );
 
                     if new_mouse_interaction != mouse_interaction {
                         // TODO: Handle mouse cursor icons
@@ -772,7 +790,7 @@ async fn run_instance<A, E>(
                     }
                     Err(error) => match error {
                         // This is an unrecoverable error.
-                        iced_graphics::window::SurfaceError::OutOfMemory => {
+                        iced_graphics::compositor::SurfaceError::OutOfMemory => {
                             panic!("{:?}", error);
                         }
                         _ => {
@@ -803,12 +821,15 @@ async fn run_instance<A, E>(
                     // Send message to user before exiting the loop.
 
                     messages.push(message.clone());
-                    let cache =
+                    let mut cache =
                         ManuallyDrop::into_inner(user_interface).into_cache();
 
                     // Update application
                     update(
                         &mut application,
+                        &mut cache,
+                        &state,
+                        &mut renderer,
                         &mut runtime,
                         &mut clipboard,
                         &mut debug,
@@ -882,8 +903,11 @@ pub fn build_user_interface<'a, A: Application + 'static + Send>(
 
 /// Updates an [`Application`] by feeding it the provided messages, spawning any
 /// resulting [`Command`], and tracking its [`Subscription`].
-pub fn update<A: Application, E: Executor>(
+pub fn update<A: Application + Send, E: Executor>(
     application: &mut A,
+    cache: &mut user_interface::Cache,
+    state: &State<A>,
+    renderer: &mut crate::Renderer,
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     clipboard: &mut Clipboard,
     debug: &mut Debug,
@@ -899,7 +923,16 @@ pub fn update<A: Application, E: Executor>(
             runtime.enter(|| application.update(window_queue, message));
         debug.update_finished();
 
-        run_command(command, runtime, clipboard);
+        run_command(
+            application,
+            cache,
+            state,
+            renderer,
+            command,
+            runtime,
+            clipboard,
+            debug,
+        );
     }
 
     let subscription = application.subscription(window_subs);
@@ -907,13 +940,19 @@ pub fn update<A: Application, E: Executor>(
 }
 
 /// Runs the actions of a [`Command`], potentially yielding a new message.
-pub fn run_command<Message: 'static + std::fmt::Debug + Send, E: Executor>(
-    command: Command<Message>,
-    runtime: &mut Runtime<E, Proxy<Message>, Message>,
+pub fn run_command<A: Application + Send, E: Executor>(
+    application: &mut A,
+    cache: &mut user_interface::Cache,
+    state: &State<A>,
+    renderer: &mut crate::Renderer,
+    command: Command<A::Message>,
+    runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     clipboard: &mut Clipboard,
+    // proxy: &mut winit::event_loop::EventLoopProxy<A::Message>,
+    debug: &mut Debug,
+    // window: &winit::window::Window,
 ) {
     use iced_native::command;
-    use iced_native::window;
 
     for action in command.actions() {
         match action {
@@ -932,14 +971,39 @@ pub fn run_command<Message: 'static + std::fmt::Debug + Send, E: Executor>(
                     clipboard.write(contents);
                 }
             },
-            command::Action::Window(action) => match action {
-                // Resizing and moving baseview windows is currently not supported
-                window::Action::Resize {
-                    width: _width,
-                    height: _height,
-                } => {}
-                window::Action::Move { x: _x, y: _y } => {}
-            },
+            command::Action::Widget(action) => {
+                let mut current_cache = std::mem::take(cache);
+                let mut current_operation = Some(action.into_operation());
+
+                let mut user_interface = build_user_interface(
+                    application,
+                    current_cache,
+                    renderer,
+                    state.logical_size(),
+                    debug,
+                );
+
+                while let Some(mut operation) = current_operation.take() {
+                    user_interface.operate(renderer, operation.as_mut());
+
+                    match operation.finish() {
+                        operation::Outcome::None => {}
+                        operation::Outcome::Some(message) => {
+                            runtime.spawn(Box::pin(futures::future::ready(
+                                message,
+                            )));
+                        }
+                        operation::Outcome::Chain(next) => {
+                            current_operation = Some(next);
+                        }
+                    }
+                }
+
+                current_cache = user_interface.into_cache();
+                *cache = current_cache;
+            }
+            // Currently not supported
+            command::Action::Window(_) | command::Action::System(_) => {}
         }
     }
 }

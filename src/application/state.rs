@@ -1,7 +1,9 @@
 use iced_graphics::Viewport;
-use iced_native::keyboard::Modifiers as IcedModifiers;
+use iced_native::application::StyleSheet;
 use iced_native::Debug;
-use keyboard_types::Modifiers;
+use iced_native::{
+    application::Appearance, keyboard::Modifiers as IcedModifiers,
+};
 use std::marker::PhantomData;
 
 use crate::{Application, Color, Point, Size};
@@ -17,6 +19,8 @@ pub struct State<A: Application + Send> {
     viewport: Viewport,
     viewport_version: usize,
     cursor_position: Point,
+    theme: crate::Theme,
+    appearance: Appearance,
     modifiers: IcedModifiers,
     application: PhantomData<A>,
 }
@@ -31,6 +35,8 @@ impl<A: Application + Send> State<A> {
         //let mode = application.mode();
         let background_color = application.background_color();
         //let scale_factor = application.scale_factor();
+        let theme = application.theme();
+        let appearance = theme.appearance(&application.style());
 
         Self {
             background_color,
@@ -40,6 +46,8 @@ impl<A: Application + Send> State<A> {
             viewport_version: 0,
             // TODO: Encode cursor availability in the type-system
             cursor_position: Point::new(-1.0, -1.0),
+            theme,
+            appearance,
             modifiers: IcedModifiers::default(),
             application: PhantomData,
         }
@@ -91,8 +99,20 @@ impl<A: Application + Send> State<A> {
     }
     */
 
+    /// Returns the current theme of the [`State`].
+    pub fn theme(&self) -> &crate::Theme {
+        &self.theme
+    }
+
+    /// Returns the current text [`Color`] of the [`State`].
+    pub fn text_color(&self) -> Color {
+        self.appearance.text_color
+    }
+
     /// Processes the provided window event and updates the [`State`]
     /// accordingly.
+    ///
+    /// Does **not** update modifiers.
     pub fn update(&mut self, event: &baseview::Event, _debug: &mut Debug) {
         match event {
             baseview::Event::Window(baseview::WindowEvent::Resized(
@@ -120,15 +140,14 @@ impl<A: Application + Send> State<A> {
             }
             baseview::Event::Mouse(baseview::MouseEvent::CursorMoved {
                 position,
+                modifiers: _,
             }) => {
                 self.cursor_position.x = position.x as f32;
                 self.cursor_position.y = position.y as f32;
 
                 // TODO: Encode cursor moving outside of the window.
             }
-            baseview::Event::Keyboard(event) => {
-                self.update_modifiers(event.modifiers);
-
+            baseview::Event::Keyboard(_) => {
                 #[cfg(feature = "debug")]
                 {
                     use keyboard_types::{Key, KeyState};
@@ -208,14 +227,7 @@ impl<A: Application + Send> State<A> {
         }
     }
 
-    fn update_modifiers(&mut self, modifiers: Modifiers) {
-        self.modifiers
-            .set(IcedModifiers::SHIFT, modifiers.contains(Modifiers::SHIFT));
-        self.modifiers
-            .set(IcedModifiers::CTRL, modifiers.contains(Modifiers::CONTROL));
-        self.modifiers
-            .set(IcedModifiers::ALT, modifiers.contains(Modifiers::ALT));
-        self.modifiers
-            .set(IcedModifiers::LOGO, modifiers.contains(Modifiers::META));
+    pub(crate) fn modifiers_mut(&mut self) -> &mut IcedModifiers {
+        &mut self.modifiers
     }
 }
