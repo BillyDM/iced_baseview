@@ -64,6 +64,8 @@ unsafe impl<'a, T: rwh04::HasRawWindowHandle> rwh05::HasRawDisplayHandle
             } else if #[cfg(target_os = "windows")] {
                 RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
             } else {
+                let handle = rwh04::HasRawWindowHandle::raw_window_handle(&self.0);
+
                 if let rwh04::RawWindowHandle::Xlib(rwh04::XlibHandle { display, .. }) = handle {
                     let mut h = rwh05::XlibDisplayHandle::empty();
 
