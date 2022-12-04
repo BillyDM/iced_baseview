@@ -21,6 +21,12 @@ pub mod settings;
 pub mod time;
 pub mod widget;
 
+pub mod baseview {
+    pub use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
+    #[cfg(feature = "glow")]
+    pub use baseview::gl;
+}
+
 pub use application::Application;
 pub use element::Element;
 pub use executor::Executor;
