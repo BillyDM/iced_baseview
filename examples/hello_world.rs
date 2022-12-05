@@ -1,8 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
     executor, Alignment, Application, Color, Column, Command, Container,
-    Element, IcedBaseviewSettings, IcedWindow, Length, Rule, Settings, Text,
-    WindowQueue,
+    DefaultTheme, Element, IcedBaseviewSettings, IcedWindow, Length, Rule,
+    Settings, Text, WindowQueue,
 };
 
 fn main() {
@@ -37,6 +37,7 @@ impl Application for MyProgram {
     type Executor = executor::Default;
     type Message = ();
     type Flags = ();
+    type Theme = DefaultTheme;
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (Self {}, Command::none())

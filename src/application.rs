@@ -41,6 +41,7 @@ pub trait Application: Sized + 'static {
     ///
     /// [`Application`]: trait.Application.html
     type Flags: Send + 'static;
+    type Theme: iced_style::application::StyleSheet + Default;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -128,10 +129,10 @@ pub trait Application: Sized + 'static {
     fn title(&self) -> String;
 
     /// Returns the current `Theme` of the [`Application`].
-    fn theme(&self) -> crate::Theme;
+    fn theme(&self) -> Self::Theme;
 
     /// Returns the `Style` variation of the `Theme`.
-    fn style(&self) -> <crate::Theme as StyleSheet>::Style {
+    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
         Default::default()
     }
 

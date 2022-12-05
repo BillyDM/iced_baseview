@@ -7,6 +7,7 @@ use futures::StreamExt;
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::Viewport;
+use iced_native::application::StyleSheet;
 use iced_native::clipboard::Clipboard as IcedClipboard;
 use iced_native::event::Status;
 use iced_native::user_interface::{self, UserInterface};
@@ -32,7 +33,6 @@ cfg_if! {
 use crate::application::State;
 use crate::clipboard::Clipboard;
 use crate::proxy::Proxy;
-use crate::wrapper::WindowHandleWrapper;
 use crate::{
     Application, Compositor, IcedBaseviewSettings, Renderer, Settings,
 };
@@ -160,7 +160,12 @@ pub struct IcedWindow<A: Application + 'static + Send> {
     processed_close_signal: bool,
 }
 
-impl<A: Application + 'static + Send> IcedWindow<A> {
+impl<A> IcedWindow<A>
+where
+    A: Application + 'static + Send,
+    <Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    A: Application<Theme = <Renderer as iced_native::Renderer>::Theme>,
+{
     fn new(
         window: &mut baseview::Window<'_>,
         settings: Settings<A::Flags>,
@@ -205,7 +210,7 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         cfg_if! {
             if #[cfg(feature = "wgpu")] {
-                let window = WindowHandleWrapper(window);
+                let window = crate::wrapper::WindowHandleWrapper(window);
                 let (mut compositor, renderer) =
                     Compositor::new(renderer_settings, Some(&window)).unwrap();
                 let surface = compositor.create_surface(&window);
@@ -234,7 +239,6 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
 
         let (window_queue, window_queue_rx) = WindowQueue::new();
 
-        #[cfg(feature = "wgpu")]
         let instance = Box::pin(run_instance(
             application,
             compositor,
@@ -243,23 +247,8 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
             debug,
             receiver,
             window_queue,
+            #[cfg(feature = "wgpu")]
             surface,
-            state,
-            settings.iced_baseview,
-            event_status.clone(),
-            init_command,
-        ));
-
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
-        let instance = Box::pin(run_instance(
-            application,
-            compositor,
-            renderer,
-            runtime,
-            debug,
-            receiver,
-            window_queue,
             state,
             settings.iced_baseview,
             event_status.clone(),
@@ -500,7 +489,7 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
 #[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E>(
     mut application: A,
-    mut compositor: Compositor,
+    mut compositor: Compositor<A::Theme>,
     mut renderer: Renderer,
     mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
     mut debug: Debug,
@@ -509,7 +498,7 @@ async fn run_instance<A, E>(
 
     #[rustfmt::skip]
     #[cfg(feature = "wgpu")]
-    mut surface: <Compositor as iced_graphics::window::Compositor>::Surface,
+    mut surface: <Compositor<A::Theme> as iced_graphics::window::Compositor>::Surface,
 
     mut state: State<A>,
     settings: IcedBaseviewSettings,
@@ -518,6 +507,8 @@ async fn run_instance<A, E>(
 ) where
     A: Application + 'static + Send,
     E: Executor + 'static,
+    <Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    A: Application<Theme = <Renderer as iced_native::Renderer>::Theme>,
 {
     let mut viewport_version = state.viewport_version();
     let mut cache = user_interface::Cache::default();
@@ -883,13 +874,17 @@ pub fn requests_exit(event: &baseview::Event) -> bool {
 
 /// Builds a [`UserInterface`] for the provided [`Application`], logging
 /// [`struct@Debug`] information accordingly.
-pub fn build_user_interface<'a, A: Application + 'static + Send>(
+pub fn build_user_interface<'a, A>(
     application: &'a mut A,
     cache: user_interface::Cache,
     renderer: &mut Renderer,
     size: Size,
     debug: &mut Debug,
-) -> UserInterface<'a, A::Message, Renderer> {
+) -> UserInterface<'a, A::Message, Renderer>
+where
+    A: Application + 'static + Send,
+    <Renderer as iced_native::Renderer>::Theme: StyleSheet,
+{
     debug.view_started();
     let view = application.view();
     debug.view_finished();
@@ -907,14 +902,17 @@ pub fn update<A: Application + Send, E: Executor>(
     application: &mut A,
     cache: &mut user_interface::Cache,
     state: &State<A>,
-    renderer: &mut crate::Renderer,
+    renderer: &mut Renderer,
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     clipboard: &mut Clipboard,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
     window_subs: &mut WindowSubs<A::Message>,
     window_queue: &mut WindowQueue,
-) {
+) where
+    A: Application + Send,
+    E: Executor,
+{
     for message in messages.drain(..) {
         debug.log_message(&message);
 
@@ -940,18 +938,21 @@ pub fn update<A: Application + Send, E: Executor>(
 }
 
 /// Runs the actions of a [`Command`], potentially yielding a new message.
-pub fn run_command<A: Application + Send, E: Executor>(
+pub fn run_command<A, E>(
     application: &mut A,
     cache: &mut user_interface::Cache,
     state: &State<A>,
-    renderer: &mut crate::Renderer,
+    renderer: &mut Renderer,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     clipboard: &mut Clipboard,
     // proxy: &mut winit::event_loop::EventLoopProxy<A::Message>,
     debug: &mut Debug,
     // window: &winit::window::Window,
-) {
+) where
+    A: Application + Send,
+    E: Executor,
+{
     use iced_native::command;
 
     for action in command.actions() {

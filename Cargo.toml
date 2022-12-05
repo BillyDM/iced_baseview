@@ -57,6 +57,7 @@ iced_futures = "0.5"
 iced_glow = { version = "0.4", optional = true }
 iced_graphics = "0.4"
 iced_native = "0.6"
+iced_style = "0.5"
 iced_wgpu = { version = "0.6", optional = true }
 keyboard-types = { version = "0.6", default-features = false }
 raw-window-handle = "0.4"

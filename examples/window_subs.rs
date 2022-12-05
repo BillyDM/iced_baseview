@@ -1,8 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
     executor, Alignment, Application, Button, Color, Column, Command,
-    Container, Element, IcedBaseviewSettings, IcedWindow, Length, Settings,
-    Subscription, Text, WindowQueue, WindowSubs,
+    Container, DefaultTheme, Element, IcedBaseviewSettings, IcedWindow, Length,
+    Settings, Subscription, Text, WindowQueue, WindowSubs,
 };
 use std::time::{Duration, Instant};
 
@@ -50,6 +50,7 @@ impl Application for MyProgram {
     type Executor = executor::Default;
     type Message = Message;
     type Flags = ();
+    type Theme = DefaultTheme;
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (

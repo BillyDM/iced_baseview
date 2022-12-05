@@ -13,6 +13,7 @@ pub mod conversion;
 mod element;
 mod proxy;
 mod window;
+#[cfg(feature = "wgpu")]
 mod wrapper;
 
 pub mod clipboard;
@@ -38,17 +39,17 @@ compile_error!("Can't use both 'wgpu' and 'glow' features");
 
 cfg_if! {
     if #[cfg(feature = "wgpu")] {
-        pub type Theme = iced_wgpu::Theme;
         type Renderer = iced_wgpu::Renderer;
-        type Compositor = iced_wgpu::window::Compositor<Theme>;
+        type Compositor<Theme> = iced_wgpu::window::Compositor<Theme>;
         pub use iced_wgpu as backend;
     } else {
-        pub type Theme = iced_glow::Theme;
         type Renderer = iced_glow::Renderer;
-        type Compositor = iced_glow::window::Compositor<Theme>;
+        type Compositor<Theme> = iced_glow::window::Compositor<Theme>;
         pub use iced_glow as backend;
     }
 }
+
+pub use iced_native::Theme as DefaultTheme;
 
 #[doc(no_inline)]
 pub use widget::*;

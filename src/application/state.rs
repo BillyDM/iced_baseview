@@ -4,7 +4,6 @@ use iced_native::Debug;
 use iced_native::{
     application::Appearance, keyboard::Modifiers as IcedModifiers,
 };
-use std::marker::PhantomData;
 
 use crate::{Application, Color, Point, Size};
 
@@ -19,10 +18,9 @@ pub struct State<A: Application + Send> {
     viewport: Viewport,
     viewport_version: usize,
     cursor_position: Point,
-    theme: crate::Theme,
+    theme: A::Theme,
     appearance: Appearance,
     modifiers: IcedModifiers,
-    application: PhantomData<A>,
 }
 
 impl<A: Application + Send> State<A> {
@@ -49,7 +47,6 @@ impl<A: Application + Send> State<A> {
             theme,
             appearance,
             modifiers: IcedModifiers::default(),
-            application: PhantomData,
         }
     }
 
@@ -100,7 +97,7 @@ impl<A: Application + Send> State<A> {
     */
 
     /// Returns the current theme of the [`State`].
-    pub fn theme(&self) -> &crate::Theme {
+    pub fn theme(&self) -> &A::Theme {
         &self.theme
     }
 
