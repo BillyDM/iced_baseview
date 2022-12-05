@@ -274,20 +274,15 @@ where
         WindowOpenOptions {
             title: window.title.clone(),
             #[cfg(feature = "glow")]
-            #[cfg(not(feature = "wgpu"))]
-            gl_config: window
-                .gl_config
-                .as_ref()
-                .map(|config| baseview::gl::GlConfig { ..*config }),
+            gl_config: window.gl_config.clone(),
             ..*window
         }
     }
 
     /// Make sure the OpenGL context settings on the window open flags are consistent with the
     /// renderer configuration.
+    #[cfg(feature = "glow")]
     fn update_gl_context(_settings: &mut Settings<A::Flags>) {
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
         {
             // Glow support requires, well, OpenGL
             let gl_config = _settings
@@ -319,6 +314,7 @@ where
     where
         P: HasRawWindowHandle,
     {
+        #[cfg(feature = "glow")]
         Self::update_gl_context(&mut settings);
 
         let (sender, receiver) = mpsc::unbounded();
@@ -341,6 +337,7 @@ where
     pub fn open_as_if_parented(
         #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message> {
+        #[cfg(feature = "glow")]
         Self::update_gl_context(&mut settings);
 
         let (sender, receiver) = mpsc::unbounded();
@@ -362,6 +359,7 @@ where
     pub fn open_blocking(
         #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) {
+        #[cfg(feature = "glow")]
         Self::update_gl_context(&mut settings);
 
         let (sender, receiver) = mpsc::unbounded();
@@ -382,12 +380,10 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
         }
 
         #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
         let gl_context = window
             .gl_context()
             .expect("Window was created without OpenGL support");
         #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
         unsafe {
             gl_context.make_current()
         };
@@ -418,7 +414,6 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
         // FIXME: We can't do this inside of the `run_instance()` future. That should probably be
         //        replaced entirely.
         #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
         {
             gl_context.swap_buffers();
             unsafe { gl_context.make_not_current() };
@@ -749,62 +744,64 @@ async fn run_instance<A, E>(
                     }
                     debug.draw_finished();
 
-                    #[cfg(feature = "wgpu")]
-                    compositor.configure_surface(
-                        &mut surface,
-                        physical_size.width,
-                        physical_size.height,
-                    );
-
-                    #[cfg(feature = "glow")]
-                    #[cfg(not(feature = "wgpu"))]
-                    compositor.resize_viewport(physical_size);
+                    cfg_if! {
+                        if #[cfg(feature = "wgpu")] {
+                            compositor.configure_surface(
+                                &mut surface,
+                                physical_size.width,
+                                physical_size.height,
+                            );
+                        } else {
+                            compositor.resize_viewport(physical_size);
+                        }
+                    }
 
                     viewport_version = current_viewport_version;
                 }
 
-                #[cfg(feature = "wgpu")]
-                match compositor.present(
-                    &mut renderer,
-                    &mut surface,
-                    state.viewport(),
-                    state.background_color(),
-                    &debug.overlay(),
-                ) {
-                    Ok(()) => {
-                        debug.render_finished();
+                cfg_if! {
+                    if #[cfg(feature = "wgpu")] {
+                        match compositor.present(
+                            &mut renderer,
+                            &mut surface,
+                            state.viewport(),
+                            state.background_color(),
+                            &debug.overlay(),
+                        ) {
+                            Ok(()) => {
+                                debug.render_finished();
 
-                        // TODO: Handle animations!
-                        // Maybe we can use `ControlFlow::WaitUntil` for this.
+                                // TODO: Handle animations!
+                                // Maybe we can use `ControlFlow::WaitUntil` for this.
 
-                        redraw_requested = false;
+                                redraw_requested = false;
+                            }
+                            Err(error) => match error {
+                                // This is an unrecoverable error.
+                                iced_graphics::compositor::SurfaceError::OutOfMemory => {
+                                    panic!("{:?}", error);
+                                }
+                                _ => {
+                                    debug.render_finished();
+
+                                    // Try rendering again next frame.
+                                    redraw_requested = true;
+                                }
+                            },
+                        }
+                    } else {
+                        // The buffer swap happens in `IcedWindow::on_frame()` for the glow backend
+                        {
+                            compositor.present(
+                                &mut renderer,
+                                state.viewport(),
+                                state.background_color(),
+                                &debug.overlay(),
+                            );
+
+                            redraw_requested = false;
+                        }
                     }
-                    Err(error) => match error {
-                        // This is an unrecoverable error.
-                        iced_graphics::compositor::SurfaceError::OutOfMemory => {
-                            panic!("{:?}", error);
-                        }
-                        _ => {
-                            debug.render_finished();
-
-                            // Try rendering again next frame.
-                            redraw_requested = true;
-                        }
-                    },
-                }
-
-                // The buffer swap happens in `IcedWindow::on_frame()` for the glow backend
-                #[cfg(feature = "glow")]
-                #[cfg(not(feature = "wgpu"))]
-                {
-                    compositor.present(
-                        &mut renderer,
-                        state.viewport(),
-                        state.background_color(),
-                        &debug.overlay(),
-                    );
-
-                    redraw_requested = false;
                 }
             }
             RuntimeEvent::WillClose => {
@@ -946,9 +943,7 @@ pub fn run_command<A, E>(
     command: Command<A::Message>,
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     clipboard: &mut Clipboard,
-    // proxy: &mut winit::event_loop::EventLoopProxy<A::Message>,
     debug: &mut Debug,
-    // window: &winit::window::Window,
 ) where
     A: Application + Send,
     E: Executor,

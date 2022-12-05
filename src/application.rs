@@ -1,3 +1,5 @@
+use cfg_if::cfg_if;
+
 use crate::{
     Color, Command, Element, Executor, Subscription, WindowQueue, WindowSubs,
 };
@@ -41,7 +43,7 @@ pub trait Application: Sized + 'static {
     ///
     /// [`Application`]: trait.Application.html
     type Flags: Send + 'static;
-    type Theme: iced_style::application::StyleSheet + Default;
+    type Theme: iced_style::application::StyleSheet;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -136,20 +138,21 @@ pub trait Application: Sized + 'static {
         Default::default()
     }
 
-    /// Returns the renderer settings
-    #[cfg(feature = "wgpu")]
-    fn renderer_settings() -> iced_wgpu::settings::Settings {
-        iced_wgpu::settings::Settings {
-            // We usually don't want vsync for audio plugins.
-            present_mode: iced_wgpu::wgpu::PresentMode::Immediate,
-            ..iced_wgpu::settings::Settings::default()
+    cfg_if! {
+        if #[cfg(feature = "wgpu")] {
+            /// Returns the renderer settings
+            fn renderer_settings() -> iced_wgpu::settings::Settings {
+                iced_wgpu::settings::Settings {
+                    // We usually don't want vsync for audio plugins.
+                    present_mode: iced_wgpu::wgpu::PresentMode::Immediate,
+                    ..iced_wgpu::settings::Settings::default()
+                }
+            }
+        } else {
+            /// Returns the renderer settings
+            fn renderer_settings() -> iced_glow::settings::Settings {
+                iced_glow::settings::Settings::default()
+            }
         }
-    }
-
-    /// Returns the renderer settings
-    #[cfg(feature = "glow")]
-    #[cfg(not(feature = "wgpu"))]
-    fn renderer_settings() -> iced_glow::settings::Settings {
-        iced_glow::settings::Settings::default()
     }
 }
