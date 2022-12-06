@@ -1,41 +1,14 @@
-use baseview::{
-    Event, EventStatus, Window, WindowHandler, WindowOpenOptions,
-    WindowScalePolicy,
+use std::{cell::RefCell, pin::Pin, rc::Rc};
+
+use baseview::{Event, EventStatus, Window, WindowHandler, WindowOpenOptions};
+use iced_futures::futures::{
+    self,
+    channel::mpsc::{self, SendError},
 };
-use cfg_if::cfg_if;
-use futures::StreamExt;
-use iced_futures::futures;
-use iced_futures::futures::channel::mpsc;
-use iced_graphics::Viewport;
-use iced_native::clipboard::Clipboard as IcedClipboard;
-use iced_native::event::Status;
-use iced_native::user_interface::{self, UserInterface};
-use iced_native::widget::operation;
-use iced_native::{
-    clipboard, renderer, Command, Debug, Executor, Runtime, Size,
-};
-use mpsc::SendError;
+use iced_native::application::StyleSheet;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use std::cell::RefCell;
-use std::mem::ManuallyDrop;
-use std::pin::Pin;
-use std::rc::Rc;
 
-cfg_if! {
-    if #[cfg(feature = "wgpu")] {
-        use iced_graphics::window::Compositor as IGCompositor;
-    } else {
-        use iced_graphics::window::GLCompositor as IGCompositor;
-    }
-}
-
-use crate::application::State;
-use crate::clipboard::Clipboard;
-use crate::proxy::Proxy;
-use crate::wrapper::WindowHandleWrapper;
-use crate::{
-    Application, Compositor, IcedBaseviewSettings, Renderer, Settings,
-};
+use crate::{application::run, application::Application, Settings};
 
 pub(crate) enum RuntimeEvent<Message: 'static + Send> {
     Baseview((baseview::Event, bool)),
@@ -45,263 +18,46 @@ pub(crate) enum RuntimeEvent<Message: 'static + Send> {
     WillClose,
 }
 
-/// This struct creates subscriptions for common window events.
-#[allow(missing_debug_implementations)]
-pub struct WindowSubs<Message: Clone> {
-    /// The message to send right before each rendering frame.
-    pub on_frame: Option<Message>,
-    /// The message to send when the window is about to close.
-    pub on_window_will_close: Option<Message>,
-}
-
-impl<Message: Clone> Default for WindowSubs<Message> {
-    fn default() -> Self {
-        WindowSubs {
-            on_frame: None,
-            on_window_will_close: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum WindowQueueMessage {
-    CloseWindow,
-}
-
-/// Used to request things from the `baseview` window.
-#[allow(missing_debug_implementations)]
-pub struct WindowQueue {
-    tx: mpsc::UnboundedSender<WindowQueueMessage>,
-}
-
-impl WindowQueue {
-    fn new() -> (Self, mpsc::UnboundedReceiver<WindowQueueMessage>) {
-        let (tx, rx) = mpsc::unbounded();
-
-        (Self { tx }, rx)
-    }
-
-    /// Quit the current application and close the window.
-    pub fn close_window(&mut self) -> Result<(), SendError> {
-        self.tx.start_send(WindowQueueMessage::CloseWindow)
-    }
-}
-
-/// Use this to send custom events to the iced window.
-///
-/// Please note this channel is ***not*** realtime-safe and should never be
-/// be used to send events from the audio thread. Use a realtime-safe ring
-/// buffer instead.
-#[allow(missing_debug_implementations)]
-pub struct WindowHandle<Message: 'static + Send> {
-    bv_handle: baseview::WindowHandle,
-    tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
-}
-
-impl<Message: 'static + Send> WindowHandle<Message> {
-    pub(crate) fn new(
-        bv_handle: baseview::WindowHandle,
-        tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
-    ) -> Self {
-        Self { bv_handle, tx }
-    }
-
-    /// Send a custom `baseview::Event` to the window.
-    ///
-    /// Please note this channel is ***not*** realtime-safe and should never be
-    /// be used to send events from the audio thread. Use a realtime-safe ring
-    /// buffer instead.
-    pub fn send_baseview_event(
-        &mut self,
-        event: baseview::Event,
-    ) -> Result<(), SendError> {
-        self.tx.start_send(RuntimeEvent::Baseview((event, false)))
-    }
-
-    /// Send a custom message to the window.
-    ///
-    /// Please note this channel is ***not*** realtime-safe and should never be
-    /// used to send events from the audio thread. Use a realtime-safe ring
-    /// buffer instead.
-    pub fn send_message(&mut self, msg: Message) -> Result<(), SendError> {
-        self.tx.start_send(RuntimeEvent::UserEvent(msg))
-    }
-
-    /// Signal the window to close.
-    pub fn close_window(&mut self) {
-        self.bv_handle.close();
-    }
-
-    /// Returns `true` if the window is still open, and `false` if the window
-    /// was closed/dropped.
-    pub fn is_open(&self) -> bool {
-        self.bv_handle.is_open()
-    }
-}
-
-unsafe impl<Message: 'static + Send> HasRawWindowHandle
-    for WindowHandle<Message>
+pub(crate) struct IcedWindow<A>
+where
+    A: Application + Send + 'static,
+    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    // E: Executor + 'static,
+    // C: window::Compositor<Renderer = A::Renderer> + 'static,
 {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.bv_handle.raw_window_handle()
-    }
+    pub sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
+    pub instance: Pin<Box<dyn futures::Future<Output = ()>>>,
+    pub runtime_context: futures::task::Context<'static>,
+    pub runtime_rx: mpsc::UnboundedReceiver<A::Message>,
+    pub window_queue_rx: mpsc::UnboundedReceiver<WindowQueueMessage>,
+    pub event_status: Rc<RefCell<EventStatus>>,
+
+    pub processed_close_signal: bool,
 }
 
-/// Handles an iced_baseview application
-#[allow(missing_debug_implementations)]
-pub struct IcedWindow<A: Application + 'static + Send> {
-    sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
-    instance: Pin<Box<dyn futures::Future<Output = ()>>>,
-    runtime_context: futures::task::Context<'static>,
-    runtime_rx: mpsc::UnboundedReceiver<A::Message>,
-    window_queue_rx: mpsc::UnboundedReceiver<WindowQueueMessage>,
-    event_status: Rc<RefCell<EventStatus>>,
-
-    processed_close_signal: bool,
-}
-
-impl<A: Application + 'static + Send> IcedWindow<A> {
-    fn new(
-        window: &mut baseview::Window<'_>,
-        settings: Settings<A::Flags>,
-        sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
-        receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
-    ) -> IcedWindow<A> {
-        // All of this garbage is based on:
-        // https://github.com/iced-rs/iced/blob/master/winit/src/application.rs
-
-        use futures::task;
-
-        let mut debug = Debug::new();
-        debug.startup_started();
-
-        // Assume scale for now until there is an event with a new one.
-        let scale = match settings.window.scale {
-            WindowScalePolicy::ScaleFactor(scale) => scale,
-            WindowScalePolicy::SystemScaleFactor => 1.0,
-        };
-
-        let physical_size = Size::new(
-            (settings.window.size.width * scale) as u32,
-            (settings.window.size.height * scale) as u32,
-        );
-
-        let viewport = Viewport::with_physical_size(physical_size, scale);
-
-        let renderer_settings = A::renderer_settings();
-
-        let (runtime_tx, runtime_rx) = mpsc::unbounded::<A::Message>();
-
-        let runtime = {
-            let proxy = Proxy::new(runtime_tx);
-            let executor = <A::Executor as Executor>::new().unwrap();
-
-            Runtime::new(executor, proxy)
-        };
-
-        let (application, init_command) =
-            runtime.enter(|| A::new(settings.flags));
-        let state = State::new(&application, viewport, settings.window.scale);
-
-        cfg_if! {
-            if #[cfg(feature = "wgpu")] {
-                let window = WindowHandleWrapper(window);
-                let (mut compositor, renderer) =
-                    Compositor::new(renderer_settings, Some(&window)).unwrap();
-                let surface = compositor.create_surface(&window);
-            } else {
-                let (compositor, renderer) = {
-                    let context = window
-                        .gl_context()
-                        .expect("Window was created without OpenGL support");
-                    unsafe { context.make_current() };
-
-                    let (compositor, renderer) = unsafe {
-                        Compositor::new(renderer_settings, |s| {
-                            context.get_proc_address(s)
-                        })
-                        .unwrap()
-                    };
-
-                    unsafe { context.make_not_current() };
-
-                    (compositor, renderer)
-                };
-            }
-        }
-
-        let event_status = Rc::new(RefCell::new(EventStatus::Ignored));
-
-        let (window_queue, window_queue_rx) = WindowQueue::new();
-
-        #[cfg(feature = "wgpu")]
-        let instance = Box::pin(run_instance(
-            application,
-            compositor,
-            renderer,
-            runtime,
-            debug,
-            receiver,
-            window_queue,
-            surface,
-            state,
-            settings.iced_baseview,
-            event_status.clone(),
-            init_command,
-        ));
-
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
-        let instance = Box::pin(run_instance(
-            application,
-            compositor,
-            renderer,
-            runtime,
-            debug,
-            receiver,
-            window_queue,
-            state,
-            settings.iced_baseview,
-            event_status.clone(),
-            init_command,
-        ));
-
-        let runtime_context = task::Context::from_waker(task::noop_waker_ref());
-
-        Self {
-            sender,
-            instance,
-            runtime_context,
-            runtime_rx,
-            window_queue_rx,
-            event_status,
-
-            processed_close_signal: false,
-        }
-    }
-
+impl<A> IcedWindow<A>
+where
+    A: Application + Send + 'static,
+    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+{
     /// There's no clone implementation, but this is fine.
     fn clone_window_options(window: &WindowOpenOptions) -> WindowOpenOptions {
         WindowOpenOptions {
             title: window.title.clone(),
             #[cfg(feature = "glow")]
-            #[cfg(not(feature = "wgpu"))]
-            gl_config: window
-                .gl_config
-                .as_ref()
-                .map(|config| baseview::gl::GlConfig { ..*config }),
+            gl_config: window.gl_config.clone(),
             ..*window
         }
     }
 
     /// Make sure the OpenGL context settings on the window open flags are consistent with the
     /// renderer configuration.
-    fn update_gl_context(_settings: &mut Settings<A::Flags>) {
-        #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
+    #[cfg(feature = "glow")]
+    fn update_gl_context(settings: &mut Settings<A::Flags>) {
+        /*
         {
             // Glow support requires, well, OpenGL
-            let gl_config = _settings
+            let gl_config = settings
                 .window
                 .gl_config
                 // FIXME: The current glow_glpyh version does not enable the correct extension in their
@@ -317,29 +73,68 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
                 gl_config.samples = Some(antialiasing.sample_count() as u8);
             }
         }
+        */
+    }
+
+    /// Open a new window that blocks the current thread until the window is destroyed.
+    ///
+    /// * `settings` - The settings of the window.
+    pub fn open_blocking<E, C>(#[allow(unused_mut)] mut settings: Settings<A::Flags>)
+    where
+        E: iced_futures::Executor + 'static,
+        C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
+        <C as crate::IGCompositor>::Settings: Send,
+    {
+        #[cfg(feature = "glow")]
+        Self::update_gl_context(&mut settings);
+
+        let (sender, receiver) = mpsc::unbounded();
+
+        let compositor_settings = Default::default();
+
+        Window::open_blocking(
+            Self::clone_window_options(&settings.window),
+            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
+                run::<A, E, C>(window, settings, compositor_settings, sender, receiver)
+                    .expect("Launch window")
+            },
+        );
     }
 
     /// Open a new child window.
     ///
     /// * `parent` - The parent window.
     /// * `settings` - The settings of the window.
-    pub fn open_parented<P>(
+    pub fn open_parented<E, C, P>(
         parent: &P,
         #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message>
     where
+        E: iced_futures::Executor + 'static,
+        C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
+        <C as crate::IGCompositor>::Settings: Send,
         P: HasRawWindowHandle,
     {
+        #[cfg(feature = "glow")]
         Self::update_gl_context(&mut settings);
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
 
+        let compositor_settings = Default::default();
+
         let bv_handle = Window::open_parented(
             parent,
             Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                IcedWindow::new(window, settings, sender_clone, receiver)
+                run::<A, E, C>(
+                    window,
+                    settings,
+                    compositor_settings,
+                    sender_clone,
+                    receiver,
+                )
+                .expect("Launch window")
             },
         );
 
@@ -349,56 +144,55 @@ impl<A: Application + 'static + Send> IcedWindow<A> {
     /// Open a new window as if it had a parent window.
     ///
     /// * `settings` - The settings of the window.
-    pub fn open_as_if_parented(
+    pub fn open_as_if_parented<E, C>(
         #[allow(unused_mut)] mut settings: Settings<A::Flags>,
-    ) -> WindowHandle<A::Message> {
+    ) -> WindowHandle<A::Message>
+    where
+        E: iced_futures::Executor + 'static,
+        C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
+        <C as crate::IGCompositor>::Settings: Send,
+    {
+        #[cfg(feature = "glow")]
         Self::update_gl_context(&mut settings);
 
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
 
+        let compositor_settings = Default::default();
+
         let bv_handle = Window::open_as_if_parented(
             Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                IcedWindow::new(window, settings, sender_clone, receiver)
+                run::<A, E, C>(
+                    window,
+                    settings,
+                    compositor_settings,
+                    sender_clone,
+                    receiver,
+                )
+                .expect("Launch window")
             },
         );
 
         WindowHandle::new(bv_handle, sender)
     }
-
-    /// Open a new window that blocks the current thread until the window is destroyed.
-    ///
-    /// * `settings` - The settings of the window.
-    pub fn open_blocking(
-        #[allow(unused_mut)] mut settings: Settings<A::Flags>,
-    ) {
-        Self::update_gl_context(&mut settings);
-
-        let (sender, receiver) = mpsc::unbounded();
-
-        Window::open_blocking(
-            Self::clone_window_options(&settings.window),
-            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                IcedWindow::new(window, settings, sender, receiver)
-            },
-        );
-    }
 }
 
-impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
+impl<A> WindowHandler for IcedWindow<A>
+where
+    A: Application + Send + 'static,
+    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+{
     fn on_frame(&mut self, window: &mut Window<'_>) {
         if self.processed_close_signal {
             return;
         }
 
         #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
         let gl_context = window
             .gl_context()
             .expect("Window was created without OpenGL support");
         #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
         unsafe {
             gl_context.make_current()
         };
@@ -429,7 +223,6 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
         // FIXME: We can't do this inside of the `run_instance()` future. That should probably be
         //        replaced entirely.
         #[cfg(feature = "glow")]
-        #[cfg(not(feature = "wgpu"))]
         {
             gl_context.swap_buffers();
             unsafe { gl_context.make_not_current() };
@@ -444,11 +237,7 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
         }
     }
 
-    fn on_event(
-        &mut self,
-        window: &mut Window<'_>,
-        event: Event,
-    ) -> EventStatus {
+    fn on_event(&mut self, window: &mut Window<'_>, event: Event) -> EventStatus {
         if self.processed_close_signal {
             return EventStatus::Ignored;
         }
@@ -491,376 +280,6 @@ impl<A: Application + 'static + Send> WindowHandler for IcedWindow<A> {
     }
 }
 
-/// This may appear to be asynchronous, but it is actually a blocking future on the same thread.
-/// This is a necessary workaround for the issue described here:
-/// https://github.com/hecrj/iced/pull/597
-///
-/// All of this garbage is based on:
-/// <https://github.com/iced-rs/iced/blob/master/winit/src/application.rs>
-#[allow(clippy::too_many_arguments)]
-async fn run_instance<A, E>(
-    mut application: A,
-    mut compositor: Compositor,
-    mut renderer: Renderer,
-    mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
-    mut debug: Debug,
-    mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
-    mut window_queue: WindowQueue,
-
-    #[rustfmt::skip]
-    #[cfg(feature = "wgpu")]
-    mut surface: <Compositor as iced_graphics::window::Compositor>::Surface,
-
-    mut state: State<A>,
-    settings: IcedBaseviewSettings,
-    event_status: Rc<RefCell<EventStatus>>,
-    init_command: Command<A::Message>,
-) where
-    A: Application + 'static + Send,
-    E: Executor + 'static,
-{
-    let mut viewport_version = state.viewport_version();
-    let mut cache = user_interface::Cache::default();
-    let mut clipboard = Clipboard::default();
-    let mut window_subs = WindowSubs::default();
-
-    #[cfg(feature = "wgpu")]
-    {
-        let physical_size = state.physical_size();
-
-        compositor.configure_surface(
-            &mut surface,
-            physical_size.width,
-            physical_size.height,
-        );
-    }
-
-    run_command(
-        &mut application,
-        &mut cache,
-        &state,
-        &mut renderer,
-        init_command,
-        &mut runtime,
-        &mut clipboard,
-        &mut debug,
-    );
-    runtime.track(application.subscription(&mut window_subs));
-
-    let mut user_interface = ManuallyDrop::new(build_user_interface(
-        &mut application,
-        cache,
-        &mut renderer,
-        state.logical_size(),
-        &mut debug,
-    ));
-
-    let mut mouse_interaction = iced_native::mouse::Interaction::default();
-    let mut events = Vec::new();
-    let mut messages = Vec::new();
-
-    // Triggered whenever a baseview event gets sent
-    let mut redraw_requested = true;
-    // May be triggered when processing baseview events, will cause the UI to be updated in the next
-    // frame
-    let mut needs_update = true;
-    let mut did_process_event = false;
-
-    debug.startup_finished();
-
-    while let Some(event) = receiver.next().await {
-        match event {
-            RuntimeEvent::Baseview((event, do_send_status)) => {
-                state.update(&event, &mut debug);
-
-                crate::conversion::baseview_to_iced_events(
-                    event,
-                    &mut events,
-                    state.modifiers_mut(),
-                    settings.ignore_non_modifier_keys,
-                );
-
-                if events.is_empty() {
-                    if do_send_status {
-                        *event_status.borrow_mut() = EventStatus::Ignored;
-                    }
-                    continue;
-                }
-
-                debug.event_processing_started();
-
-                let (interface_state, statuses) = user_interface.update(
-                    &events,
-                    state.cursor_position(),
-                    &mut renderer,
-                    &mut clipboard,
-                    &mut messages,
-                );
-                // Will trigger an update when the next frame gets drawn
-                needs_update |=
-                    matches!(interface_state, user_interface::State::Outdated,);
-
-                if do_send_status {
-                    let mut final_status = EventStatus::Ignored;
-                    for status in &statuses {
-                        if let Status::Captured = status {
-                            final_status = EventStatus::Captured;
-                            break;
-                        }
-                    }
-
-                    *event_status.borrow_mut() = final_status;
-                }
-
-                debug.event_processing_finished();
-
-                for event in events.drain(..).zip(statuses.into_iter()) {
-                    runtime.broadcast(event);
-                }
-
-                did_process_event = true;
-            }
-            RuntimeEvent::MainEventsCleared => {
-                if let Some(message) = &window_subs.on_frame {
-                    messages.push(message.clone());
-                }
-
-                if !did_process_event
-                    && events.is_empty()
-                    && messages.is_empty()
-                    && !settings.always_redraw
-                {
-                    continue;
-                }
-                did_process_event = false;
-
-                if !events.is_empty() {
-                    debug.event_processing_started();
-
-                    let (interface_state, statuses) = user_interface.update(
-                        &events,
-                        state.cursor_position(),
-                        &mut renderer,
-                        &mut clipboard,
-                        &mut messages,
-                    );
-                    needs_update |= matches!(
-                        interface_state,
-                        user_interface::State::Outdated,
-                    );
-
-                    debug.event_processing_finished();
-
-                    for event in events.drain(..).zip(statuses.into_iter()) {
-                        runtime.broadcast(event);
-                    }
-                }
-
-                // The user interface update may have pushed a new message onto the stack
-                needs_update |= !messages.is_empty() || settings.always_redraw;
-                if needs_update {
-                    needs_update = false;
-
-                    let mut cache =
-                        ManuallyDrop::into_inner(user_interface).into_cache();
-
-                    // Update application
-                    update(
-                        &mut application,
-                        &mut cache,
-                        &state,
-                        &mut renderer,
-                        &mut runtime,
-                        &mut clipboard,
-                        &mut debug,
-                        &mut messages,
-                        &mut window_subs,
-                        &mut window_queue,
-                    );
-
-                    // Update window
-                    state.synchronize(&application);
-
-                    user_interface = ManuallyDrop::new(build_user_interface(
-                        &mut application,
-                        cache,
-                        &mut renderer,
-                        state.logical_size(),
-                        &mut debug,
-                    ));
-                }
-
-                debug.draw_started();
-                let style = renderer::Style {
-                    text_color: state.text_color(),
-                };
-                let new_mouse_interaction = user_interface.draw(
-                    &mut renderer,
-                    state.theme(),
-                    &style,
-                    state.cursor_position(),
-                );
-                debug.draw_finished();
-
-                if new_mouse_interaction != mouse_interaction {
-                    // TODO: Handle mouse cursor icons
-                    // window.set_cursor_icon(conversion::mouse_interaction(
-                    //     new_mouse_interaction,
-                    // ));
-
-                    mouse_interaction = new_mouse_interaction;
-                }
-
-                redraw_requested = true;
-            }
-            RuntimeEvent::UserEvent(message) => {
-                messages.push(message);
-            }
-            RuntimeEvent::RedrawRequested => {
-                // Set whenever a baseview event or message gets handled. Or as a stopgap workaround
-                // we can also just always redraw.
-                if !(redraw_requested || settings.always_redraw) {
-                    continue;
-                }
-
-                debug.render_started();
-                let current_viewport_version = state.viewport_version();
-
-                if viewport_version != current_viewport_version {
-                    let physical_size = state.physical_size();
-                    let logical_size = state.logical_size();
-
-                    debug.layout_started();
-                    user_interface = ManuallyDrop::new(
-                        ManuallyDrop::into_inner(user_interface)
-                            .relayout(logical_size, &mut renderer),
-                    );
-                    debug.layout_finished();
-
-                    debug.draw_started();
-                    let style = renderer::Style {
-                        text_color: state.text_color(),
-                    };
-                    let new_mouse_interaction = user_interface.draw(
-                        &mut renderer,
-                        state.theme(),
-                        &style,
-                        state.cursor_position(),
-                    );
-
-                    if new_mouse_interaction != mouse_interaction {
-                        // TODO: Handle mouse cursor icons
-                        // window.set_cursor_icon(conversion::mouse_interaction(
-                        //     new_mouse_interaction,
-                        // ));
-
-                        mouse_interaction = new_mouse_interaction;
-                    }
-                    debug.draw_finished();
-
-                    #[cfg(feature = "wgpu")]
-                    compositor.configure_surface(
-                        &mut surface,
-                        physical_size.width,
-                        physical_size.height,
-                    );
-
-                    #[cfg(feature = "glow")]
-                    #[cfg(not(feature = "wgpu"))]
-                    compositor.resize_viewport(physical_size);
-
-                    viewport_version = current_viewport_version;
-                }
-
-                #[cfg(feature = "wgpu")]
-                match compositor.present(
-                    &mut renderer,
-                    &mut surface,
-                    state.viewport(),
-                    state.background_color(),
-                    &debug.overlay(),
-                ) {
-                    Ok(()) => {
-                        debug.render_finished();
-
-                        // TODO: Handle animations!
-                        // Maybe we can use `ControlFlow::WaitUntil` for this.
-
-                        redraw_requested = false;
-                    }
-                    Err(error) => match error {
-                        // This is an unrecoverable error.
-                        iced_graphics::compositor::SurfaceError::OutOfMemory => {
-                            panic!("{:?}", error);
-                        }
-                        _ => {
-                            debug.render_finished();
-
-                            // Try rendering again next frame.
-                            redraw_requested = true;
-                        }
-                    },
-                }
-
-                // The buffer swap happens in `IcedWindow::on_frame()` for the glow backend
-                #[cfg(feature = "glow")]
-                #[cfg(not(feature = "wgpu"))]
-                {
-                    compositor.present(
-                        &mut renderer,
-                        state.viewport(),
-                        state.background_color(),
-                        &debug.overlay(),
-                    );
-
-                    redraw_requested = false;
-                }
-            }
-            RuntimeEvent::WillClose => {
-                if let Some(message) = &window_subs.on_window_will_close {
-                    // Send message to user before exiting the loop.
-
-                    messages.push(message.clone());
-                    let mut cache =
-                        ManuallyDrop::into_inner(user_interface).into_cache();
-
-                    // Update application
-                    update(
-                        &mut application,
-                        &mut cache,
-                        &state,
-                        &mut renderer,
-                        &mut runtime,
-                        &mut clipboard,
-                        &mut debug,
-                        &mut messages,
-                        &mut window_subs,
-                        &mut window_queue,
-                    );
-
-                    // Update window
-                    state.synchronize(&application);
-
-                    user_interface = ManuallyDrop::new(build_user_interface(
-                        &mut application,
-                        cache,
-                        &mut renderer,
-                        state.logical_size(),
-                        &mut debug,
-                    ));
-                }
-
-                break;
-            }
-        }
-    }
-
-    receiver.close();
-
-    // Manually drop the user interface
-    let _ = ManuallyDrop::into_inner(user_interface);
-}
-
 /// Returns true if the provided event should cause an [`Application`] to
 /// exit.
 pub fn requests_exit(event: &baseview::Event) -> bool {
@@ -881,129 +300,99 @@ pub fn requests_exit(event: &baseview::Event) -> bool {
     }
 }
 
-/// Builds a [`UserInterface`] for the provided [`Application`], logging
-/// [`struct@Debug`] information accordingly.
-pub fn build_user_interface<'a, A: Application + 'static + Send>(
-    application: &'a mut A,
-    cache: user_interface::Cache,
-    renderer: &mut Renderer,
-    size: Size,
-    debug: &mut Debug,
-) -> UserInterface<'a, A::Message, Renderer> {
-    debug.view_started();
-    let view = application.view();
-    debug.view_finished();
-
-    debug.layout_started();
-    let user_interface = UserInterface::build(view, size, cache, renderer);
-    debug.layout_finished();
-
-    user_interface
+/// Use this to send custom events to the iced window.
+///
+/// Please note this channel is ***not*** realtime-safe and should never be
+/// be used to send events from the audio thread. Use a realtime-safe ring
+/// buffer instead.
+#[allow(missing_debug_implementations)]
+pub struct WindowHandle<Message: 'static + Send> {
+    bv_handle: baseview::WindowHandle,
+    tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
 }
 
-/// Updates an [`Application`] by feeding it the provided messages, spawning any
-/// resulting [`Command`], and tracking its [`Subscription`].
-pub fn update<A: Application + Send, E: Executor>(
-    application: &mut A,
-    cache: &mut user_interface::Cache,
-    state: &State<A>,
-    renderer: &mut crate::Renderer,
-    runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
-    clipboard: &mut Clipboard,
-    debug: &mut Debug,
-    messages: &mut Vec<A::Message>,
-    window_subs: &mut WindowSubs<A::Message>,
-    window_queue: &mut WindowQueue,
-) {
-    for message in messages.drain(..) {
-        debug.log_message(&message);
-
-        debug.update_started();
-        let command =
-            runtime.enter(|| application.update(window_queue, message));
-        debug.update_finished();
-
-        run_command(
-            application,
-            cache,
-            state,
-            renderer,
-            command,
-            runtime,
-            clipboard,
-            debug,
-        );
+impl<Message: 'static + Send> WindowHandle<Message> {
+    pub(crate) fn new(
+        bv_handle: baseview::WindowHandle,
+        tx: mpsc::UnboundedSender<RuntimeEvent<Message>>,
+    ) -> Self {
+        Self { bv_handle, tx }
     }
 
-    let subscription = application.subscription(window_subs);
-    runtime.track(subscription);
+    /// Send a custom `baseview::Event` to the window.
+    ///
+    /// Please note this channel is ***not*** realtime-safe and should never be
+    /// be used to send events from the audio thread. Use a realtime-safe ring
+    /// buffer instead.
+    pub fn send_baseview_event(&mut self, event: baseview::Event) -> Result<(), SendError> {
+        self.tx.start_send(RuntimeEvent::Baseview((event, false)))
+    }
+
+    /// Send a custom message to the window.
+    ///
+    /// Please note this channel is ***not*** realtime-safe and should never be
+    /// used to send events from the audio thread. Use a realtime-safe ring
+    /// buffer instead.
+    pub fn send_message(&mut self, msg: Message) -> Result<(), SendError> {
+        self.tx.start_send(RuntimeEvent::UserEvent(msg))
+    }
+
+    /// Signal the window to close.
+    pub fn close_window(&mut self) {
+        self.bv_handle.close();
+    }
+
+    /// Returns `true` if the window is still open, and `false` if the window
+    /// was closed/dropped.
+    pub fn is_open(&self) -> bool {
+        self.bv_handle.is_open()
+    }
 }
 
-/// Runs the actions of a [`Command`], potentially yielding a new message.
-pub fn run_command<A: Application + Send, E: Executor>(
-    application: &mut A,
-    cache: &mut user_interface::Cache,
-    state: &State<A>,
-    renderer: &mut crate::Renderer,
-    command: Command<A::Message>,
-    runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
-    clipboard: &mut Clipboard,
-    // proxy: &mut winit::event_loop::EventLoopProxy<A::Message>,
-    debug: &mut Debug,
-    // window: &winit::window::Window,
-) {
-    use iced_native::command;
+unsafe impl<Message: 'static + Send> HasRawWindowHandle for WindowHandle<Message> {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        self.bv_handle.raw_window_handle()
+    }
+}
 
-    for action in command.actions() {
-        match action {
-            command::Action::Future(future) => {
-                runtime.spawn(future);
-            }
-            command::Action::Clipboard(action) => match action {
-                clipboard::Action::Read(set_clipboard) => {
-                    let message = set_clipboard(clipboard.read());
+#[derive(Debug, Clone, Copy)]
+pub enum WindowQueueMessage {
+    CloseWindow,
+}
 
-                    // TODO: Is this what you're supposed to do? The winit example sends an event to
-                    //       the window which would end up doing the same thing.
-                    runtime.spawn(Box::pin(futures::future::ready(message)));
-                }
-                clipboard::Action::Write(contents) => {
-                    clipboard.write(contents);
-                }
-            },
-            command::Action::Widget(action) => {
-                let mut current_cache = std::mem::take(cache);
-                let mut current_operation = Some(action.into_operation());
+/// Used to request things from the `baseview` window.
+#[allow(missing_debug_implementations)]
+pub struct WindowQueue {
+    tx: mpsc::UnboundedSender<WindowQueueMessage>,
+}
 
-                let mut user_interface = build_user_interface(
-                    application,
-                    current_cache,
-                    renderer,
-                    state.logical_size(),
-                    debug,
-                );
+impl WindowQueue {
+    pub fn new() -> (Self, mpsc::UnboundedReceiver<WindowQueueMessage>) {
+        let (tx, rx) = mpsc::unbounded();
 
-                while let Some(mut operation) = current_operation.take() {
-                    user_interface.operate(renderer, operation.as_mut());
+        (Self { tx }, rx)
+    }
 
-                    match operation.finish() {
-                        operation::Outcome::None => {}
-                        operation::Outcome::Some(message) => {
-                            runtime.spawn(Box::pin(futures::future::ready(
-                                message,
-                            )));
-                        }
-                        operation::Outcome::Chain(next) => {
-                            current_operation = Some(next);
-                        }
-                    }
-                }
+    /// Quit the current application and close the window.
+    pub fn close_window(&mut self) -> Result<(), SendError> {
+        self.tx.start_send(WindowQueueMessage::CloseWindow)
+    }
+}
 
-                current_cache = user_interface.into_cache();
-                *cache = current_cache;
-            }
-            // Currently not supported
-            command::Action::Window(_) | command::Action::System(_) => {}
+/// This struct creates subscriptions for common window events.
+#[allow(missing_debug_implementations)]
+pub struct WindowSubs<Message> {
+    /// The message to send right before each rendering frame.
+    pub on_frame: Option<fn() -> Message>,
+    /// The message to send when the window is about to close.
+    pub on_window_will_close: Option<fn() -> Message>,
+}
+
+impl<Message> Default for WindowSubs<Message> {
+    fn default() -> Self {
+        WindowSubs {
+            on_frame: None,
+            on_window_will_close: None,
         }
     }
 }

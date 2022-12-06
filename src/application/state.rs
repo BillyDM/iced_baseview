@@ -1,61 +1,57 @@
-use iced_graphics::Viewport;
-use iced_native::application::StyleSheet;
-use iced_native::Debug;
-use iced_native::{
-    application::Appearance, keyboard::Modifiers as IcedModifiers,
-};
-use std::marker::PhantomData;
-
-use crate::{Application, Color, Point, Size};
-
 use baseview::WindowScalePolicy;
 
+use iced_graphics::Viewport;
+use iced_native::{Color, Debug, Point, Size};
+
+use crate::application::Application;
+use crate::application::{self, StyleSheet as _};
+
+use std::marker::PhantomData;
+
 /// The state of a windowed [`Application`].
-#[derive(Debug)]
-pub struct State<A: Application + Send> {
-    background_color: Color,
-    scale_policy: WindowScalePolicy,
-    system_scale_factor: f64,
+#[allow(missing_debug_implementations)]
+pub struct State<A: Application>
+where
+    <A::Renderer as iced_native::Renderer>::Theme: application::StyleSheet,
+{
+    title: String,
     viewport: Viewport,
     viewport_version: usize,
     cursor_position: Point,
-    theme: crate::Theme,
-    appearance: Appearance,
-    modifiers: IcedModifiers,
+    theme: <A::Renderer as iced_native::Renderer>::Theme,
+    appearance: application::Appearance,
     application: PhantomData<A>,
+
+    system_scale_factor: f64,
+    scale_policy: WindowScalePolicy,
+    modifiers: iced_core::keyboard::Modifiers,
 }
 
-impl<A: Application + Send> State<A> {
+impl<A: Application> State<A>
+where
+    <A::Renderer as iced_native::Renderer>::Theme: application::StyleSheet,
+{
     /// Creates a new [`State`] for the provided [`Application`] and window.
-    pub fn new(
-        application: &A,
-        viewport: Viewport,
-        scale_policy: WindowScalePolicy,
-    ) -> Self {
-        //let mode = application.mode();
-        let background_color = application.background_color();
-        //let scale_factor = application.scale_factor();
+    pub fn new(application: &A, viewport: Viewport, scale_policy: WindowScalePolicy) -> Self {
+        let title = application.title();
         let theme = application.theme();
         let appearance = theme.appearance(&application.style());
 
         Self {
-            background_color,
-            scale_policy,
-            system_scale_factor: 1.0,
+            title,
             viewport,
             viewport_version: 0,
             // TODO: Encode cursor availability in the type-system
             cursor_position: Point::new(-1.0, -1.0),
+            // modifiers: winit::event::ModifiersState::default(),
             theme,
             appearance,
-            modifiers: IcedModifiers::default(),
             application: PhantomData,
-        }
-    }
 
-    /// Returns the current background [`Color`] of the [`State`].
-    pub fn background_color(&self) -> Color {
-        self.background_color
+            system_scale_factor: 1.0,
+            scale_policy,
+            modifiers: Default::default(),
+        }
     }
 
     /// Returns the current [`Viewport`] of the [`State`].
@@ -80,28 +76,24 @@ impl<A: Application + Send> State<A> {
         self.viewport.logical_size()
     }
 
-    /*
-    /// Returns the current scale factor of the [`Viewport`] of the [`State`].
-    pub fn scale_factor(&self) -> f64 {
-        self.viewport.scale_factor()
-    }
-    */
-
     /// Returns the current cursor position of the [`State`].
     pub fn cursor_position(&self) -> Point {
         self.cursor_position
     }
 
-    /*
-    /// Returns the current keyboard modifiers of the [`State`].
-    pub fn modifiers(&self) -> keyboard::Modifiers {
-        self.modifiers
-    }
-    */
+    // /// Returns the current keyboard modifiers of the [`State`].
+    // pub fn modifiers(&self) -> winit::event::ModifiersState {
+    //     self.modifiers
+    // }
 
     /// Returns the current theme of the [`State`].
-    pub fn theme(&self) -> &crate::Theme {
+    pub fn theme(&self) -> &<A::Renderer as iced_native::Renderer>::Theme {
         &self.theme
+    }
+
+    /// Returns the current background [`Color`] of the [`State`].
+    pub fn background_color(&self) -> Color {
+        self.appearance.background_color
     }
 
     /// Returns the current text [`Color`] of the [`State`].
@@ -115,17 +107,13 @@ impl<A: Application + Send> State<A> {
     /// Does **not** update modifiers.
     pub fn update(&mut self, event: &baseview::Event, _debug: &mut Debug) {
         match event {
-            baseview::Event::Window(baseview::WindowEvent::Resized(
-                window_info,
-            )) => {
+            baseview::Event::Window(baseview::WindowEvent::Resized(window_info)) => {
                 // Cache system window info in case users changes their scale policy in the future.
                 self.system_scale_factor = window_info.scale();
 
                 let scale = match self.scale_policy {
                     WindowScalePolicy::ScaleFactor(scale) => scale,
-                    WindowScalePolicy::SystemScaleFactor => {
-                        self.system_scale_factor
-                    }
+                    WindowScalePolicy::SystemScaleFactor => self.system_scale_factor,
                 };
 
                 self.viewport = Viewport::with_physical_size(
@@ -156,6 +144,46 @@ impl<A: Application + Send> State<A> {
                     }
                 }
             }
+            /*
+            WindowEvent::ScaleFactorChanged {
+                scale_factor: new_scale_factor,
+                new_inner_size,
+            } => {
+                let size =
+                    Size::new(new_inner_size.width, new_inner_size.height);
+
+                self.viewport = Viewport::with_physical_size(
+                    size,
+                    new_scale_factor * self.scale_factor,
+                );
+
+                self.viewport_version = self.viewport_version.wrapping_add(1);
+            }
+            WindowEvent::CursorMoved { position, .. }
+            | WindowEvent::Touch(Touch {
+                location: position, ..
+            }) => {
+                self.cursor_position = *position;
+            }
+            WindowEvent::CursorLeft { .. } => {
+                // TODO: Encode cursor availability in the type-system
+                self.cursor_position =
+                    winit::dpi::PhysicalPosition::new(-1.0, -1.0);
+            }
+            WindowEvent::ModifiersChanged(new_modifiers) => {
+                self.modifiers = *new_modifiers;
+            }
+            #[cfg(feature = "debug")]
+            WindowEvent::KeyboardInput {
+                input:
+                    winit::event::KeyboardInput {
+                        virtual_keycode: Some(winit::event::VirtualKeyCode::F12),
+                        state: winit::event::ElementState::Pressed,
+                        ..
+                    },
+                ..
+            } => _debug.toggle(),
+            */
             _ => {}
         }
     }
@@ -168,22 +196,14 @@ impl<A: Application + Send> State<A> {
     ///
     /// [`Application::update`]: crate::Program::update
     pub fn synchronize(&mut self, application: &A) {
-        /*
-        // Update window mode
-        let new_mode = application.mode();
+        // Update window title
+        let new_title = application.title();
 
-        if self.mode != new_mode {
-            window.set_fullscreen(conversion::fullscreen(
-                window.current_monitor(),
-                new_mode,
-            ));
+        if self.title != new_title {
+            // window.set_title(&new_title); // TODO?
 
-            self.mode = new_mode;
+            self.title = new_title;
         }
-        */
-
-        // Update background color
-        self.background_color = application.background_color();
 
         // Update scale policy
         let new_scale_policy = application.scale_policy();
@@ -199,8 +219,7 @@ impl<A: Application + Send> State<A> {
                         self.system_scale_factor,
                     );
 
-                    self.viewport_version =
-                        self.viewport_version.wrapping_add(1);
+                    self.viewport_version = self.viewport_version.wrapping_add(1);
                 }
             },
             WindowScalePolicy::ScaleFactor(new_scale) => {
@@ -212,22 +231,22 @@ impl<A: Application + Send> State<A> {
                 };
 
                 if !matches {
-                    self.scale_policy =
-                        WindowScalePolicy::ScaleFactor(*new_scale);
+                    self.scale_policy = WindowScalePolicy::ScaleFactor(*new_scale);
 
-                    self.viewport = Viewport::with_physical_size(
-                        self.viewport.physical_size(),
-                        *new_scale,
-                    );
+                    self.viewport =
+                        Viewport::with_physical_size(self.viewport.physical_size(), *new_scale);
 
-                    self.viewport_version =
-                        self.viewport_version.wrapping_add(1);
+                    self.viewport_version = self.viewport_version.wrapping_add(1);
                 }
             }
         }
+
+        // Update theme and appearance
+        self.theme = application.theme();
+        self.appearance = self.theme.appearance(&application.style());
     }
 
-    pub(crate) fn modifiers_mut(&mut self) -> &mut IcedModifiers {
+    pub(crate) fn modifiers_mut(&mut self) -> &mut iced_core::keyboard::Modifiers {
         &mut self.modifiers
     }
 }

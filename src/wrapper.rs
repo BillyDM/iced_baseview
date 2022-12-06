@@ -4,7 +4,7 @@ use cfg_if::cfg_if;
 
 /// Implement raw-window-handle API v0.5 on things implementing v0.4
 ///
-/// For use until baseview migrates to v0.5. Necessary for integrating with iced v0.5.
+/// For use until baseview migrates to v0.5. Necessary for integrating with wgpu in iced v0.5.
 pub struct WindowHandleWrapper<'a, T: rwh04::HasRawWindowHandle>(pub &'a T);
 
 unsafe impl<'a, T: rwh04::HasRawWindowHandle> rwh05::HasRawWindowHandle
