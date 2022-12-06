@@ -30,6 +30,10 @@ pub type Column<'a, Message, Theme> =
 /// A container that distributes its contents horizontally.
 pub type Row<'a, Message, Theme> = iced_native::widget::Row<'a, Message, crate::Renderer<Theme>>;
 
+pub mod application {
+    pub use iced_native::application::{Appearance, StyleSheet};
+}
+
 pub mod button {
     //! Allow your users to perform actions by pressing a button.
     //!
