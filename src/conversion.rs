@@ -20,83 +20,52 @@ pub fn baseview_to_iced_events(
                 position,
                 modifiers,
             } => {
-                if let Some(event) = update_modifiers(iced_modifiers, modifiers)
-                {
+                if let Some(event) = update_modifiers(iced_modifiers, modifiers) {
                     iced_events.push(event);
                 }
-                iced_events.push(IcedEvent::Mouse(
-                    IcedMouseEvent::CursorMoved {
-                        position: Point::new(
-                            position.x as f32,
-                            position.y as f32,
-                        ),
-                    },
-                ));
+                iced_events.push(IcedEvent::Mouse(IcedMouseEvent::CursorMoved {
+                    position: Point::new(position.x as f32, position.y as f32),
+                }));
             }
             baseview::MouseEvent::ButtonPressed { button, modifiers } => {
-                if let Some(event) = update_modifiers(iced_modifiers, modifiers)
-                {
+                if let Some(event) = update_modifiers(iced_modifiers, modifiers) {
                     iced_events.push(event);
                 }
-                iced_events.push(IcedEvent::Mouse(
-                    IcedMouseEvent::ButtonPressed(
-                        baseview_mouse_button_to_iced(button),
-                    ),
-                ));
+                iced_events.push(IcedEvent::Mouse(IcedMouseEvent::ButtonPressed(
+                    baseview_mouse_button_to_iced(button),
+                )));
             }
             baseview::MouseEvent::ButtonReleased { button, modifiers } => {
-                if let Some(event) = update_modifiers(iced_modifiers, modifiers)
-                {
+                if let Some(event) = update_modifiers(iced_modifiers, modifiers) {
                     iced_events.push(event);
                 }
-                iced_events.push(IcedEvent::Mouse(
-                    IcedMouseEvent::ButtonReleased(
-                        baseview_mouse_button_to_iced(button),
-                    ),
-                ));
+                iced_events.push(IcedEvent::Mouse(IcedMouseEvent::ButtonReleased(
+                    baseview_mouse_button_to_iced(button),
+                )));
             }
-            baseview::MouseEvent::WheelScrolled { delta, modifiers } => {
-                match delta {
-                    baseview::ScrollDelta::Lines { x, y } => {
-                        if let Some(event) =
-                            update_modifiers(iced_modifiers, modifiers)
-                        {
-                            iced_events.push(event);
-                        }
-                        iced_events.push(IcedEvent::Mouse(
-                            IcedMouseEvent::WheelScrolled {
-                                delta: iced_native::mouse::ScrollDelta::Lines {
-                                    x,
-                                    y,
-                                },
-                            },
-                        ));
+            baseview::MouseEvent::WheelScrolled { delta, modifiers } => match delta {
+                baseview::ScrollDelta::Lines { x, y } => {
+                    if let Some(event) = update_modifiers(iced_modifiers, modifiers) {
+                        iced_events.push(event);
                     }
-                    baseview::ScrollDelta::Pixels { x, y } => {
-                        if let Some(event) =
-                            update_modifiers(iced_modifiers, modifiers)
-                        {
-                            iced_events.push(event);
-                        }
-                        iced_events.push(IcedEvent::Mouse(
-                            IcedMouseEvent::WheelScrolled {
-                                delta:
-                                    iced_native::mouse::ScrollDelta::Pixels {
-                                        x,
-                                        y,
-                                    },
-                            },
-                        ));
-                    }
+                    iced_events.push(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
+                        delta: iced_native::mouse::ScrollDelta::Lines { x, y },
+                    }));
                 }
-            }
+                baseview::ScrollDelta::Pixels { x, y } => {
+                    if let Some(event) = update_modifiers(iced_modifiers, modifiers) {
+                        iced_events.push(event);
+                    }
+                    iced_events.push(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
+                        delta: iced_native::mouse::ScrollDelta::Pixels { x, y },
+                    }));
+                }
+            },
             _ => {}
         },
 
         BaseEvent::Keyboard(event) => {
-            if let Some(event) =
-                update_modifiers(iced_modifiers, event.modifiers)
-            {
+            if let Some(event) = update_modifiers(iced_modifiers, event.modifiers) {
                 iced_events.push(event);
             }
 
@@ -113,28 +82,22 @@ pub fn baseview_to_iced_events(
 
             if is_down {
                 if let Some(key_code) = opt_key_code {
-                    iced_events.push(IcedEvent::Keyboard(
-                        IcedKeyEvent::KeyPressed {
-                            key_code,
-                            modifiers: *iced_modifiers,
-                        },
-                    ));
+                    iced_events.push(IcedEvent::Keyboard(IcedKeyEvent::KeyPressed {
+                        key_code,
+                        modifiers: *iced_modifiers,
+                    }));
                 }
 
                 if let keyboard_types::Key::Character(written) = event.key {
                     for chr in written.chars() {
-                        iced_events.push(IcedEvent::Keyboard(
-                            IcedKeyEvent::CharacterReceived(chr),
-                        ));
+                        iced_events.push(IcedEvent::Keyboard(IcedKeyEvent::CharacterReceived(chr)));
                     }
                 }
             } else if let Some(key_code) = opt_key_code {
-                iced_events.push(IcedEvent::Keyboard(
-                    IcedKeyEvent::KeyReleased {
-                        key_code,
-                        modifiers: *iced_modifiers,
-                    },
-                ));
+                iced_events.push(IcedEvent::Keyboard(IcedKeyEvent::KeyReleased {
+                    key_code,
+                    modifiers: *iced_modifiers,
+                }));
             }
         }
 
@@ -222,9 +185,7 @@ fn is_private_use_character(c: char) -> bool {
 }
 */
 
-fn baseview_to_iced_keycode(
-    code: keyboard_types::Code,
-) -> Option<iced_core::keyboard::KeyCode> {
+fn baseview_to_iced_keycode(code: keyboard_types::Code) -> Option<iced_core::keyboard::KeyCode> {
     use iced_core::keyboard::KeyCode as ICode;
     use keyboard_types::Code as KCode;
 

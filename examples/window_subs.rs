@@ -1,8 +1,8 @@
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, Alignment, Application, Button, Color, Column, Command,
-    Container, Element, IcedBaseviewSettings, IcedWindow, Length, Settings,
-    Subscription, Text, WindowQueue, WindowSubs,
+    executor, open_blocking, settings::IcedBaseviewSettings, widget::Button, widget::Column,
+    widget::Container, widget::Text, window::WindowQueue, window::WindowSubs, Alignment,
+    Application, Command, Element, Length, Settings, Subscription,
 };
 use std::time::{Duration, Instant};
 
@@ -31,7 +31,7 @@ fn main() {
         flags: (),
     };
 
-    IcedWindow::<MyProgram>::open_blocking(settings);
+    open_blocking::<MyProgram>(settings);
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -50,6 +50,7 @@ impl Application for MyProgram {
     type Executor = executor::Default;
     type Message = Message;
     type Flags = ();
+    type Theme = iced_baseview::renderer::Theme;
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (
@@ -61,12 +62,9 @@ impl Application for MyProgram {
         )
     }
 
-    fn subscription(
-        &self,
-        window_subs: &mut WindowSubs<Message>,
-    ) -> Subscription<Message> {
-        window_subs.on_frame = Some(Message::OnFrame);
-        window_subs.on_window_will_close = Some(Message::WillClose);
+    fn subscription(&self, window_subs: &mut WindowSubs<Message>) -> Subscription<Message> {
+        window_subs.on_frame = Some(|| Message::OnFrame);
+        window_subs.on_window_will_close = Some(|| Message::WillClose);
         Subscription::none()
     }
 
@@ -95,15 +93,12 @@ impl Application for MyProgram {
         Command::none()
     }
 
-    fn view(&self) -> Element<'_, Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message, Self::Theme> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
             .push(Text::new(format!("{}", self.count)))
-            .push(
-                Button::new(Text::new("Close window"))
-                    .on_press(Message::CloseWindow),
-            );
+            .push(Button::new(Text::new("Close window")).on_press(Message::CloseWindow));
 
         Container::new(content)
             .width(Length::Fill)
@@ -112,16 +107,11 @@ impl Application for MyProgram {
             .center_y()
             .into()
     }
-
-    fn background_color(&self) -> Color {
-        Color::WHITE
-    }
-
     fn title(&self) -> String {
         "Window subs".into()
     }
 
-    fn theme(&self) -> iced_baseview::Theme {
+    fn theme(&self) -> Self::Theme {
         Default::default()
     }
 }

@@ -29,33 +29,21 @@ impl<Message: 'static> Proxy<Message> {
 impl<Message: 'static> Sink<Message> for Proxy<Message> {
     type Error = mpsc::SendError;
 
-    fn poll_ready(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(
-        mut self: Pin<&mut Self>,
-        message: Message,
-    ) -> Result<(), Self::Error> {
+    fn start_send(mut self: Pin<&mut Self>, message: Message) -> Result<(), Self::Error> {
         let _ = self.sender.start_send(message)?;
 
         Ok(())
     }
 
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 }
