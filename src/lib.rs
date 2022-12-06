@@ -63,8 +63,9 @@ pub mod time {
 
 #[doc(no_inline)]
 pub use iced_native::{
-    event, overlay, subscription, Alignment, Background, Color, Command, ContentFit, Debug, Event,
-    Font, Hasher, Layout, Length, Overlay, Padding, Point, Rectangle, Size, Subscription, Vector,
+    alignment, command, event, keyboard, mouse, overlay, subscription, Alignment, Background,
+    Color, Command, ContentFit, Debug, Event, Font, Hasher, Layout, Length, Overlay, Padding,
+    Point, Rectangle, Size, Subscription, Vector,
 };
 
 cfg_if::cfg_if! {
