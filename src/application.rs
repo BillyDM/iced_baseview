@@ -122,6 +122,8 @@ where
     fn scale_policy(&self) -> WindowScalePolicy {
         WindowScalePolicy::SystemScaleFactor
     }
+
+    fn renderer_settings() -> crate::renderer::Settings;
 }
 
 /// Runs an [`Application`] with an executor, compositor, and the provided
@@ -129,14 +131,13 @@ where
 pub(crate) fn run<A, E, C>(
     window: &mut Window<'_>,
     settings: Settings<A::Flags>,
-    compositor_settings: C::Settings,
     sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
     receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
 ) -> Result<IcedWindow<A>, Error>
 where
     A: Application + Send + 'static,
     E: Executor + 'static,
-    C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
+    C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings> + 'static,
     <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
 {
     use futures::task;
@@ -177,15 +178,15 @@ where
     let state = State::new(&application, viewport.clone(), settings.window.scale);
     let clipboard = Clipboard::connect(&window);
 
+    let renderer_settings = A::renderer_settings();
+
     cfg_if::cfg_if! {
         if #[cfg(feature = "wgpu")] {
             let window = crate::wrapper::WindowHandleWrapper(window);
             let (mut compositor, renderer) =
-                C::new(compositor_settings, Some(&window)).unwrap();
+                C::new(renderer_settings, Some(&window)).unwrap();
             let surface = compositor.create_surface(&window);
         } else {
-            use iced_graphics::window::GLCompositor;
-
             let (compositor, renderer) = {
                 let context = window
                     .gl_context()
@@ -193,7 +194,7 @@ where
                 unsafe { context.make_current() };
 
                 let (compositor, renderer) = unsafe {
-                    C::new(Default::default(), |s| {
+                    C::new(renderer_settings, |s| {
                         context.get_proc_address(s)
                     })
                     .unwrap()

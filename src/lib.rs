@@ -189,6 +189,9 @@ pub trait Application: Sized + Send {
     fn should_exit(&self) -> bool {
         false
     }
+    fn renderer_settings() -> crate::renderer::Settings {
+        Default::default()
+    }
 }
 
 struct Instance<A: Application>(A);
@@ -243,6 +246,10 @@ where
 
     fn should_exit(&self) -> bool {
         self.0.should_exit()
+    }
+
+    fn renderer_settings() -> crate::renderer::Settings {
+        A::renderer_settings()
     }
 }
 

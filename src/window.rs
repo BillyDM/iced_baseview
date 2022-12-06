@@ -54,7 +54,6 @@ where
     /// renderer configuration.
     #[cfg(feature = "glow")]
     fn update_gl_context(settings: &mut Settings<A::Flags>) {
-        /*
         {
             // Glow support requires, well, OpenGL
             let gl_config = settings
@@ -73,7 +72,6 @@ where
                 gl_config.samples = Some(antialiasing.sample_count() as u8);
             }
         }
-        */
     }
 
     /// Open a new window that blocks the current thread until the window is destroyed.
@@ -82,7 +80,8 @@ where
     pub fn open_blocking<E, C>(#[allow(unused_mut)] mut settings: Settings<A::Flags>)
     where
         E: iced_futures::Executor + 'static,
-        C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
+        C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
+            + 'static,
         <C as crate::IGCompositor>::Settings: Send,
     {
         #[cfg(feature = "glow")]
@@ -90,13 +89,10 @@ where
 
         let (sender, receiver) = mpsc::unbounded();
 
-        let compositor_settings = Default::default();
-
         Window::open_blocking(
             Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                run::<A, E, C>(window, settings, compositor_settings, sender, receiver)
-                    .expect("Launch window")
+                run::<A, E, C>(window, settings, sender, receiver).expect("Launch window")
             },
         );
     }
@@ -111,7 +107,8 @@ where
     ) -> WindowHandle<A::Message>
     where
         E: iced_futures::Executor + 'static,
-        C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
+        C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
+            + 'static,
         <C as crate::IGCompositor>::Settings: Send,
         P: HasRawWindowHandle,
     {
@@ -121,20 +118,11 @@ where
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
 
-        let compositor_settings = Default::default();
-
         let bv_handle = Window::open_parented(
             parent,
             Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                run::<A, E, C>(
-                    window,
-                    settings,
-                    compositor_settings,
-                    sender_clone,
-                    receiver,
-                )
-                .expect("Launch window")
+                run::<A, E, C>(window, settings, sender_clone, receiver).expect("Launch window")
             },
         );
 
@@ -149,7 +137,8 @@ where
     ) -> WindowHandle<A::Message>
     where
         E: iced_futures::Executor + 'static,
-        C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
+        C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
+            + 'static,
         <C as crate::IGCompositor>::Settings: Send,
     {
         #[cfg(feature = "glow")]
@@ -158,19 +147,10 @@ where
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
 
-        let compositor_settings = Default::default();
-
         let bv_handle = Window::open_as_if_parented(
             Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                run::<A, E, C>(
-                    window,
-                    settings,
-                    compositor_settings,
-                    sender_clone,
-                    receiver,
-                )
-                .expect("Launch window")
+                run::<A, E, C>(window, settings, sender_clone, receiver).expect("Launch window")
             },
         );
 
