@@ -1,68 +1,48 @@
 //! Access the clipboard.
+
+use std::cell::RefCell;
+
+use copypasta::{ClipboardContext, ClipboardProvider};
+
+use crate::command::{self, Command};
+
 pub use iced_native::clipboard::Action;
 
-use iced_native::command::{self, Command};
-
-/// A buffer for short-term storage and transfer within and between
-/// applications.
+/// A `copypasta` wrapper for iced's clipboard abstraction.
 #[allow(missing_debug_implementations)]
 pub struct Clipboard {
-    state: State,
+    clipboard: Option<RefCell<ClipboardContext>>,
 }
 
-enum State {
-    Connected(window_clipboard::Clipboard),
-    Unavailable,
-}
-
-impl Clipboard {
-    /// Creates a new [`Clipboard`] for the given window.
-    pub fn connect<'a>(window: &'a baseview::Window<'a>) -> Clipboard {
-        let state = window_clipboard::Clipboard::connect(window)
-            .ok()
-            .map(State::Connected)
-            .unwrap_or(State::Unavailable);
-
-        Clipboard { state }
-    }
-
-    /// Creates a new [`Clipboard`] that isn't associated with a window.
-    /// This clipboard will never contain a copied value.
-    pub fn unconnected() -> Clipboard {
-        Clipboard {
-            state: State::Unavailable,
-        }
-    }
-
-    /// Reads the current content of the [`Clipboard`] as text.
-    pub fn read(&self) -> Option<String> {
-        match &self.state {
-            State::Connected(clipboard) => clipboard.read().ok(),
-            State::Unavailable => None,
-        }
-    }
-
-    /// Writes the given text contents to the [`Clipboard`].
-    pub fn write(&mut self, contents: String) {
-        match &mut self.state {
-            State::Connected(clipboard) => match clipboard.write(contents) {
-                Ok(()) => {}
-                Err(error) => {
-                    log::warn!("error writing to clipboard: {}", error)
+impl Default for Clipboard {
+    fn default() -> Self {
+        Self {
+            clipboard: match copypasta::ClipboardContext::new() {
+                Ok(clipboard) => Some(RefCell::new(clipboard)),
+                Err(e) => {
+                    eprintln!("Failed to initialize clipboard: {}", e);
+                    None
                 }
             },
-            State::Unavailable => {}
         }
     }
 }
 
 impl iced_native::Clipboard for Clipboard {
     fn read(&self) -> Option<String> {
-        self.read()
+        match &self.clipboard {
+            Some(clipboard) => clipboard.borrow_mut().get_contents().ok(),
+            None => None,
+        }
     }
 
     fn write(&mut self, contents: String) {
-        self.write(contents)
+        if let Some(clipboard) = &self.clipboard {
+            clipboard
+                .borrow_mut()
+                .set_contents(contents)
+                .unwrap_or_else(|err| eprintln!("Error while writing to the clipboard: {err:?}"));
+        }
     }
 }
 

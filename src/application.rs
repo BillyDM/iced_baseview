@@ -176,7 +176,7 @@ where
     };
 
     let state = State::new(&application, viewport.clone(), settings.window.scale);
-    let clipboard = Clipboard::connect(&window);
+    let clipboard = Clipboard::default();
 
     let renderer_settings = A::renderer_settings();
 
@@ -703,6 +703,7 @@ pub fn run_command<A, E>(
     <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
 {
     use iced_native::command;
+    use iced_native::Clipboard;
 
     for action in command.actions() {
         match action {
@@ -710,8 +711,8 @@ pub fn run_command<A, E>(
                 runtime.spawn(future);
             }
             command::Action::Clipboard(action) => match action {
-                clipboard::Action::Read(tag) => {
-                    let message = tag(clipboard.read());
+                clipboard::Action::Read(set_clipboard) => {
+                    let message = set_clipboard(clipboard.read());
 
                     // TODO: Is this what you're supposed to do? The winit example sends an event to
                     //       the window which would end up doing the same thing.
