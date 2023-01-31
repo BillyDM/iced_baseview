@@ -44,7 +44,7 @@ async-std = ["iced_futures/async-std"]
 smol = ["iced_futures/smol"]
 
 [dependencies]
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "ee156fb" }
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "7001c25" }
 cfg-if = "1"
 iced_core = "0.7"
 iced_futures = "0.5"
