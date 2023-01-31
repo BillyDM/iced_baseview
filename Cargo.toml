@@ -46,7 +46,7 @@ smol = ["iced_futures/smol"]
 [dependencies]
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "7001c25" }
 cfg-if = "1"
-copypasta = "0.7"
+copypasta = "0.8"
 iced_core = "0.7"
 iced_futures = "0.5"
 iced_glow = { version = "0.6", optional = true }
