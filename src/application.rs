@@ -113,6 +113,12 @@ where
         false
     }
 
+    /// Ignore non-modifier keyboard keys. Overrides the field in
+    /// `IcedBaseviewSettings` if set
+    fn ignore_non_modifier_keys(&self) -> Option<bool> {
+        None
+    }
+
     /// Returns the [`WindowScalePolicy`] that the [`Application`] should use.
     ///
     /// By default, it returns `WindowScalePolicy::SystemScaleFactor`.
@@ -323,11 +329,15 @@ async fn run_instance<A, E, C>(
             RuntimeEvent::Baseview((event, do_send_status)) => {
                 state.update(&event, &mut debug);
 
+                let ignore_non_modifier_keys = application
+                    .ignore_non_modifier_keys()
+                    .unwrap_or(settings.ignore_non_modifier_keys);
+
                 crate::conversion::baseview_to_iced_events(
                     event,
                     &mut events,
                     state.modifiers_mut(),
-                    settings.ignore_non_modifier_keys,
+                    ignore_non_modifier_keys,
                 );
 
                 if events.is_empty() {
