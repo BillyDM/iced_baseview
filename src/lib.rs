@@ -189,6 +189,12 @@ pub trait Application: Sized + Send {
     fn should_exit(&self) -> bool {
         false
     }
+
+    /// Ignore non-modifier keyboard keys. Overrides the field in
+    /// `IcedBaseviewSettings` if set
+    fn ignore_non_modifier_keys(&self) -> Option<bool> {
+        None
+    }
     fn renderer_settings() -> crate::renderer::Settings {
         Default::default()
     }
@@ -246,6 +252,12 @@ where
 
     fn should_exit(&self) -> bool {
         self.0.should_exit()
+    }
+
+    /// Ignore non-modifier keyboard keys. Overrides the field in
+    /// `IcedBaseviewSettings` if set
+    fn ignore_non_modifier_keys(&self) -> Option<bool> {
+        self.0.ignore_non_modifier_keys()
     }
 
     fn renderer_settings() -> crate::renderer::Settings {
