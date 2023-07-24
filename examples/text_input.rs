@@ -71,7 +71,7 @@ impl Application for MyProgram {
 
     fn view(&self) -> Element<'_, Self::Message, Self::Theme> {
         let text_input_widget =
-            TextInput::new("Hello!", &self.text_input_str, Message::TextInputChanged);
+            TextInput::new("Hello!", &self.text_input_str).on_input(Message::TextInputChanged);
 
         let content = Column::new()
             .width(Length::Fill)

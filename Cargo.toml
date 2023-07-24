@@ -33,7 +33,10 @@ canvas = ["iced_wgpu?/canvas", "iced_glow?/canvas"]
 # Enables the `QRCode` widget
 qr_code = ["iced_wgpu?/qr_code", "iced_glow?/qr_code"]
 # Enables using system fonts
-default_system_font = ["iced_wgpu?/default_system_font", "iced_glow?/default_system_font"]
+default_system_font = [
+  "iced_wgpu?/default_system_font",
+  "iced_glow?/default_system_font",
+]
 # Enables advanced color conversion via `palette`
 palette = ["iced_core/palette"]
 # Enables `tokio` as the `executor::Default` on native platforms
@@ -44,15 +47,15 @@ async-std = ["iced_futures/async-std"]
 smol = ["iced_futures/smol"]
 
 [dependencies]
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "7001c25" }
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "1d9806d" }
 cfg-if = "1"
 copypasta = "0.8"
-iced_core = "0.8"
+iced_core = "0.9"
 iced_futures = "0.6"
-iced_glow = { version = "0.7", optional = true }
-iced_graphics = "0.7"
-iced_native = "0.9"
-iced_wgpu = { version = "0.9", optional = true }
+iced_glow = { version = "0.8", optional = true }
+iced_graphics = "0.8"
+iced_native = "0.10"
+iced_wgpu = { version = "0.10", optional = true }
 keyboard-types = { version = "0.6", default-features = false }
 log = "0.4"
 raw-window-handle = "0.4"
