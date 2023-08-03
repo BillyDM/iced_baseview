@@ -55,7 +55,8 @@ where
     pub fn open_blocking<E, C>(#[allow(unused_mut)] mut settings: Settings<A::Flags>)
     where
         E: iced_runtime::futures::Executor + 'static,
-        C: iced_graphics::Compositor<Renderer = A::Renderer> + 'static,
+        C: iced_graphics::Compositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
+            + 'static,
     {
         let (sender, receiver) = mpsc::unbounded();
 
@@ -77,7 +78,8 @@ where
     ) -> WindowHandle<A::Message>
     where
         E: iced_runtime::futures::Executor + 'static,
-        C: iced_graphics::Compositor<Renderer = A::Renderer> + 'static,
+        C: iced_graphics::Compositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
+            + 'static,
         P: HasRawWindowHandle,
     {
         let (sender, receiver) = mpsc::unbounded();

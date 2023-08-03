@@ -1,5 +1,5 @@
 //! A windowing shell for Iced, on top of [`baseview`].
-//! 
+//!
 //! Largely stolen from (MIT licensed) [`iced_winit`].
 //!
 //! [`baseview`]: https://github.com/RustAudio/baseview
@@ -195,6 +195,10 @@ pub trait Application: Sized + std::marker::Send {
             renderer::Compositor<Self::Theme>,
         >(settings);
     }
+
+    fn renderer_settings() -> renderer::Settings {
+        Default::default()
+    }
 }
 
 struct Instance<A: Application>(A);
@@ -248,5 +252,9 @@ where
 
     fn scale_policy(&self) -> baseview::WindowScalePolicy {
         self.0.scale_policy()
+    }
+
+    fn renderer_settings() -> crate::renderer::Settings {
+        A::renderer_settings()
     }
 }

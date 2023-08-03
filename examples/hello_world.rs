@@ -61,4 +61,11 @@ impl Application for MyProgram {
             .center_y()
             .into()
     }
+
+    fn renderer_settings() -> iced_renderer::Settings {
+        iced_renderer::Settings {
+            antialiasing: Some(iced_graphics::Antialiasing::MSAAx4),
+            ..Default::default()
+        }
+    }
 }

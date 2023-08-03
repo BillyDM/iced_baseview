@@ -106,6 +106,8 @@ where
     fn scale_policy(&self) -> baseview::WindowScalePolicy {
         baseview::WindowScalePolicy::SystemScaleFactor
     }
+
+    fn renderer_settings() -> crate::renderer::Settings;
 }
 
 /// Runs an [`Application`] with an executor, compositor, and the provided
@@ -120,7 +122,7 @@ pub fn run<A, E, C>(
 where
     A: Application + 'static + Send,
     E: Executor + 'static,
-    C: Compositor<Renderer = A::Renderer> + 'static,
+    C: Compositor<Renderer = A::Renderer, Settings = crate::renderer::Settings> + 'static,
     <A::Renderer as core::Renderer>::Theme: StyleSheet,
 {
     use futures::task;
@@ -164,7 +166,7 @@ where
         runtime.enter(|| A::new(flags))
     };
 
-    let compositor_settings = Default::default();
+    let compositor_settings = A::renderer_settings();
 
     let window = crate::wrapper::WindowHandleWrapper(window);
     let (mut compositor, renderer) = C::new(compositor_settings, Some(&window))?;
