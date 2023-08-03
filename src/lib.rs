@@ -1,22 +1,9 @@
-//! A windowing shell for Iced, on top of [`winit`].
+//! A windowing shell for Iced, on top of [`baseview`].
+//! 
+//! Largely stolen from (MIT licensed) [`iced_winit`].
 //!
-//! ![The native path of the Iced ecosystem](https://github.com/iced-rs/iced/blob/0525d76ff94e828b7b21634fa94a747022001c83/docs/graphs/native.png?raw=true)
-//!
-//! `iced_winit` offers some convenient abstractions on top of [`iced_runtime`]
-//! to quickstart development when using [`winit`].
-//!
-//! It exposes a renderer-agnostic [`Application`] trait that can be implemented
-//! and then run with a simple call. The use of this trait is optional.
-//!
-//! Additionally, a [`conversion`] module is available for users that decide to
-//! implement a custom event loop.
-//!
-//! [`iced_runtime`]: https://github.com/iced-rs/iced/tree/0.10/runtime
-//! [`winit`]: https://github.com/rust-windowing/winit
-//! [`conversion`]: crate::conversion
-#![doc(
-    html_logo_url = "https://raw.githubusercontent.com/iced-rs/iced/9ab6923e943f784985e9ef9ca28b10278297225d/docs/logo.svg"
-)]
+//! [`baseview`]: https://github.com/RustAudio/baseview
+//! [`iced_winit`]: https://github.com/iced-rs/iced/tree/master/winit
 #![deny(
     // missing_debug_implementations,
     // missing_docs,
