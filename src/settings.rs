@@ -23,12 +23,6 @@ pub struct Settings<Flags> {
     pub iced_baseview: IcedBaseviewSettings,
 }
 
-impl <Flags>Debug for Settings<Flags> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("iced_baseview settings") // FIXME
-    }
-}
-
 /// Any settings specific to `iced_baseview`.
 #[derive(Debug, Clone, Copy)]
 pub struct IcedBaseviewSettings {
