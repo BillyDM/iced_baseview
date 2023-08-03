@@ -1,27 +1,37 @@
 //! Create interactive, native cross-platform applications.
+#[cfg(feature = "trace")]
+mod profiler;
 mod state;
 
-use baseview::{EventStatus, Window, WindowScalePolicy};
-use iced_native::event::Status;
-use iced_native::widget::operation;
-use iced_native::{mouse, Command, Debug, Executor, Runtime, Size, Subscription};
+use baseview::EventStatus;
 pub use state::State;
 
-use crate::clipboard::{self, Clipboard};
-use crate::settings::IcedBaseviewSettings;
+use crate::core;
+use crate::core::mouse;
+use crate::core::renderer;
+use crate::core::widget::operation;
+use crate::core::{Size};
+use crate::futures::futures;
+use crate::futures::{Executor, Runtime, Subscription};
+use crate::graphics::compositor::{self, Compositor};
+use crate::runtime::clipboard;
+use crate::runtime::program::Program;
+use crate::runtime::user_interface::{self, UserInterface};
+use crate::runtime::{Command, Debug};
+use crate::style::application::{Appearance, StyleSheet};
 use crate::window::{IcedWindow, RuntimeEvent, WindowQueue, WindowSubs};
-use crate::{error::Error, proxy::Proxy, Settings};
+use crate::{Clipboard, Error, Proxy, Settings};
 
-use iced_futures::futures;
-use iced_futures::futures::channel::mpsc;
-use iced_graphics::{compositor, Viewport};
-use iced_native::user_interface::{self, UserInterface};
-
-pub use iced_native::application::{Appearance, StyleSheet};
+use futures::channel::mpsc;
 
 use std::cell::RefCell;
 use std::mem::ManuallyDrop;
 use std::rc::Rc;
+
+#[cfg(feature = "trace")]
+pub use profiler::Profiler;
+#[cfg(feature = "trace")]
+use tracing::{info_span, instrument::Instrument};
 
 /// An interactive, native cross-platform application.
 ///
@@ -34,18 +44,12 @@ use std::rc::Rc;
 ///
 /// When using an [`Application`] with the `debug` feature enabled, a debug view
 /// can be toggled by pressing `F12`.
-pub trait Application: Sized + Send
+pub trait Application: Program
 where
-    <Self::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    <Self::Renderer as core::Renderer>::Theme: StyleSheet,
 {
     /// The data needed to initialize your [`Application`].
-    type Flags: Send;
-
-    /// The graphics backend to use to draw the [`Program`].
-    type Renderer: iced_native::Renderer;
-
-    /// The type of __messages__ your [`Program`] will produce.
-    type Message: std::fmt::Debug + Send;
+    type Flags;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -55,7 +59,7 @@ where
     /// Additionally, you can return a [`Command`] if you need to perform some
     /// async action in the background on startup. This is useful if you want to
     /// load state from a file, perform an initial HTTP request, etc.
-    fn new(flags: Self::Flags) -> (Self, iced_native::Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
 
     /// Returns the current title of the [`Application`].
     ///
@@ -64,31 +68,14 @@ where
     fn title(&self) -> String;
 
     /// Returns the current `Theme` of the [`Application`].
-    fn theme(&self) -> <Self::Renderer as iced_native::Renderer>::Theme;
+    fn theme(&self) -> <Self::Renderer as core::Renderer>::Theme;
 
     /// Returns the `Style` variation of the `Theme`.
-    fn style(&self) -> <<Self::Renderer as iced_native::Renderer>::Theme as StyleSheet>::Style {
+    fn style(
+        &self,
+    ) -> <<Self::Renderer as core::Renderer>::Theme as StyleSheet>::Style {
         Default::default()
     }
-
-    /// Handles a __message__ and updates the state of the [`Program`].
-    ///
-    /// This is where you define your __update logic__. All the __messages__,
-    /// produced by either user interactions or commands, will be handled by
-    /// this method.
-    ///
-    /// Any [`Command`] returned will be executed immediately in the
-    /// background by shells.
-    fn update(
-        &mut self,
-        window: &mut WindowQueue,
-        message: Self::Message,
-    ) -> iced_native::Command<Self::Message>;
-
-    /// Returns the widgets to display in the [`Program`].
-    ///
-    /// These widgets can produce __messages__ based on user interaction.
-    fn view(&self) -> iced_native::Element<'_, Self::Message, Self::Renderer>;
 
     /// Returns the event `Subscription` for the current state of the
     /// application.
@@ -106,13 +93,6 @@ where
         Subscription::none()
     }
 
-    /// Returns whether the [`Application`] should be terminated.
-    ///
-    /// By default, it returns `false`.
-    fn should_exit(&self) -> bool {
-        false
-    }
-
     /// Ignore non-modifier keyboard keys. Overrides the field in
     /// `IcedBaseviewSettings` if set
     fn ignore_non_modifier_keys(&self) -> Option<bool> {
@@ -125,37 +105,42 @@ where
     ///
     /// [`WindowScalePolicy`]: ../settings/enum.WindowScalePolicy.html
     /// [`Application`]: trait.Application.html
-    fn scale_policy(&self) -> WindowScalePolicy {
-        WindowScalePolicy::SystemScaleFactor
+    fn scale_policy(&self) -> baseview::WindowScalePolicy {
+        baseview::WindowScalePolicy::SystemScaleFactor
     }
-
-    fn renderer_settings() -> crate::renderer::Settings;
 }
 
 /// Runs an [`Application`] with an executor, compositor, and the provided
 /// settings.
-pub(crate) fn run<A, E, C>(
-    window: &mut Window<'_>,
+pub fn run<A, E, C>(
+    window: &mut baseview::Window<'_>,
     settings: Settings<A::Flags>,
-    sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
-    receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
+    // compositor_settings: C::Settings,
+    event_sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
+    event_receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
 ) -> Result<IcedWindow<A>, Error>
 where
-    A: Application + Send + 'static,
+    A: Application + 'static + Send,
     E: Executor + 'static,
-    C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings> + 'static,
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    C: Compositor<Renderer = A::Renderer> + 'static,
+    <A::Renderer as core::Renderer>::Theme: StyleSheet,
 {
     use futures::task;
+
+    #[cfg(feature = "trace")]
+    let _guard = Profiler::init();
 
     let mut debug = Debug::new();
     debug.startup_started();
 
+    #[cfg(feature = "trace")]
+    let _ = info_span!("Application", "RUN").entered();
+
     let viewport = {
         // Assume scale for now until there is an event with a new one.
         let scale = match settings.window.scale {
-            WindowScalePolicy::ScaleFactor(scale) => scale,
-            WindowScalePolicy::SystemScaleFactor => 1.0,
+            baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
+            baseview::WindowScalePolicy::SystemScaleFactor => 1.0,
         };
 
         let physical_size = Size::new(
@@ -163,7 +148,7 @@ where
             (settings.window.size.height * scale) as u32,
         );
 
-        Viewport::with_physical_size(physical_size, scale)
+        iced_graphics::Viewport::with_physical_size(physical_size, scale)
     };
 
     let (runtime_tx, runtime_rx) = mpsc::unbounded::<A::Message>();
@@ -181,67 +166,46 @@ where
         runtime.enter(|| A::new(flags))
     };
 
-    let state = State::new(&application, viewport.clone(), settings.window.scale);
-    let clipboard = Clipboard::default();
+    let compositor_settings = Default::default();
 
-    let renderer_settings = A::renderer_settings();
+    let window = crate::wrapper::WindowHandleWrapper(window);
+    let (mut compositor, renderer) =
+        C::new(compositor_settings, Some(&window))?;
+    let surface = compositor.create_surface(&window, viewport.physical_width(), viewport.physical_height());
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "wgpu")] {
-            let window = crate::wrapper::WindowHandleWrapper(window);
-            let (mut compositor, renderer) =
-                C::new(renderer_settings, Some(&window)).unwrap();
-            let surface = compositor.create_surface(&window);
-        } else {
-            let (compositor, renderer) = {
-                let context = window
-                    .gl_context()
-                    .expect("Window was created without OpenGL support");
-                unsafe { context.make_current() };
-
-                let (compositor, renderer) = unsafe {
-                    C::new(renderer_settings, |s| {
-                        context.get_proc_address(s)
-                    })
-                    .unwrap()
-                };
-
-                unsafe { context.make_not_current() };
-
-                (compositor, renderer)
-            };
-        }
-    }
-
-    let event_status = Rc::new(RefCell::new(EventStatus::Ignored));
     let (window_queue, window_queue_rx) = WindowQueue::new();
+    let event_status = Rc::new(RefCell::new(baseview::EventStatus::Ignored));
 
-    // let (sender, receiver) = mpsc::unbounded();
+    let state = State::new(&application, viewport);
 
-    let instance = Box::pin(run_instance::<A, E, C>(
-        application,
-        compositor,
-        renderer,
-        runtime,
-        // proxy,
-        debug,
-        receiver,
-        init_command,
-        // window,
-        // settings.exit_on_close_request,
-        state,
-        #[cfg(feature = "wgpu")]
-        surface,
-        clipboard,
-        settings.iced_baseview,
-        event_status.clone(),
-        window_queue,
-    ));
+    let instance = Box::pin({
+        let run_instance = run_instance::<A, E, C>(
+            application,
+            compositor,
+            renderer,
+            runtime,
+            debug,
+            event_receiver,
+            init_command,
+
+            settings.iced_baseview,
+            surface,
+            event_status.clone(),
+            state,
+            window_queue,
+        );
+
+        #[cfg(feature = "trace")]
+        let run_instance =
+            run_instance.instrument(info_span!("Application", "LOOP"));
+
+        run_instance
+    });
 
     let runtime_context = task::Context::from_waker(task::noop_waker_ref());
 
     Ok(IcedWindow {
-        sender,
+        sender: event_sender,
         instance,
         runtime_context,
         runtime_rx,
@@ -257,36 +221,28 @@ async fn run_instance<A, E, C>(
     mut compositor: C,
     mut renderer: A::Renderer,
     mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
-    // mut proxy: winit::event_loop::EventLoopProxy<A::Message>,
     mut debug: Debug,
-    mut receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
+    mut event_receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     init_command: Command<A::Message>,
-    // window: Window<'_>,
-    // exit_on_close_request: bool,
+
+    settings: crate::settings::IcedBaseviewSettings,
+    mut surface: C::Surface,
+    event_status: Rc<RefCell<baseview::EventStatus>>,
     mut state: State<A>,
-    #[cfg(feature = "wgpu")] mut surface: C::Surface,
-    mut clipboard: Clipboard,
-    settings: IcedBaseviewSettings,
-    event_status: Rc<RefCell<EventStatus>>,
     mut window_queue: WindowQueue,
 ) where
     A: Application + 'static,
     E: Executor + 'static,
-    C: crate::IGCompositor<Renderer = A::Renderer> + 'static,
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    C: Compositor<Renderer = A::Renderer> + 'static,
+    <A::Renderer as core::Renderer>::Theme: StyleSheet,
 {
-    use iced_futures::futures::stream::StreamExt;
+    use futures::stream::StreamExt;
 
-    let mut cache = user_interface::Cache::default();
     let mut viewport_version = state.viewport_version();
+
+    let mut clipboard = Clipboard::new();
+    let mut cache = user_interface::Cache::default();
     let mut window_subs = WindowSubs::default();
-
-    #[cfg(feature = "wgpu")]
-    {
-        let physical_size = state.physical_size();
-
-        compositor.configure_surface(&mut surface, physical_size.width, physical_size.height);
-    }
 
     run_command(
         &application,
@@ -296,12 +252,9 @@ async fn run_instance<A, E, C>(
         init_command,
         &mut runtime,
         &mut clipboard,
-        // &mut proxy,
         &mut debug,
-        // &window,
-        || compositor.fetch_information(),
     );
-    runtime.track(application.subscription(&mut window_subs));
+    runtime.track(application.subscription(&mut window_subs).into_recipes());
 
     let mut user_interface = ManuallyDrop::new(build_user_interface(
         &application,
@@ -324,61 +277,8 @@ async fn run_instance<A, E, C>(
 
     debug.startup_finished();
 
-    while let Some(event) = receiver.next().await {
+    while let Some(event) = event_receiver.next().await {
         match event {
-            RuntimeEvent::Baseview((event, do_send_status)) => {
-                state.update(&event, &mut debug);
-
-                let ignore_non_modifier_keys = application
-                    .ignore_non_modifier_keys()
-                    .unwrap_or(settings.ignore_non_modifier_keys);
-
-                crate::conversion::baseview_to_iced_events(
-                    event,
-                    &mut events,
-                    state.modifiers_mut(),
-                    ignore_non_modifier_keys,
-                );
-
-                if events.is_empty() {
-                    if do_send_status {
-                        *event_status.borrow_mut() = EventStatus::Ignored;
-                    }
-                    continue;
-                }
-
-                debug.event_processing_started();
-
-                let (interface_state, statuses) = user_interface.update(
-                    &events,
-                    state.cursor_position(),
-                    &mut renderer,
-                    &mut clipboard,
-                    &mut messages,
-                );
-                // Will trigger an update when the next frame gets drawn
-                needs_update |= matches!(interface_state, user_interface::State::Outdated,);
-
-                if do_send_status {
-                    let mut final_status = EventStatus::Ignored;
-                    for status in &statuses {
-                        if let Status::Captured = status {
-                            final_status = EventStatus::Captured;
-                            break;
-                        }
-                    }
-
-                    *event_status.borrow_mut() = final_status;
-                }
-
-                debug.event_processing_finished();
-
-                for event in events.drain(..).zip(statuses.into_iter()) {
-                    runtime.broadcast(event);
-                }
-
-                did_process_event = true;
-            }
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
                     messages.push(message());
@@ -398,7 +298,7 @@ async fn run_instance<A, E, C>(
 
                     let (interface_state, statuses) = user_interface.update(
                         &events,
-                        state.cursor_position(),
+                        state.cursor(),
                         &mut renderer,
                         &mut clipboard,
                         &mut messages,
@@ -408,8 +308,8 @@ async fn run_instance<A, E, C>(
 
                     debug.event_processing_finished();
 
-                    for event in events.drain(..).zip(statuses.into_iter()) {
-                        runtime.broadcast(event);
+                    for (event, status) in events.drain(..).zip(statuses.into_iter()) {
+                        runtime.broadcast(event, status);
                     }
                 }
 
@@ -429,11 +329,8 @@ async fn run_instance<A, E, C>(
                         &mut renderer,
                         &mut runtime,
                         &mut clipboard,
-                        // &mut proxy,
                         &mut debug,
                         &mut messages,
-                        // &window,
-                        || compositor.fetch_information(),
                         &mut window_subs,
                         &mut window_queue,
                     );
@@ -441,7 +338,7 @@ async fn run_instance<A, E, C>(
                     // Update window
                     state.synchronize(&application);
 
-                    let should_exit = application.should_exit();
+                    let should_exit = false; // FIXME
 
                     user_interface = ManuallyDrop::new(build_user_interface(
                         &application,
@@ -460,10 +357,10 @@ async fn run_instance<A, E, C>(
                 let new_mouse_interaction = user_interface.draw(
                     &mut renderer,
                     state.theme(),
-                    &iced_native::renderer::Style {
+                    &iced_runtime::core::renderer::Style {
                         text_color: state.text_color(),
                     },
-                    state.cursor_position(),
+                    state.cursor(),
                 );
                 debug.draw_finished();
 
@@ -482,6 +379,9 @@ async fn run_instance<A, E, C>(
                 messages.push(message);
             }
             RuntimeEvent::RedrawRequested => {
+                #[cfg(feature = "trace")]
+                let _ = info_span!("Application", "FRAME").entered();
+
                 // Set whenever a baseview event or message gets handled. Or as a stopgap workaround
                 // we can also just always redraw.
                 if !(redraw_requested || settings.always_redraw) {
@@ -511,14 +411,13 @@ async fn run_instance<A, E, C>(
                     let new_mouse_interaction = user_interface.draw(
                         &mut renderer,
                         state.theme(),
-                        &iced_native::renderer::Style {
+                        &renderer::Style {
                             text_color: state.text_color(),
                         },
-                        state.cursor_position(),
+                        state.cursor(),
                     );
 
                     if new_mouse_interaction != mouse_interaction {
-                        // TODO
                         // window.set_cursor_icon(conversion::mouse_interaction(
                         //     new_mouse_interaction,
                         // ));
@@ -527,103 +426,95 @@ async fn run_instance<A, E, C>(
                     }
                     debug.draw_finished();
 
-                    cfg_if::cfg_if! {
-                        if #[cfg(feature = "wgpu")] {
-                            compositor.configure_surface(
-                                &mut surface,
-                                physical_size.width,
-                                physical_size.height,
-                            );
-                        } else {
-                            compositor.resize_viewport(physical_size);
-                        }
-                    }
+                    compositor.configure_surface(
+                        &mut surface,
+                        physical_size.width,
+                        physical_size.height,
+                    );
 
                     viewport_version = current_viewport_version;
                 }
 
-                cfg_if::cfg_if! {
-                    if #[cfg(feature = "wgpu")] {
-                        match compositor.present(
-                            &mut renderer,
-                            &mut surface,
-                            state.viewport(),
-                            state.background_color(),
-                            &debug.overlay(),
-                        ) {
-                            Ok(()) => {
-                                debug.render_finished();
+                match compositor.present(
+                    &mut renderer,
+                    &mut surface,
+                    state.viewport(),
+                    state.background_color(),
+                    &debug.overlay(),
+                ) {
+                    Ok(()) => {
+                        debug.render_finished();
 
-                                // TODO: Handle animations!
-                                // Maybe we can use `ControlFlow::WaitUntil` for this.
-
-                                redraw_requested = false;
-                            }
-                            Err(error) => match error {
-                                // This is an unrecoverable error.
-                                iced_graphics::compositor::SurfaceError::OutOfMemory => {
-                                    panic!("{:?}", error);
-                                }
-                                _ => {
-                                    debug.render_finished();
-
-                                    // Try rendering again next frame.
-                                    redraw_requested = true;
-                                }
-                            },
+                        // TODO: Handle animations!
+                        // Maybe we can use `ControlFlow::WaitUntil` for this.
+                    }
+                    Err(error) => match error {
+                        // This is an unrecoverable error.
+                        compositor::SurfaceError::OutOfMemory => {
+                            panic!("{error:?}");
                         }
-                    } else {
-                        // The buffer swap happens in `IcedWindow::on_frame()` for the glow backend
-                        {
-                            compositor.present(
-                                &mut renderer,
-                                state.viewport(),
-                                state.background_color(),
-                                &debug.overlay(),
-                            );
+                        _ => {
+                            debug.render_finished();
 
-                            redraw_requested = false;
+                            redraw_requested = true;
+                        }
+                    },
+                }
+            }
+            RuntimeEvent::Baseview ((event, do_send_status)) => {
+                state.update(&event, &mut debug);
+
+                let ignore_non_modifier_keys = application
+                    .ignore_non_modifier_keys()
+                    .unwrap_or(settings.ignore_non_modifier_keys);
+
+                crate::conversion::baseview_to_iced_events(
+                    event,
+                    &mut events,
+                    state.modifiers_mut(),
+                    ignore_non_modifier_keys,
+                );
+
+                if events.is_empty() {
+                    if do_send_status {
+                        *event_status.borrow_mut() = EventStatus::Ignored;
+                    }
+                    continue;
+                }
+
+                debug.event_processing_started();
+
+                let (interface_state, statuses) = user_interface.update(
+                    &events,
+                    state.cursor(),
+                    &mut renderer,
+                    &mut clipboard,
+                    &mut messages,
+                );
+                // Will trigger an update when the next frame gets drawn
+                needs_update |= matches!(interface_state, user_interface::State::Outdated,);
+
+                if do_send_status {
+                    let mut final_status = EventStatus::Ignored;
+                    for status in &statuses {
+                        if let crate::core::event::Status::Captured = status {
+                            final_status = EventStatus::Captured;
+                            break;
                         }
                     }
-                }
-            }
-            RuntimeEvent::WillClose => {
-                if let Some(message) = &window_subs.on_window_will_close {
-                    // Send message to user before exiting the loop.
 
-                    messages.push(message());
-                    let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
-
-                    update(
-                        &mut application,
-                        &mut cache,
-                        &state,
-                        &mut renderer,
-                        &mut runtime,
-                        &mut clipboard,
-                        // &mut proxy,
-                        &mut debug,
-                        &mut messages,
-                        // &window,
-                        || compositor.fetch_information(),
-                        &mut window_subs,
-                        &mut window_queue,
-                    );
-
-                    // Update window
-                    state.synchronize(&application);
-
-                    user_interface = ManuallyDrop::new(build_user_interface(
-                        &mut application,
-                        cache,
-                        &mut renderer,
-                        state.logical_size(),
-                        &mut debug,
-                    ));
+                    *event_status.borrow_mut() = final_status;
                 }
 
-                break;
+                debug.event_processing_finished();
+
+                for (event, status) in events.drain(..).zip(statuses.into_iter()) {
+                    runtime.broadcast(event, status);
+                }
+
+                did_process_event = true;
             }
+            _ => {}
         }
     }
 
@@ -641,14 +532,26 @@ pub fn build_user_interface<'a, A: Application>(
     debug: &mut Debug,
 ) -> UserInterface<'a, A::Message, A::Renderer>
 where
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    <A::Renderer as core::Renderer>::Theme: StyleSheet,
 {
+    #[cfg(feature = "trace")]
+    let view_span = info_span!("Application", "VIEW").entered();
+
     debug.view_started();
     let view = application.view();
+
+    #[cfg(feature = "trace")]
+    let _ = view_span.exit();
     debug.view_finished();
+
+    #[cfg(feature = "trace")]
+    let layout_span = info_span!("Application", "LAYOUT").entered();
 
     debug.layout_started();
     let user_interface = UserInterface::build(view, size, cache, renderer);
+
+    #[cfg(feature = "trace")]
+    let _ = layout_span.exit();
     debug.layout_finished();
 
     user_interface
@@ -665,18 +568,23 @@ pub fn update<A: Application, E: Executor>(
     clipboard: &mut Clipboard,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    graphics_info: impl FnOnce() -> compositor::Information + Copy,
 
     window_subs: &mut WindowSubs<A::Message>,
     window_queue: &mut WindowQueue,
 ) where
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    <A::Renderer as core::Renderer>::Theme: StyleSheet,
 {
     for message in messages.drain(..) {
+        #[cfg(feature = "trace")]
+        let update_span = info_span!("Application", "UPDATE").entered();
+
         debug.log_message(&message);
 
         debug.update_started();
-        let command = runtime.enter(|| application.update(window_queue, message));
+        let command = runtime.enter(|| application.update(message));
+
+        #[cfg(feature = "trace")]
+        let _ = update_span.exit();
         debug.update_finished();
 
         run_command(
@@ -688,12 +596,11 @@ pub fn update<A: Application, E: Executor>(
             runtime,
             clipboard,
             debug,
-            graphics_info,
         );
     }
 
     let subscription = application.subscription(window_subs);
-    runtime.track(subscription);
+    runtime.track(subscription.into_recipes());
 }
 
 /// Runs the actions of a [`Command`].
@@ -706,14 +613,12 @@ pub fn run_command<A, E>(
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     clipboard: &mut Clipboard,
     debug: &mut Debug,
-    _graphics_info: impl FnOnce() -> compositor::Information + Copy,
 ) where
     A: Application,
     E: Executor,
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    <A::Renderer as core::Renderer>::Theme: StyleSheet,
 {
-    use iced_native::command;
-    use iced_native::Clipboard;
+    use crate::runtime::command;
 
     for action in command.actions() {
         match action {
@@ -734,7 +639,7 @@ pub fn run_command<A, E>(
             },
             command::Action::Widget(action) => {
                 let mut current_cache = std::mem::take(cache);
-                let mut current_operation = Some(action.into_operation());
+                let mut current_operation = Some(action);
 
                 let mut user_interface = build_user_interface(
                     application,
@@ -762,7 +667,9 @@ pub fn run_command<A, E>(
                 *cache = current_cache;
             }
             // Currently not supported
-            command::Action::Window(_) | command::Action::System(_) => {}
+            _ => {}
         }
     }
 }
+
+

@@ -1,8 +1,13 @@
-use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, open_blocking, settings::IcedBaseviewSettings, widget::Button, widget::Column,
-    widget::Container, widget::Text, window::WindowQueue, window::WindowSubs, Alignment,
-    Application, Command, Element, Length, Settings, Subscription,
+    Settings,
+    baseview::{Size, WindowOpenOptions, WindowScalePolicy},
+    settings::IcedBaseviewSettings,
+    widget::Column,
+    widget::Container,
+    widget::Text,
+    Application,
+    core::{Element, Length, Alignment},
+    runtime::{Command, futures::Subscription}, window::WindowSubs,
 };
 use std::time::{Duration, Instant};
 
@@ -14,15 +19,6 @@ fn main() {
             title: String::from("iced_baseview window subscriptions"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
-
-            // FIXME: The current glow_glpyh version does not enable the correct extension in their
-            //        shader so this currently won't work with OpenGL <= 3.2
-            #[cfg(feature = "glow")]
-            #[cfg(not(feature = "wgpu"))]
-            gl_config: Some(baseview::gl::GlConfig {
-                version: (3, 3),
-                ..baseview::gl::GlConfig::default()
-            }),
         },
         iced_baseview: IcedBaseviewSettings {
             ignore_non_modifier_keys: false,
@@ -31,14 +27,13 @@ fn main() {
         flags: (),
     };
 
-    open_blocking::<MyProgram>(settings);
+    MyProgram::open_blocking(settings);
 }
 
 #[derive(Debug, Clone, Copy)]
 enum Message {
     OnFrame,
     WillClose,
-    CloseWindow,
 }
 
 struct MyProgram {
@@ -47,10 +42,10 @@ struct MyProgram {
 }
 
 impl Application for MyProgram {
-    type Executor = executor::Default;
+    type Executor = iced_baseview::executor::Default;
     type Message = Message;
     type Flags = ();
-    type Theme = iced_baseview::renderer::Theme;
+    type Theme = iced_baseview::style::Theme;
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (
@@ -70,7 +65,6 @@ impl Application for MyProgram {
 
     fn update(
         &mut self,
-        window: &mut WindowQueue,
         message: Self::Message,
     ) -> Command<Self::Message> {
         match message {
@@ -84,21 +78,16 @@ impl Application for MyProgram {
             Message::WillClose => {
                 println!("The window will close!");
             }
-            Message::CloseWindow => {
-                println!("Request to manually close the window.");
-                window.close_window().unwrap();
-            }
         }
 
         Command::none()
     }
 
-    fn view(&self) -> Element<'_, Self::Message, Self::Theme> {
+    fn view(&self) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
-            .push(Text::new(format!("{}", self.count)))
-            .push(Button::new(Text::new("Close window")).on_press(Message::CloseWindow));
+            .push(Text::new(format!("{}", self.count)));
 
         Container::new(content)
             .width(Length::Fill)

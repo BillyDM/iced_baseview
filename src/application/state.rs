@@ -1,10 +1,12 @@
 use baseview::WindowScalePolicy;
 
-use iced_graphics::Viewport;
-use iced_native::{Color, Debug, Point, Size};
-
-use crate::application::Application;
 use crate::application::{self, StyleSheet as _};
+use crate::core;
+use crate::core::mouse;
+use crate::core::{Color, Size};
+use crate::graphics::Viewport;
+use crate::runtime::Debug;
+use crate::application::Application;
 
 use std::marker::PhantomData;
 
@@ -12,38 +14,37 @@ use std::marker::PhantomData;
 #[allow(missing_debug_implementations)]
 pub struct State<A: Application>
 where
-    <A::Renderer as iced_native::Renderer>::Theme: application::StyleSheet,
+    <A::Renderer as core::Renderer>::Theme: application::StyleSheet,
 {
     title: String,
     viewport: Viewport,
     viewport_version: usize,
-    cursor_position: Point,
-    theme: <A::Renderer as iced_native::Renderer>::Theme,
+    cursor_position: Option<iced_runtime::core::Point>,
+    theme: <A::Renderer as core::Renderer>::Theme,
     appearance: application::Appearance,
     application: PhantomData<A>,
 
     system_scale_factor: f64,
     scale_policy: WindowScalePolicy,
-    modifiers: iced_core::keyboard::Modifiers,
+    modifiers: iced_runtime::core::keyboard::Modifiers,
 }
 
 impl<A: Application> State<A>
 where
-    <A::Renderer as iced_native::Renderer>::Theme: application::StyleSheet,
+    <A::Renderer as core::Renderer>::Theme: application::StyleSheet,
 {
     /// Creates a new [`State`] for the provided [`Application`] and window.
-    pub fn new(application: &A, viewport: Viewport, scale_policy: WindowScalePolicy) -> Self {
+    pub fn new(application: &A, viewport: Viewport) -> Self {
         let title = application.title();
         let theme = application.theme();
+        let scale_policy = application.scale_policy();
         let appearance = theme.appearance(&application.style());
 
         Self {
             title,
             viewport,
             viewport_version: 0,
-            // TODO: Encode cursor availability in the type-system
-            cursor_position: Point::new(-1.0, -1.0),
-            // modifiers: winit::event::ModifiersState::default(),
+            cursor_position: None,
             theme,
             appearance,
             application: PhantomData,
@@ -77,17 +78,14 @@ where
     }
 
     /// Returns the current cursor position of the [`State`].
-    pub fn cursor_position(&self) -> Point {
+    pub fn cursor(&self) -> mouse::Cursor {
         self.cursor_position
+            .map(mouse::Cursor::Available)
+            .unwrap_or(mouse::Cursor::Unavailable)
     }
 
-    // /// Returns the current keyboard modifiers of the [`State`].
-    // pub fn modifiers(&self) -> winit::event::ModifiersState {
-    //     self.modifiers
-    // }
-
     /// Returns the current theme of the [`State`].
-    pub fn theme(&self) -> &<A::Renderer as iced_native::Renderer>::Theme {
+    pub fn theme(&self) -> &<A::Renderer as core::Renderer>::Theme {
         &self.theme
     }
 
@@ -103,9 +101,12 @@ where
 
     /// Processes the provided window event and updates the [`State`]
     /// accordingly.
-    ///
-    /// Does **not** update modifiers.
-    pub fn update(&mut self, event: &baseview::Event, _debug: &mut Debug) {
+    pub fn update(
+        &mut self,
+        event: &baseview::Event,
+        _debug: &mut Debug,
+    ) {
+
         match event {
             baseview::Event::Window(baseview::WindowEvent::Resized(window_info)) => {
                 // Cache system window info in case users changes their scale policy in the future.
@@ -130,8 +131,10 @@ where
                 position,
                 modifiers: _,
             }) => {
-                self.cursor_position.x = position.x as f32;
-                self.cursor_position.y = position.y as f32;
+                if let Some(cursor_position) = self.cursor_position.as_mut() {
+                    cursor_position.x = position.x as f32;
+                    cursor_position.y = position.y as f32;
+                }
 
                 // TODO: Encode cursor moving outside of the window.
             }
@@ -144,46 +147,6 @@ where
                     }
                 }
             }
-            /*
-            WindowEvent::ScaleFactorChanged {
-                scale_factor: new_scale_factor,
-                new_inner_size,
-            } => {
-                let size =
-                    Size::new(new_inner_size.width, new_inner_size.height);
-
-                self.viewport = Viewport::with_physical_size(
-                    size,
-                    new_scale_factor * self.scale_factor,
-                );
-
-                self.viewport_version = self.viewport_version.wrapping_add(1);
-            }
-            WindowEvent::CursorMoved { position, .. }
-            | WindowEvent::Touch(Touch {
-                location: position, ..
-            }) => {
-                self.cursor_position = *position;
-            }
-            WindowEvent::CursorLeft { .. } => {
-                // TODO: Encode cursor availability in the type-system
-                self.cursor_position =
-                    winit::dpi::PhysicalPosition::new(-1.0, -1.0);
-            }
-            WindowEvent::ModifiersChanged(new_modifiers) => {
-                self.modifiers = *new_modifiers;
-            }
-            #[cfg(feature = "debug")]
-            WindowEvent::KeyboardInput {
-                input:
-                    winit::event::KeyboardInput {
-                        virtual_keycode: Some(winit::event::VirtualKeyCode::F12),
-                        state: winit::event::ElementState::Pressed,
-                        ..
-                    },
-                ..
-            } => _debug.toggle(),
-            */
             _ => {}
         }
     }
@@ -246,7 +209,7 @@ where
         self.appearance = self.theme.appearance(&application.style());
     }
 
-    pub(crate) fn modifiers_mut(&mut self) -> &mut iced_core::keyboard::Modifiers {
+    pub(crate) fn modifiers_mut(&mut self) -> &mut iced_runtime::core::keyboard::Modifiers {
         &mut self.modifiers
     }
 }

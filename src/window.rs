@@ -1,16 +1,16 @@
 use std::{cell::RefCell, pin::Pin, rc::Rc};
 
 use baseview::{Event, EventStatus, Window, WindowHandler, WindowOpenOptions};
-use iced_futures::futures::{
+use iced_runtime::futures::futures::{
     self,
     channel::mpsc::{self, SendError},
 };
-use iced_native::application::StyleSheet;
+use iced_style::application::StyleSheet;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
 use crate::{application::run, application::Application, Settings};
 
-pub(crate) enum RuntimeEvent<Message: 'static + Send> {
+pub enum RuntimeEvent<Message: 'static + Send> {
     Baseview((baseview::Event, bool)),
     UserEvent(Message),
     MainEventsCleared,
@@ -18,10 +18,10 @@ pub(crate) enum RuntimeEvent<Message: 'static + Send> {
     WillClose,
 }
 
-pub(crate) struct IcedWindow<A>
+pub struct IcedWindow<A>
 where
     A: Application + Send + 'static,
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
     // E: Executor + 'static,
     // C: window::Compositor<Renderer = A::Renderer> + 'static,
 {
@@ -38,7 +38,8 @@ where
 impl<A> IcedWindow<A>
 where
     A: Application + Send + 'static,
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    <A as Application>::Flags: std::marker::Send,
+    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
 {
     /// There's no clone implementation, but this is fine.
     fn clone_window_options(window: &WindowOpenOptions) -> WindowOpenOptions {
@@ -50,43 +51,14 @@ where
         }
     }
 
-    /// Make sure the OpenGL context settings on the window open flags are consistent with the
-    /// renderer configuration.
-    #[cfg(feature = "glow")]
-    fn update_gl_context(settings: &mut Settings<A::Flags>) {
-        {
-            // Glow support requires, well, OpenGL
-            let gl_config = settings
-                .window
-                .gl_config
-                // FIXME: The current glow_glpyh version does not enable the correct extension in their
-                //        shader so this currently won't work with OpenGL <= 3.2
-                .get_or_insert_with(|| baseview::gl::GlConfig {
-                    version: (3, 3),
-                    ..baseview::gl::GlConfig::default()
-                });
-
-            // Make sure the anti aliasing settings match up if they have been set on renderer's
-            // settings
-            if let Some(antialiasing) = A::renderer_settings().antialiasing {
-                gl_config.samples = Some(antialiasing.sample_count() as u8);
-            }
-        }
-    }
-
     /// Open a new window that blocks the current thread until the window is destroyed.
     ///
     /// * `settings` - The settings of the window.
     pub fn open_blocking<E, C>(#[allow(unused_mut)] mut settings: Settings<A::Flags>)
     where
-        E: iced_futures::Executor + 'static,
-        C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
-            + 'static,
-        <C as crate::IGCompositor>::Settings: Send,
+        E: iced_runtime::futures::Executor + 'static,
+        C: iced_graphics::Compositor<Renderer = A::Renderer> + 'static,
     {
-        #[cfg(feature = "glow")]
-        Self::update_gl_context(&mut settings);
-
         let (sender, receiver) = mpsc::unbounded();
 
         Window::open_blocking(
@@ -106,15 +78,10 @@ where
         #[allow(unused_mut)] mut settings: Settings<A::Flags>,
     ) -> WindowHandle<A::Message>
     where
-        E: iced_futures::Executor + 'static,
-        C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
-            + 'static,
-        <C as crate::IGCompositor>::Settings: Send,
+        E: iced_runtime::futures::Executor + 'static,
+        C: iced_graphics::Compositor<Renderer = A::Renderer> + 'static,
         P: HasRawWindowHandle,
     {
-        #[cfg(feature = "glow")]
-        Self::update_gl_context(&mut settings);
-
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
 
@@ -128,40 +95,12 @@ where
 
         WindowHandle::new(bv_handle, sender)
     }
-
-    /// Open a new window as if it had a parent window.
-    ///
-    /// * `settings` - The settings of the window.
-    pub fn open_as_if_parented<E, C>(
-        #[allow(unused_mut)] mut settings: Settings<A::Flags>,
-    ) -> WindowHandle<A::Message>
-    where
-        E: iced_futures::Executor + 'static,
-        C: crate::IGCompositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
-            + 'static,
-        <C as crate::IGCompositor>::Settings: Send,
-    {
-        #[cfg(feature = "glow")]
-        Self::update_gl_context(&mut settings);
-
-        let (sender, receiver) = mpsc::unbounded();
-        let sender_clone = sender.clone();
-
-        let bv_handle = Window::open_as_if_parented(
-            Self::clone_window_options(&settings.window),
-            move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                run::<A, E, C>(window, settings, sender_clone, receiver).expect("Launch window")
-            },
-        );
-
-        WindowHandle::new(bv_handle, sender)
-    }
 }
 
 impl<A> WindowHandler for IcedWindow<A>
 where
     A: Application + Send + 'static,
-    <A::Renderer as iced_native::Renderer>::Theme: StyleSheet,
+    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
 {
     fn on_frame(&mut self, window: &mut Window<'_>) {
         if self.processed_close_signal {
@@ -341,7 +280,6 @@ pub enum WindowQueueMessage {
 }
 
 /// Used to request things from the `baseview` window.
-#[allow(missing_debug_implementations)]
 pub struct WindowQueue {
     tx: mpsc::UnboundedSender<WindowQueueMessage>,
 }

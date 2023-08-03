@@ -1,45 +1,83 @@
-//! A [`baseview`] integration for [`iced`]
+//! A windowing shell for Iced, on top of [`winit`].
 //!
-//! [`iced`]: https://github.com/iced-rs/iced/
-//! [`baseview`]: https://github.com/RustAudio/baseview/
+//! ![The native path of the Iced ecosystem](https://github.com/iced-rs/iced/blob/0525d76ff94e828b7b21634fa94a747022001c83/docs/graphs/native.png?raw=true)
+//!
+//! `iced_winit` offers some convenient abstractions on top of [`iced_runtime`]
+//! to quickstart development when using [`winit`].
+//!
+//! It exposes a renderer-agnostic [`Application`] trait that can be implemented
+//! and then run with a simple call. The use of this trait is optional.
+//!
+//! Additionally, a [`conversion`] module is available for users that decide to
+//! implement a custom event loop.
+//!
+//! [`iced_runtime`]: https://github.com/iced-rs/iced/tree/0.10/runtime
+//! [`winit`]: https://github.com/rust-windowing/winit
+//! [`conversion`]: crate::conversion
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/iced-rs/iced/9ab6923e943f784985e9ef9ca28b10278297225d/docs/logo.svg"
+)]
 #![deny(
+    // missing_debug_implementations,
+    // missing_docs,
     unused_results,
     clippy::extra_unused_lifetimes,
     clippy::from_over_into,
     clippy::needless_borrow,
     clippy::new_without_default,
-    clippy::useless_conversion
+    clippy::useless_conversion,
 )]
 #![forbid(rust_2018_idioms)]
 #![allow(clippy::inherent_to_string, clippy::type_complexity)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
-
-#[cfg(all(feature = "wgpu", feature = "glow"))]
-compile_error!("Can't use both 'wgpu' and 'glow' features");
-
-#[cfg(not(any(feature = "wgpu", feature = "glow")))]
-compile_error!("Must use either 'wgpu' or 'glow' feature");
-
-pub mod clipboard;
-pub mod settings;
-pub mod widget;
-pub mod window;
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+use graphics::core::Element;
+pub use iced_graphics as graphics;
+pub use iced_runtime as runtime;
+pub use iced_runtime::core;
+pub use iced_runtime::futures;
+pub use iced_style as style;
+pub use iced_widget as widget;
 
 mod application;
-mod conversion;
+pub mod clipboard;
+pub mod conversion;
+pub mod settings;
+pub mod window;
+pub mod wrapper;
+
+#[cfg(feature = "system")]
+pub mod system;
+
 mod error;
+mod position;
 mod proxy;
-mod wrapper;
+
+#[cfg(feature = "trace")]
+pub use application::Profiler;
+pub use clipboard::Clipboard;
+pub use error::Error;
+pub use position::Position;
+pub use proxy::Proxy;
+use runtime::Command;
+use runtime::futures::Executor;
+use runtime::futures::Subscription;
+pub use settings::Settings;
+
+pub use iced_graphics::Viewport;
+use style::application::StyleSheet;
 
 pub mod baseview {
-    #[cfg(feature = "glow")]
-    pub use baseview::gl;
     pub use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 }
 
+use iced_widget::renderer;
+use window::WindowSubs;
+
+pub type Renderer<Theme = style::Theme> = renderer::Renderer<Theme>;
+
 pub mod executor {
     //! Choose your preferred executor to power your application.
-    pub use iced_native::Executor;
+    pub use iced_runtime::futures::Executor;
 
     /// A default cross-platform executor.
     ///
@@ -51,62 +89,26 @@ pub mod executor {
     ///   - `iced_futures::backend::native::thread_pool` otherwise.
     ///
     /// - On Wasm, it will use `iced_futures::backend::wasm::wasm_bindgen`.
-    pub type Default = iced_futures::backend::default::Executor;
+    pub type Default = iced_runtime::futures::backend::default::Executor;
 }
 
-pub mod time {
-    //! Listen and react to time.
-    pub use iced_core::time::{Duration, Instant};
-
-    pub use iced_futures::backend::default::time::*;
-}
-
-#[doc(no_inline)]
-pub use iced_native::{
-    alignment, command, event, keyboard, mouse, overlay, subscription, Alignment, Background,
-    Color, Command, ContentFit, Debug, Event, Font, Hasher, Layout, Length, Overlay, Padding,
-    Point, Rectangle, Size, Subscription, Vector,
-};
-
-cfg_if::cfg_if! {
-    if #[cfg(feature = "wgpu")] {
-        pub use iced_wgpu as renderer;
-        use iced_graphics::window::Compositor as IGCompositor;
-    } else {
-        pub use iced_glow as renderer;
-        use iced_graphics::window::GLCompositor as IGCompositor;
-    }
-}
-
-pub use renderer::Renderer;
-pub use settings::Settings;
-
-use raw_window_handle::HasRawWindowHandle;
-use window::{IcedWindow, WindowQueue, WindowSubs};
-
-/// A generic widget.
-///
-/// This is an alias of an `iced_native` element with a default `Renderer`.
-pub type Element<'a, Message, Theme> =
-    iced_native::Element<'a, Message, crate::renderer::Renderer<Theme>>;
-
-pub trait Application: Sized + Send {
+pub trait Application: Sized + std::marker::Send {
     /// The [`Executor`] that will run commands and subscriptions.
     ///
     /// The [default executor] can be a good starting point!
     ///
     /// [`Executor`]: Self::Executor
     /// [default executor]: crate::executor::Default
-    type Executor: iced_native::Executor;
+    type Executor: Executor;
 
     /// The type of __messages__ your [`Application`] will produce.
     type Message: std::fmt::Debug + Send;
 
     /// The theme of your [`Application`].
-    type Theme: Default + iced_native::application::StyleSheet;
+    type Theme: Default + StyleSheet;
 
     /// The data needed to initialize your [`Application`].
-    type Flags: Send;
+    type Flags: std::marker::Send;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -118,7 +120,7 @@ pub trait Application: Sized + Send {
     /// load state from a file, perform an initial HTTP request, etc.
     ///
     /// [`run`]: Self::run
-    fn new(flags: Self::Flags) -> (Self, iced_native::Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
 
     /// Returns the current title of the [`Application`].
     ///
@@ -126,6 +128,7 @@ pub trait Application: Sized + Send {
     /// title of your application when necessary.
     fn title(&self) -> String;
 
+    // FIXME: window_queue?
     /// Handles a __message__ and updates the state of the [`Application`].
     ///
     /// This is where you define your __update logic__. All the __messages__,
@@ -133,16 +136,12 @@ pub trait Application: Sized + Send {
     /// this method.
     ///
     /// Any [`Command`] returned will be executed immediately in the background.
-    fn update(
-        &mut self,
-        window: &mut WindowQueue,
-        message: Self::Message,
-    ) -> iced_native::Command<Self::Message>;
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
 
     /// Returns the widgets to display in the [`Application`].
     ///
     /// These widgets can produce __messages__ based on user interaction.
-    fn view(&self) -> Element<'_, Self::Message, Self::Theme>;
+    fn view(&self) -> Element<'_, Self::Message, crate::Renderer<Self::Theme>>;
 
     /// Returns the current [`Theme`] of the [`Application`].
     ///
@@ -154,8 +153,8 @@ pub trait Application: Sized + Send {
     /// Returns the current `Style` of the [`Theme`].
     ///
     /// [`Theme`]: Self::Theme
-    fn style(&self) -> <Self::Theme as iced_native::application::StyleSheet>::Style {
-        <Self::Theme as iced_native::application::StyleSheet>::Style::default()
+    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
+        <Self::Theme as StyleSheet>::Style::default()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -166,51 +165,70 @@ pub trait Application: Sized + Send {
     /// [`update`](#tymethod.update).
     ///
     /// By default, this method returns an empty [`Subscription`].
-    fn subscription(
-        &self,
-        _window_subs: &mut WindowSubs<Self::Message>,
-    ) -> iced_native::Subscription<Self::Message> {
-        iced_native::Subscription::none()
+    fn subscription(&self, _window_subs: &mut WindowSubs<Self::Message>,) -> Subscription<Self::Message> {
+        Subscription::none()
     }
-
     /// Returns the [`WindowScalePolicy`] that the [`Application`] should use.
     ///
     /// By default, it returns `WindowScalePolicy::SystemScaleFactor`.
     ///
     /// [`WindowScalePolicy`]: ../settings/enum.WindowScalePolicy.html
     /// [`Application`]: trait.Application.html
-    fn scale_policy(&self) -> ::baseview::WindowScalePolicy {
-        ::baseview::WindowScalePolicy::SystemScaleFactor
+    fn scale_policy(&self) -> baseview::WindowScalePolicy {
+        baseview::WindowScalePolicy::SystemScaleFactor
     }
 
-    /// Returns whether the [`Application`] should be terminated.
+    /// Runs the [`Application`] in a child window.
+    fn open_parented<P: raw_window_handle::HasRawWindowHandle>(
+        parent: &P,
+        settings: Settings<Self::Flags>,
+    ) -> window::WindowHandle<Self::Message>
+    where
+        Self: 'static,
+    {
+        window::IcedWindow::<Instance<Self>>::open_parented::<Self::Executor, renderer::Compositor<Self::Theme>, P>(
+            parent, settings,
+        )
+    }
+
+    /// Runs the [`Application`]. Open a new window that blocks the current thread until the window is destroyed.
     ///
-    /// By default, it returns `false`.
-    fn should_exit(&self) -> bool {
-        false
-    }
-
-    /// Ignore non-modifier keyboard keys. Overrides the field in
-    /// `IcedBaseviewSettings` if set
-    fn ignore_non_modifier_keys(&self) -> Option<bool> {
-        None
-    }
-    fn renderer_settings() -> crate::renderer::Settings {
-        Default::default()
+    /// * `settings` - The settings of the window.
+    fn open_blocking(settings: Settings<Self::Flags>)
+    where
+        Self: 'static,
+    {
+        window::IcedWindow::<Instance<Self>>::open_blocking::<Self::Executor, renderer::Compositor<Self::Theme>>(
+            settings,
+        );
     }
 }
 
 struct Instance<A: Application>(A);
 
-impl<A> application::Application for Instance<A>
+impl<A> crate::runtime::Program for Instance<A>
+where
+    A: Application,
+{
+    type Renderer = crate::Renderer<A::Theme>;
+    type Message = A::Message;
+
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        self.0.update(message)
+    }
+
+    fn view(&self) -> Element<'_, Self::Message, Self::Renderer> {
+        self.0.view()
+    }
+}
+
+impl<A> crate::application::Application for Instance<A>
 where
     A: Application,
 {
     type Flags = A::Flags;
-    type Renderer = renderer::Renderer<A::Theme>;
-    type Message = A::Message;
 
-    fn new(flags: Self::Flags) -> (Self, iced_native::Command<A::Message>) {
+    fn new(flags: Self::Flags) -> (Self, Command<A::Message>) {
         let (app, command) = A::new(flags);
 
         (Instance(app), command)
@@ -224,86 +242,18 @@ where
         self.0.theme()
     }
 
-    fn style(&self) -> <A::Theme as iced_native::application::StyleSheet>::Style {
+    fn style(&self) -> <A::Theme as StyleSheet>::Style {
         self.0.style()
-    }
-    fn update(
-        &mut self,
-        window: &mut WindowQueue,
-        message: Self::Message,
-    ) -> iced_native::Command<Self::Message> {
-        self.0.update(window, message)
-    }
-
-    fn view(&self) -> iced_native::Element<'_, Self::Message, Self::Renderer> {
-        self.0.view()
     }
 
     fn subscription(
         &self,
         window_subs: &mut WindowSubs<A::Message>,
-    ) -> iced_native::Subscription<Self::Message> {
+    ) -> runtime::futures::Subscription<Self::Message> {
         self.0.subscription(window_subs)
     }
 
-    fn scale_policy(&self) -> ::baseview::WindowScalePolicy {
+    fn scale_policy(&self) -> baseview::WindowScalePolicy {
         self.0.scale_policy()
     }
-
-    fn should_exit(&self) -> bool {
-        self.0.should_exit()
-    }
-
-    /// Ignore non-modifier keyboard keys. Overrides the field in
-    /// `IcedBaseviewSettings` if set
-    fn ignore_non_modifier_keys(&self) -> Option<bool> {
-        self.0.ignore_non_modifier_keys()
-    }
-
-    fn renderer_settings() -> crate::renderer::Settings {
-        A::renderer_settings()
-    }
-}
-
-/// Open a new window that blocks the current thread until the window is destroyed.
-///
-/// * `settings` - The settings of the window.
-pub fn open_blocking<A: Application>(settings: Settings<A::Flags>)
-where
-    A: 'static,
-{
-    IcedWindow::<Instance<A>>::open_blocking::<A::Executor, renderer::window::Compositor<A::Theme>>(
-        settings,
-    );
-}
-
-/// Open a new child window.
-///
-/// * `parent` - The parent window.
-/// * `settings` - The settings of the window.
-pub fn open_parented<A: Application, P: HasRawWindowHandle>(
-    parent: &P,
-    settings: Settings<A::Flags>,
-) -> window::WindowHandle<A::Message>
-where
-    A: 'static,
-{
-    IcedWindow::<Instance<A>>::open_parented::<A::Executor, renderer::window::Compositor<A::Theme>, P>(
-        parent, settings,
-    )
-}
-
-/// Open a new window as if it had a parent window.
-///
-/// * `settings` - The settings of the window.
-pub fn open_as_if_parented<A: Application>(
-    settings: Settings<A::Flags>,
-) -> window::WindowHandle<A::Message>
-where
-    A: 'static,
-{
-    IcedWindow::<Instance<A>>::open_as_if_parented::<
-        A::Executor,
-        renderer::window::Compositor<A::Theme>,
-    >(settings)
 }

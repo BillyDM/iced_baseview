@@ -1,11 +1,16 @@
 use iced_baseview::{
+    Settings,
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
-    open_blocking,
     settings::IcedBaseviewSettings,
-    widget::{container, rule, text, Column, Container, Rule, Text},
-    window::WindowQueue,
-    Alignment, Application, Color, Command, Element, Length, Settings,
+    widget::Column,
+    widget::Container,
+    widget::Rule,
+    widget::Text,
+    Application,
+    core::{Element, Length, Alignment},
+    runtime::Command,
 };
+use iced_graphics::core::{Color, BorderRadius};
 
 fn main() {
     let settings = Settings {
@@ -13,14 +18,6 @@ fn main() {
             title: String::from("iced_baseview hello world"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
-
-            // FIXME: The current glow_glpyh version does not enable the correct extension in their
-            //        shader so this currently won't work with OpenGL <= 3.2
-            #[cfg(feature = "glow")]
-            gl_config: Some(baseview::gl::GlConfig {
-                version: (3, 3),
-                ..baseview::gl::GlConfig::default()
-            }),
         },
         iced_baseview: IcedBaseviewSettings {
             ignore_non_modifier_keys: false,
@@ -29,7 +26,7 @@ fn main() {
         flags: (),
     };
 
-    open_blocking::<MyProgram>(settings);
+    MyProgram::open_blocking(settings);
 }
 
 #[derive(Default)]
@@ -38,53 +35,54 @@ enum Theme {
     Light,
 }
 
-impl iced_native::application::StyleSheet for Theme {
+impl iced_baseview::style::application::StyleSheet for Theme {
     type Style = ();
 
-    fn appearance(&self, _style: &Self::Style) -> iced_native::application::Appearance {
-        iced_native::application::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced_baseview::style::application::Appearance {
+        iced_baseview::style::application::Appearance {
             text_color: Color::BLACK,
             background_color: Color::WHITE,
         }
     }
 }
 
-impl container::StyleSheet for Theme {
+impl iced_baseview::style::container::StyleSheet for Theme {
     type Style = ();
 
-    fn appearance(&self, _style: &Self::Style) -> container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced_baseview::style::container::Appearance {
         Default::default()
     }
 }
 
-#[derive(Clone, Copy, Default)]
-enum TextStyle {
-    #[default]
-    Green,
-    Black,
-}
+impl iced_baseview::style::rule::StyleSheet for Theme {
+    type Style = ();
 
-impl text::StyleSheet for Theme {
-    type Style = TextStyle;
-
-    fn appearance(&self, style: Self::Style) -> text::Appearance {
-        let color = match style {
-            Self::Style::Green => Color::from_rgb(0.25, 0.75, 0.25),
-            Self::Style::Black => Color::BLACK,
-        };
-        text::Appearance { color: Some(color) }
+    fn appearance(&self, _style: &Self::Style) -> iced_baseview::style::rule::Appearance {
+        iced_baseview::style::rule::Appearance {
+            color: Color::from_rgb(0.0, 0.5, 0.0),
+            width: 1,
+            radius: BorderRadius::default(),
+            fill_mode: iced_baseview::style::rule::FillMode::Percent(50.0),
+        }
     }
 }
 
-impl rule::StyleSheet for Theme {
-    type Style = ();
+#[derive(Default, Clone)]
+enum TextStyle {
+    #[default]
+    Green,
+}
 
-    fn appearance(&self, _style: &Self::Style) -> rule::Appearance {
-        rule::Appearance {
-            color: Color::from_rgb(0.75, 0.75, 0.75),
-            width: 1,
-            radius: 0.0,
-            fill_mode: rule::FillMode::Percent(50.0),
+impl iced_baseview::widget::text::StyleSheet for Theme {
+    type Style = TextStyle;
+
+    fn appearance(&self, style: Self::Style) -> iced_widget::text::Appearance {
+        match style {
+            TextStyle::Green => {
+                iced_widget::text::Appearance {
+                    color: Some(Color::from_rgb(0.0, 0.5, 0.0))
+                }
+            }
         }
     }
 }
@@ -92,7 +90,7 @@ impl rule::StyleSheet for Theme {
 struct MyProgram {}
 
 impl Application for MyProgram {
-    type Executor = iced_futures::backend::default::Executor;
+    type Executor = iced_baseview::executor::Default;
     type Message = ();
     type Flags = ();
     type Theme = Theme;
@@ -103,17 +101,16 @@ impl Application for MyProgram {
 
     fn update(
         &mut self,
-        _window: &mut WindowQueue,
         _message: Self::Message,
     ) -> Command<Self::Message> {
         Command::none()
     }
 
-    fn view(&self) -> Element<'_, Self::Message, Self::Theme> {
+    fn view(&self) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
-            .push(Text::new("Hello World!").style(TextStyle::Black))
+            .push(Text::new("Hello World!").style(TextStyle::Green))
             .push(Rule::horizontal(10));
 
         Container::new(content)
