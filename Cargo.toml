@@ -17,12 +17,15 @@ categories = ["gui"]
 [features]
 # Enables a debug view in native platforms (press F12)
 debug = ["iced_runtime/debug"]
+# Enable the wgu renderer
+wgpu = ["iced_renderer/wgpu"]
 
 [dependencies]
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "1d9806d" }
 cfg-if = "1"
 copypasta = "0.8"
 iced_runtime = "0.1"
+iced_renderer = "0.1"
 iced_graphics = "0.9"
 iced_style = "0.9"
 iced_widget = "0.1"
