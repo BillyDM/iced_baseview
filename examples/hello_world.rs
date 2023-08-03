@@ -1,6 +1,7 @@
 use iced_baseview::{
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
     core::{Alignment, Element, Length},
+    open_blocking,
     runtime::Command,
     settings::IcedBaseviewSettings,
     widget::Column,
@@ -24,7 +25,7 @@ fn main() {
         flags: (),
     };
 
-    MyProgram::open_blocking(settings);
+    open_blocking::<MyProgram>(settings);
 }
 
 struct MyProgram;

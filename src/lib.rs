@@ -168,34 +168,6 @@ pub trait Application: Sized + std::marker::Send {
         baseview::WindowScalePolicy::SystemScaleFactor
     }
 
-    /// Runs the [`Application`] in a child window.
-    fn open_parented<P: raw_window_handle::HasRawWindowHandle>(
-        parent: &P,
-        settings: Settings<Self::Flags>,
-    ) -> window::WindowHandle<Self::Message>
-    where
-        Self: 'static,
-    {
-        window::IcedWindow::<Instance<Self>>::open_parented::<
-            Self::Executor,
-            renderer::Compositor<Self::Theme>,
-            P,
-        >(parent, settings)
-    }
-
-    /// Runs the [`Application`]. Open a new window that blocks the current thread until the window is destroyed.
-    ///
-    /// * `settings` - The settings of the window.
-    fn open_blocking(settings: Settings<Self::Flags>)
-    where
-        Self: 'static,
-    {
-        window::IcedWindow::<Instance<Self>>::open_blocking::<
-            Self::Executor,
-            renderer::Compositor<Self::Theme>,
-        >(settings);
-    }
-
     fn renderer_settings() -> renderer::Settings {
         Default::default()
     }
@@ -257,4 +229,30 @@ where
     fn renderer_settings() -> crate::renderer::Settings {
         A::renderer_settings()
     }
+}
+
+/// Runs the [`Application`] in a child window.
+pub fn open_parented<A, P>(
+    parent: &P,
+    settings: Settings<A::Flags>,
+) -> window::WindowHandle<A::Message>
+where
+    A: Application + 'static,
+    P: raw_window_handle::HasRawWindowHandle,
+{
+    window::IcedWindow::<Instance<A>>::open_parented::<A::Executor, renderer::Compositor<A::Theme>, P>(
+        parent, settings,
+    )
+}
+
+/// Runs the [`Application`]. Open a new window that blocks the current thread until the window is destroyed.
+///
+/// * `settings` - The settings of the window.
+pub fn open_blocking<A>(settings: Settings<A::Flags>)
+where
+    A: Application + 'static,
+{
+    window::IcedWindow::<Instance<A>>::open_blocking::<A::Executor, renderer::Compositor<A::Theme>>(
+        settings,
+    );
 }
