@@ -5,10 +5,12 @@ use iced_baseview::{
     widget::Column,
     widget::Container,
     widget::Text,
+    widget::Button,
     Application,
     core::{Element, Length, Alignment},
     runtime::{Command, futures::Subscription}, window::WindowSubs,
 };
+use iced_runtime::window::Action;
 use std::time::{Duration, Instant};
 
 static COUNT_INTERVAL: Duration = Duration::from_millis(1000);
@@ -34,6 +36,7 @@ fn main() {
 enum Message {
     OnFrame,
     WillClose,
+    CloseWindow,
 }
 
 struct MyProgram {
@@ -78,6 +81,10 @@ impl Application for MyProgram {
             Message::WillClose => {
                 println!("The window will close!");
             }
+            Message::CloseWindow => {
+                println!("Request to manually close the window.");
+                return Command::single(iced_runtime::command::Action::Window(Action::Close))
+            }
         }
 
         Command::none()
@@ -87,7 +94,8 @@ impl Application for MyProgram {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
-            .push(Text::new(format!("{}", self.count)));
+            .push(Text::new(format!("{}", self.count)))
+            .push(Button::new(Text::new("Close window")).on_press(Message::CloseWindow));
 
         Container::new(content)
             .width(Length::Fill)

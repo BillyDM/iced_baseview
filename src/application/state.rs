@@ -131,10 +131,10 @@ where
                 position,
                 modifiers: _,
             }) => {
-                if let Some(cursor_position) = self.cursor_position.as_mut() {
-                    cursor_position.x = position.x as f32;
-                    cursor_position.y = position.y as f32;
-                }
+                self.cursor_position = Some(crate::core::Point {
+                    x: position.x as f32,
+                    y: position.y as f32,
+                });
 
                 // TODO: Encode cursor moving outside of the window.
             }

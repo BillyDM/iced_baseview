@@ -10,7 +10,7 @@ use crate::core;
 use crate::core::mouse;
 use crate::core::renderer;
 use crate::core::widget::operation;
-use crate::core::{Size};
+use crate::core::Size;
 use crate::futures::futures;
 use crate::futures::{Executor, Runtime, Subscription};
 use crate::graphics::compositor::{self, Compositor};
@@ -253,6 +253,7 @@ async fn run_instance<A, E, C>(
         &mut runtime,
         &mut clipboard,
         &mut debug,
+        &mut window_queue,
     );
     runtime.track(application.subscription(&mut window_subs).into_recipes());
 
@@ -514,7 +515,40 @@ async fn run_instance<A, E, C>(
 
                 did_process_event = true;
             }
-            _ => {}
+            RuntimeEvent::WillClose => {
+                if let Some(message) = &window_subs.on_window_will_close {
+                    // Send message to user before exiting the loop.
+
+                    messages.push(message());
+                    let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
+
+                    update(
+                        &mut application,
+                        &mut cache,
+                        &state,
+                        &mut renderer,
+                        &mut runtime,
+                        &mut clipboard,
+                        &mut debug,
+                        &mut messages,
+                        &mut window_subs,
+                        &mut window_queue,
+                    );
+
+                    // Update window
+                    state.synchronize(&application);
+
+                    user_interface = ManuallyDrop::new(build_user_interface(
+                        &mut application,
+                        cache,
+                        &mut renderer,
+                        state.logical_size(),
+                        &mut debug,
+                    ));
+                }
+
+                break;
+            }
         }
     }
 
@@ -596,6 +630,7 @@ pub fn update<A: Application, E: Executor>(
             runtime,
             clipboard,
             debug,
+            window_queue
         );
     }
 
@@ -613,6 +648,7 @@ pub fn run_command<A, E>(
     runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
     clipboard: &mut Clipboard,
     debug: &mut Debug,
+    window_queue: &mut WindowQueue,
 ) where
     A: Application,
     E: Executor,
@@ -665,6 +701,11 @@ pub fn run_command<A, E>(
 
                 current_cache = user_interface.into_cache();
                 *cache = current_cache;
+            }
+            command::Action::Window(iced_runtime::window::Action::Close) => {
+                if let Err(_) = window_queue.close_window() {
+                    debug.log_message(&"could not send close_window command".to_string())
+                }
             }
             // Currently not supported
             _ => {}

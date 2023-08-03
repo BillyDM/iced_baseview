@@ -1,4 +1,4 @@
 # TODO
 
-- New solution for WindowQueue (use window commands instead?)
+- Fix segfault on close
 - Allow settings renderer settings
