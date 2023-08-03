@@ -1,14 +1,14 @@
 use iced_baseview::{
-    Settings,
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
+    core::{Alignment, Element, Length},
+    runtime::{futures::Subscription, Command},
     settings::IcedBaseviewSettings,
+    widget::Button,
     widget::Column,
     widget::Container,
     widget::Text,
-    widget::Button,
-    Application,
-    core::{Element, Length, Alignment},
-    runtime::{Command, futures::Subscription}, window::WindowSubs,
+    window::WindowSubs,
+    Application, Settings,
 };
 use iced_runtime::window::Action;
 use std::time::{Duration, Instant};
@@ -66,10 +66,7 @@ impl Application for MyProgram {
         Subscription::none()
     }
 
-    fn update(
-        &mut self,
-        message: Self::Message,
-    ) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::OnFrame => {
                 let now = Instant::now();
@@ -83,14 +80,16 @@ impl Application for MyProgram {
             }
             Message::CloseWindow => {
                 println!("Request to manually close the window.");
-                return Command::single(iced_runtime::command::Action::Window(Action::Close))
+                return Command::single(iced_runtime::command::Action::Window(Action::Close));
             }
         }
 
         Command::none()
     }
 
-    fn view(&self) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
+    fn view(
+        &self,
+    ) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)

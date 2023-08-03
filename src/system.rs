@@ -7,14 +7,12 @@ use crate::runtime::system::{Action, Information};
 pub fn fetch_information<Message>(
     f: impl Fn(Information) -> Message + Send + 'static,
 ) -> Command<Message> {
-    Command::single(command::Action::System(Action::QueryInformation(
-        Box::new(f),
-    )))
+    Command::single(command::Action::System(Action::QueryInformation(Box::new(
+        f,
+    ))))
 }
 
-pub(crate) fn information(
-    graphics_info: compositor::Information,
-) -> Information {
+pub(crate) fn information(graphics_info: compositor::Information) -> Information {
     use sysinfo::{CpuExt, ProcessExt, System, SystemExt};
     let mut system = System::new_all();
     system.refresh_all();

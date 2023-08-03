@@ -1,14 +1,13 @@
 use iced_baseview::{
-    Settings,
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
+    core::{Alignment, Element, Length},
+    runtime::Command,
     settings::IcedBaseviewSettings,
     widget::Column,
     widget::Container,
     widget::Rule,
     widget::Text,
-    Application,
-    core::{Element, Length, Alignment},
-    runtime::Command,
+    Application, Settings,
 };
 
 fn main() {
@@ -30,7 +29,6 @@ fn main() {
 
 struct MyProgram;
 
-
 impl Application for MyProgram {
     type Executor = iced_baseview::executor::Default;
     type Message = ();
@@ -43,14 +41,13 @@ impl Application for MyProgram {
     fn title(&self) -> String {
         "Hello World!".into()
     }
-    fn update(
-        &mut self,
-        _message: Self::Message,
-    ) -> Command<Self::Message> {
+    fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
         Command::none()
     }
 
-    fn view(&self) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
+    fn view(
+        &self,
+    ) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
@@ -64,5 +61,4 @@ impl Application for MyProgram {
             .center_y()
             .into()
     }
-
 }

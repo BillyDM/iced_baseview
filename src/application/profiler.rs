@@ -25,8 +25,7 @@ impl Profiler {
         let subscriber = Registry::default();
 
         let default_path = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let curr_exe = std::env::current_exe()
-            .unwrap_or_else(|_| default_path.to_path_buf());
+        let curr_exe = std::env::current_exe().unwrap_or_else(|_| default_path.to_path_buf());
         let out_dir = curr_exe.parent().unwrap_or(default_path).join("traces");
 
         #[cfg(feature = "chrome-trace")]
@@ -49,8 +48,7 @@ impl Profiler {
                     .to_str()
                     .unwrap_or("trace");
 
-                let path =
-                    out_dir.join(format!("{curr_exe_name}_trace_{time}.json"));
+                let path = out_dir.join(format!("{curr_exe_name}_trace_{time}.json"));
 
                 layer = layer.file(path);
             } else {
@@ -59,19 +57,12 @@ impl Profiler {
 
             let (chrome_layer, guard) = layer
                 .name_fn(Box::new(|event_or_span| match event_or_span {
-                    tracing_chrome::EventOrSpan::Event(event) => {
-                        event.metadata().name().into()
-                    }
+                    tracing_chrome::EventOrSpan::Event(event) => event.metadata().name().into(),
                     tracing_chrome::EventOrSpan::Span(span) => {
-                        if let Some(fields) = span
-                            .extensions()
-                            .get::<FormattedFields<DefaultFields>>()
+                        if let Some(fields) =
+                            span.extensions().get::<FormattedFields<DefaultFields>>()
                         {
-                            format!(
-                                "{}: {}",
-                                span.metadata().name(),
-                                fields.fields.as_str()
-                            )
+                            format!("{}: {}", span.metadata().name(), fields.fields.as_str())
                         } else {
                             span.metadata().name().into()
                         }

@@ -1,12 +1,12 @@
 use baseview::WindowScalePolicy;
 
+use crate::application::Application;
 use crate::application::{self, StyleSheet as _};
 use crate::core;
 use crate::core::mouse;
 use crate::core::{Color, Size};
 use crate::graphics::Viewport;
 use crate::runtime::Debug;
-use crate::application::Application;
 
 use std::marker::PhantomData;
 
@@ -101,12 +101,7 @@ where
 
     /// Processes the provided window event and updates the [`State`]
     /// accordingly.
-    pub fn update(
-        &mut self,
-        event: &baseview::Event,
-        _debug: &mut Debug,
-    ) {
-
+    pub fn update(&mut self, event: &baseview::Event, _debug: &mut Debug) {
         match event {
             baseview::Event::Window(baseview::WindowEvent::Resized(window_info)) => {
                 // Cache system window info in case users changes their scale policy in the future.

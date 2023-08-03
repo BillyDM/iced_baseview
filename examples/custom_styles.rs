@@ -1,16 +1,15 @@
 use iced_baseview::{
-    Settings,
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
+    core::{Alignment, Element, Length},
+    runtime::Command,
     settings::IcedBaseviewSettings,
     widget::Column,
     widget::Container,
     widget::Rule,
     widget::Text,
-    Application,
-    core::{Element, Length, Alignment},
-    runtime::Command,
+    Application, Settings,
 };
-use iced_graphics::core::{Color, BorderRadius};
+use iced_graphics::core::{BorderRadius, Color};
 
 fn main() {
     let settings = Settings {
@@ -78,11 +77,9 @@ impl iced_baseview::widget::text::StyleSheet for Theme {
 
     fn appearance(&self, style: Self::Style) -> iced_widget::text::Appearance {
         match style {
-            TextStyle::Green => {
-                iced_widget::text::Appearance {
-                    color: Some(Color::from_rgb(0.0, 0.5, 0.0))
-                }
-            }
+            TextStyle::Green => iced_widget::text::Appearance {
+                color: Some(Color::from_rgb(0.0, 0.5, 0.0)),
+            },
         }
     }
 }
@@ -99,14 +96,13 @@ impl Application for MyProgram {
         (Self {}, Command::none())
     }
 
-    fn update(
-        &mut self,
-        _message: Self::Message,
-    ) -> Command<Self::Message> {
+    fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
         Command::none()
     }
 
-    fn view(&self) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
+    fn view(
+        &self,
+    ) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)

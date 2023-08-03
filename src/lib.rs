@@ -58,9 +58,9 @@ pub use clipboard::Clipboard;
 pub use error::Error;
 pub use position::Position;
 pub use proxy::Proxy;
-use runtime::Command;
 use runtime::futures::Executor;
 use runtime::futures::Subscription;
+use runtime::Command;
 pub use settings::Settings;
 
 pub use iced_graphics::Viewport;
@@ -165,7 +165,10 @@ pub trait Application: Sized + std::marker::Send {
     /// [`update`](#tymethod.update).
     ///
     /// By default, this method returns an empty [`Subscription`].
-    fn subscription(&self, _window_subs: &mut WindowSubs<Self::Message>,) -> Subscription<Self::Message> {
+    fn subscription(
+        &self,
+        _window_subs: &mut WindowSubs<Self::Message>,
+    ) -> Subscription<Self::Message> {
         Subscription::none()
     }
     /// Returns the [`WindowScalePolicy`] that the [`Application`] should use.
@@ -186,9 +189,11 @@ pub trait Application: Sized + std::marker::Send {
     where
         Self: 'static,
     {
-        window::IcedWindow::<Instance<Self>>::open_parented::<Self::Executor, renderer::Compositor<Self::Theme>, P>(
-            parent, settings,
-        )
+        window::IcedWindow::<Instance<Self>>::open_parented::<
+            Self::Executor,
+            renderer::Compositor<Self::Theme>,
+            P,
+        >(parent, settings)
     }
 
     /// Runs the [`Application`]. Open a new window that blocks the current thread until the window is destroyed.
@@ -198,9 +203,10 @@ pub trait Application: Sized + std::marker::Send {
     where
         Self: 'static,
     {
-        window::IcedWindow::<Instance<Self>>::open_blocking::<Self::Executor, renderer::Compositor<Self::Theme>>(
-            settings,
-        );
+        window::IcedWindow::<Instance<Self>>::open_blocking::<
+            Self::Executor,
+            renderer::Compositor<Self::Theme>,
+        >(settings);
     }
 }
 

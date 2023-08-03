@@ -71,9 +71,7 @@ where
     fn theme(&self) -> <Self::Renderer as core::Renderer>::Theme;
 
     /// Returns the `Style` variation of the `Theme`.
-    fn style(
-        &self,
-    ) -> <<Self::Renderer as core::Renderer>::Theme as StyleSheet>::Style {
+    fn style(&self) -> <<Self::Renderer as core::Renderer>::Theme as StyleSheet>::Style {
         Default::default()
     }
 
@@ -169,9 +167,12 @@ where
     let compositor_settings = Default::default();
 
     let window = crate::wrapper::WindowHandleWrapper(window);
-    let (mut compositor, renderer) =
-        C::new(compositor_settings, Some(&window))?;
-    let surface = compositor.create_surface(&window, viewport.physical_width(), viewport.physical_height());
+    let (mut compositor, renderer) = C::new(compositor_settings, Some(&window))?;
+    let surface = compositor.create_surface(
+        &window,
+        viewport.physical_width(),
+        viewport.physical_height(),
+    );
 
     let (window_queue, window_queue_rx) = WindowQueue::new();
     let event_status = Rc::new(RefCell::new(baseview::EventStatus::Ignored));
@@ -187,7 +188,6 @@ where
             debug,
             event_receiver,
             init_command,
-
             settings.iced_baseview,
             surface,
             event_status.clone(),
@@ -196,8 +196,7 @@ where
         );
 
         #[cfg(feature = "trace")]
-        let run_instance =
-            run_instance.instrument(info_span!("Application", "LOOP"));
+        let run_instance = run_instance.instrument(info_span!("Application", "LOOP"));
 
         run_instance
     });
@@ -462,7 +461,7 @@ async fn run_instance<A, E, C>(
                     },
                 }
             }
-            RuntimeEvent::Baseview ((event, do_send_status)) => {
+            RuntimeEvent::Baseview((event, do_send_status)) => {
                 state.update(&event, &mut debug);
 
                 let ignore_non_modifier_keys = application
@@ -630,7 +629,7 @@ pub fn update<A: Application, E: Executor>(
             runtime,
             clipboard,
             debug,
-            window_queue
+            window_queue,
         );
     }
 
@@ -712,5 +711,3 @@ pub fn run_command<A, E>(
         }
     }
 }
-
-

@@ -1,12 +1,11 @@
-
 use baseview::Event as BaseEvent;
-use iced_runtime::core::Point;
-use iced_runtime::keyboard::Event as IcedKeyEvent;
-use iced_runtime::keyboard::Modifiers as IcedModifiers;
 use iced_runtime::core::mouse::Button as IcedMouseButton;
 use iced_runtime::core::mouse::Event as IcedMouseEvent;
 use iced_runtime::core::window::Event as IcedWindowEvent;
 use iced_runtime::core::Event as IcedEvent;
+use iced_runtime::core::Point;
+use iced_runtime::keyboard::Event as IcedKeyEvent;
+use iced_runtime::keyboard::Modifiers as IcedModifiers;
 use keyboard_types::Modifiers as BaseviewModifiers;
 
 pub fn baseview_to_iced_events(
@@ -186,7 +185,9 @@ fn is_private_use_character(c: char) -> bool {
 }
 */
 
-fn baseview_to_iced_keycode(code: keyboard_types::Code) -> Option<iced_runtime::core::keyboard::KeyCode> {
+fn baseview_to_iced_keycode(
+    code: keyboard_types::Code,
+) -> Option<iced_runtime::core::keyboard::KeyCode> {
     use iced_runtime::core::keyboard::KeyCode as ICode;
     use keyboard_types::Code as KCode;
 

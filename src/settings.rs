@@ -1,4 +1,3 @@
-
 //! Configure your application.
 use std::fmt::Debug;
 

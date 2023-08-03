@@ -47,4 +47,3 @@ impl<Message: 'static> Sink<Message> for Proxy<Message> {
         Poll::Ready(Ok(()))
     }
 }
-
