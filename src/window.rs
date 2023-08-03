@@ -45,8 +45,6 @@ where
     fn clone_window_options(window: &WindowOpenOptions) -> WindowOpenOptions {
         WindowOpenOptions {
             title: window.title.clone(),
-            #[cfg(feature = "glow")]
-            gl_config: window.gl_config.clone(),
             ..*window
         }
     }
@@ -107,15 +105,6 @@ where
             return;
         }
 
-        #[cfg(feature = "glow")]
-        let gl_context = window
-            .gl_context()
-            .expect("Window was created without OpenGL support");
-        #[cfg(feature = "glow")]
-        unsafe {
-            gl_context.make_current()
-        };
-
         // Flush all messages. This will block until the instance is finished.
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
 
@@ -138,14 +127,6 @@ where
 
         // Flush all messages. This will block until the instance is finished.
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
-
-        // FIXME: We can't do this inside of the `run_instance()` future. That should probably be
-        //        replaced entirely.
-        #[cfg(feature = "glow")]
-        {
-            gl_context.swap_buffers();
-            unsafe { gl_context.make_not_current() };
-        }
 
         while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
             match msg {
