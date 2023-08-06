@@ -15,47 +15,20 @@ keywords = ["gui", "ui", "graphics", "interface", "widgets"]
 categories = ["gui"]
 
 [features]
-default = ["wgpu"]
-# Enables the `iced_wgpu` renderer. Cannot be used together with the `glow`
-# feature.
-wgpu = ["iced_wgpu"]
-# Enables the `iced_glow` renderer. Cannot be used together with the `wgpu`
-# feature.
-glow = ["iced_glow", "baseview/opengl"]
 # Enables a debug view in native platforms (press F12)
-debug = ["iced_native/debug"]
-# Enables the `Image` widget
-image = ["iced_wgpu?/image", "iced_glow?/image"]
-# Enables the `Svg` widget
-svg = ["iced_wgpu?/svg", "iced_glow?/svg"]
-# Enables the `Canvas` widget
-canvas = ["iced_wgpu?/canvas", "iced_glow?/canvas"]
-# Enables the `QRCode` widget
-qr_code = ["iced_wgpu?/qr_code", "iced_glow?/qr_code"]
-# Enables using system fonts
-default_system_font = [
-  "iced_wgpu?/default_system_font",
-  "iced_glow?/default_system_font",
-]
-# Enables advanced color conversion via `palette`
-palette = ["iced_core/palette"]
-# Enables `tokio` as the `executor::Default` on native platforms
-tokio = ["iced_futures/tokio"]
-# Enables `async-std` as the `executor::Default` on native platforms
-async-std = ["iced_futures/async-std"]
-# Enables `smol` as the `executor::Default` on native platforms
-smol = ["iced_futures/smol"]
+debug = ["iced_runtime/debug"]
+# Enable the wgu renderer
+wgpu = ["iced_renderer/wgpu"]
 
 [dependencies]
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "1d9806d" }
 cfg-if = "1"
 copypasta = "0.8"
-iced_core = "0.9"
-iced_futures = "0.6"
-iced_glow = { version = "0.8", optional = true }
-iced_graphics = "0.8"
-iced_native = "0.10"
-iced_wgpu = { version = "0.10", optional = true }
+iced_runtime = "0.1"
+iced_renderer = "0.1"
+iced_graphics = "0.9"
+iced_style = "0.9"
+iced_widget = "0.1"
 keyboard-types = { version = "0.6", default-features = false }
 log = "0.4"
 raw-window-handle = "0.4"

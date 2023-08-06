@@ -1,8 +1,9 @@
 //! Configure your application.
+use std::fmt::Debug;
+
 use baseview::WindowOpenOptions;
 
 /// The settings of an application.
-// #[derive(Debug, Clone, Default)]
 pub struct Settings<Flags> {
     // /// The identifier of the application.
     // ///
@@ -17,19 +18,7 @@ pub struct Settings<Flags> {
     /// [`Application`]: crate::Application
     pub flags: Flags,
 
-    // /// Whether the [`Application`] should exit when the user requests the
-    // /// window to close (e.g. the user presses the close button).
-    // ///
-    // /// [`Application`]: crate::Application
-    // pub exit_on_close_request: bool,
-
-    // /// Whether the [`Application`] should try to build the context
-    // /// using OpenGL ES first then OpenGL.
-    // ///
-    // /// NOTE: Only works for the `glow` backend.
-    // ///
-    // /// [`Application`]: crate::Application
-    // pub try_opengles_first: bool,
+    /// iced_baseview settings
     pub iced_baseview: IcedBaseviewSettings,
 }
 

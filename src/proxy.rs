@@ -1,4 +1,4 @@
-use iced_native::futures::{
+use iced_runtime::futures::futures::{
     channel::mpsc,
     task::{Context, Poll},
     Sink,

@@ -1,11 +1,11 @@
 use baseview::Event as BaseEvent;
-use iced_core::Point;
-use iced_native::keyboard::Event as IcedKeyEvent;
-use iced_native::keyboard::Modifiers as IcedModifiers;
-use iced_native::mouse::Button as IcedMouseButton;
-use iced_native::mouse::Event as IcedMouseEvent;
-use iced_native::window::Event as IcedWindowEvent;
-use iced_native::Event as IcedEvent;
+use iced_runtime::core::mouse::Button as IcedMouseButton;
+use iced_runtime::core::mouse::Event as IcedMouseEvent;
+use iced_runtime::core::window::Event as IcedWindowEvent;
+use iced_runtime::core::Event as IcedEvent;
+use iced_runtime::core::Point;
+use iced_runtime::keyboard::Event as IcedKeyEvent;
+use iced_runtime::keyboard::Modifiers as IcedModifiers;
 use keyboard_types::Modifiers as BaseviewModifiers;
 
 pub fn baseview_to_iced_events(
@@ -49,7 +49,7 @@ pub fn baseview_to_iced_events(
                         iced_events.push(event);
                     }
                     iced_events.push(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
-                        delta: iced_native::mouse::ScrollDelta::Lines { x, y },
+                        delta: iced_runtime::core::mouse::ScrollDelta::Lines { x, y },
                     }));
                 }
                 baseview::ScrollDelta::Pixels { x, y } => {
@@ -57,7 +57,7 @@ pub fn baseview_to_iced_events(
                         iced_events.push(event);
                     }
                     iced_events.push(IcedEvent::Mouse(IcedMouseEvent::WheelScrolled {
-                        delta: iced_native::mouse::ScrollDelta::Pixels { x, y },
+                        delta: iced_runtime::core::mouse::ScrollDelta::Pixels { x, y },
                     }));
                 }
             },
@@ -143,7 +143,7 @@ fn update_modifiers(
         *iced_modifiers = new;
 
         Some(IcedEvent::Keyboard(
-            iced_native::keyboard::Event::ModifiersChanged(*iced_modifiers),
+            iced_runtime::core::keyboard::Event::ModifiersChanged(*iced_modifiers),
         ))
     } else {
         None
@@ -159,7 +159,7 @@ fn baseview_mouse_button_to_iced(id: baseview::MouseButton) -> IcedMouseButton {
         MouseButton::Right => IcedMouseButton::Right,
         MouseButton::Back => IcedMouseButton::Other(6),
         MouseButton::Forward => IcedMouseButton::Other(7),
-        MouseButton::Other(other_id) => IcedMouseButton::Other(other_id),
+        MouseButton::Other(other_id) => IcedMouseButton::Other(other_id as u16),
     }
 }
 
@@ -185,8 +185,10 @@ fn is_private_use_character(c: char) -> bool {
 }
 */
 
-fn baseview_to_iced_keycode(code: keyboard_types::Code) -> Option<iced_core::keyboard::KeyCode> {
-    use iced_core::keyboard::KeyCode as ICode;
+fn baseview_to_iced_keycode(
+    code: keyboard_types::Code,
+) -> Option<iced_runtime::core::keyboard::KeyCode> {
+    use iced_runtime::core::keyboard::KeyCode as ICode;
     use keyboard_types::Code as KCode;
 
     match code {

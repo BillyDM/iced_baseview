@@ -1,9 +1,17 @@
-use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 use iced_baseview::{
-    executor, open_blocking, settings::IcedBaseviewSettings, widget::Button, widget::Column,
-    widget::Container, widget::Text, window::WindowQueue, window::WindowSubs, Alignment,
-    Application, Command, Element, Length, Settings, Subscription,
+    baseview::{Size, WindowOpenOptions, WindowScalePolicy},
+    core::{Alignment, Element, Length},
+    open_blocking,
+    runtime::{futures::Subscription, Command},
+    settings::IcedBaseviewSettings,
+    widget::Button,
+    widget::Column,
+    widget::Container,
+    widget::Text,
+    window::WindowSubs,
+    Application, Settings,
 };
+use iced_runtime::window::Action;
 use std::time::{Duration, Instant};
 
 static COUNT_INTERVAL: Duration = Duration::from_millis(1000);
@@ -14,15 +22,6 @@ fn main() {
             title: String::from("iced_baseview window subscriptions"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
-
-            // FIXME: The current glow_glpyh version does not enable the correct extension in their
-            //        shader so this currently won't work with OpenGL <= 3.2
-            #[cfg(feature = "glow")]
-            #[cfg(not(feature = "wgpu"))]
-            gl_config: Some(baseview::gl::GlConfig {
-                version: (3, 3),
-                ..baseview::gl::GlConfig::default()
-            }),
         },
         iced_baseview: IcedBaseviewSettings {
             ignore_non_modifier_keys: false,
@@ -47,10 +46,10 @@ struct MyProgram {
 }
 
 impl Application for MyProgram {
-    type Executor = executor::Default;
+    type Executor = iced_baseview::executor::Default;
     type Message = Message;
     type Flags = ();
-    type Theme = iced_baseview::renderer::Theme;
+    type Theme = iced_baseview::style::Theme;
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         (
@@ -68,11 +67,7 @@ impl Application for MyProgram {
         Subscription::none()
     }
 
-    fn update(
-        &mut self,
-        window: &mut WindowQueue,
-        message: Self::Message,
-    ) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::OnFrame => {
                 let now = Instant::now();
@@ -86,14 +81,16 @@ impl Application for MyProgram {
             }
             Message::CloseWindow => {
                 println!("Request to manually close the window.");
-                window.close_window().unwrap();
+                return Command::single(iced_runtime::command::Action::Window(Action::Close));
             }
         }
 
         Command::none()
     }
 
-    fn view(&self) -> Element<'_, Self::Message, Self::Theme> {
+    fn view(
+        &self,
+    ) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
         let content = Column::new()
             .width(Length::Fill)
             .align_items(Alignment::Center)
