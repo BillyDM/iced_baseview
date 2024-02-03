@@ -30,7 +30,6 @@ pub mod clipboard;
 pub mod conversion;
 pub mod settings;
 pub mod window;
-pub mod wrapper;
 
 #[cfg(feature = "system")]
 pub mod system;
