@@ -21,7 +21,7 @@ debug = ["iced_runtime/debug"]
 wgpu = ["iced_renderer/wgpu"]
 
 [dependencies]
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "2c1b1a7" }
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "fdb43ea" }
 cfg-if = "1"
 copypasta = "0.8"
 iced_runtime = "0.1"
