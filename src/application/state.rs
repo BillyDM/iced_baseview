@@ -133,7 +133,8 @@ where
 
                 // TODO: Encode cursor moving outside of the window.
             }
-            baseview::Event::Keyboard(_) => {
+            #[allow(unused_variables)]
+            baseview::Event::Keyboard(event) => {
                 #[cfg(feature = "debug")]
                 {
                     use keyboard_types::{Key, KeyState};
