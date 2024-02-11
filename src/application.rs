@@ -281,7 +281,9 @@ async fn run_instance<A, E, C>(
         match event {
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
-                    messages.push(message());
+                    if let Some(message) = message() {
+                        messages.push(message);
+                    }
                 }
 
                 if !did_process_event
@@ -518,7 +520,9 @@ async fn run_instance<A, E, C>(
                 if let Some(message) = &window_subs.on_window_will_close {
                     // Send message to user before exiting the loop.
 
-                    messages.push(message());
+                    if let Some(message) = message() {
+                        messages.push(message);
+                    }
                     let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
 
                     update(
