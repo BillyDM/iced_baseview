@@ -167,12 +167,18 @@ where
     };
 
     let compositor_settings = A::renderer_settings();
-    let (mut compositor, renderer) = C::new(compositor_settings, Some(window))?;
+    let (mut compositor, mut renderer) = C::new(compositor_settings, Some(window))?;
     let surface = compositor.create_surface(
         window,
         viewport.physical_width(),
         viewport.physical_height(),
     );
+
+    for font in settings.fonts {
+        use crate::core::text::Renderer;
+
+        renderer.load_font(font);
+    }
 
     let (window_queue, window_queue_rx) = WindowQueue::new();
     let event_status = Rc::new(RefCell::new(baseview::EventStatus::Ignored));
