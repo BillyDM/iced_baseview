@@ -12,7 +12,7 @@ use iced_baseview::{
     Application, Settings,
 };
 use iced_runtime::window::Action;
-use std::time::{Duration, Instant};
+use std::{sync::Arc, time::{Duration, Instant}};
 
 static COUNT_INTERVAL: Duration = Duration::from_millis(1000);
 
@@ -28,6 +28,7 @@ fn main() {
             always_redraw: true,
         },
         flags: (),
+        fonts: Default::default(),
     };
 
     open_blocking::<MyProgram>(settings);
@@ -62,8 +63,8 @@ impl Application for MyProgram {
     }
 
     fn subscription(&self, window_subs: &mut WindowSubs<Message>) -> Subscription<Message> {
-        window_subs.on_frame = Some(|| Message::OnFrame);
-        window_subs.on_window_will_close = Some(|| Message::WillClose);
+        window_subs.on_frame = Some(Arc::new(|| Some(Message::OnFrame)));
+        window_subs.on_window_will_close = Some(Arc::new(|| Some(Message::WillClose)));
         Subscription::none()
     }
 

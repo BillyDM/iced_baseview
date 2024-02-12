@@ -1,4 +1,4 @@
-use std::{cell::RefCell, pin::Pin, rc::Rc};
+use std::{cell::RefCell, pin::Pin, rc::Rc, sync::Arc};
 
 use baseview::{Event, EventStatus, Window, WindowHandler, WindowOpenOptions};
 use iced_runtime::futures::futures::{
@@ -284,9 +284,9 @@ impl WindowQueue {
 #[allow(missing_debug_implementations)]
 pub struct WindowSubs<Message> {
     /// The message to send right before each rendering frame.
-    pub on_frame: Option<fn() -> Message>,
+    pub on_frame: Option<Arc<dyn Fn() -> Option<Message>>>,
     /// The message to send when the window is about to close.
-    pub on_window_will_close: Option<fn() -> Message>,
+    pub on_window_will_close: Option<Arc<dyn Fn() -> Option<Message>>>,
 }
 
 impl<Message> Default for WindowSubs<Message> {

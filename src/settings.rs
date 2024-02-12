@@ -1,5 +1,5 @@
 //! Configure your application.
-use std::fmt::Debug;
+use std::{borrow::Cow, fmt::Debug};
 
 use baseview::WindowOpenOptions;
 
@@ -20,6 +20,9 @@ pub struct Settings<Flags> {
 
     /// iced_baseview settings
     pub iced_baseview: IcedBaseviewSettings,
+
+    /// The fonts to load on boot.
+    pub fonts: Vec<Cow<'static, [u8]>>,
 }
 
 /// Any settings specific to `iced_baseview`.

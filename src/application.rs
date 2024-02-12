@@ -167,12 +167,18 @@ where
     };
 
     let compositor_settings = A::renderer_settings();
-    let (mut compositor, renderer) = C::new(compositor_settings, Some(window))?;
+    let (mut compositor, mut renderer) = C::new(compositor_settings, Some(window))?;
     let surface = compositor.create_surface(
         window,
         viewport.physical_width(),
         viewport.physical_height(),
     );
+
+    for font in settings.fonts {
+        use crate::core::text::Renderer;
+
+        renderer.load_font(font);
+    }
 
     let (window_queue, window_queue_rx) = WindowQueue::new();
     let event_status = Rc::new(RefCell::new(baseview::EventStatus::Ignored));
@@ -281,7 +287,9 @@ async fn run_instance<A, E, C>(
         match event {
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
-                    messages.push(message());
+                    if let Some(message) = message() {
+                        messages.push(message);
+                    }
                 }
 
                 if !did_process_event
@@ -518,7 +526,9 @@ async fn run_instance<A, E, C>(
                 if let Some(message) = &window_subs.on_window_will_close {
                     // Send message to user before exiting the loop.
 
-                    messages.push(message());
+                    if let Some(message) = message() {
+                        messages.push(message);
+                    }
                     let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
 
                     update(

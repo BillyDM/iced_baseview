@@ -19,6 +19,9 @@ categories = ["gui"]
 debug = ["iced_runtime/debug"]
 # Enable the wgu renderer
 wgpu = ["iced_renderer/wgpu"]
+image = ["iced_widget/image"]
+svg = ["iced_widget/svg"]
+canvas = ["iced_widget/canvas"]
 
 [dependencies]
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "fdb43ea" }
