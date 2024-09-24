@@ -22,17 +22,19 @@ wgpu = ["iced_renderer/wgpu"]
 image = ["iced_widget/image"]
 svg = ["iced_widget/svg"]
 canvas = ["iced_widget/canvas"]
+system = []
+trace = []
 
 [dependencies]
-baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "fdb43ea" }
+baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "579130ecb4f9f315ae52190af42f0ea46aeaa4a2" }
 cfg-if = "1"
-copypasta = "0.8"
-iced_runtime = "0.1"
-iced_renderer = "0.1"
-iced_graphics = "0.9"
-iced_style = "0.9"
-iced_widget = "0.1"
+window_clipboard = "0.4.1"
+iced_runtime = "0.13"
+iced_renderer = "0.13"
+iced_graphics = "0.13"
+iced_widget = "0.13"
 keyboard-types = { version = "0.6", default-features = false }
 log = "0.4"
 raw-window-handle = "0.5"
+raw-window-handle-06 = { package = "raw-window-handle", version = "0.6" }
 thiserror = "1.0"

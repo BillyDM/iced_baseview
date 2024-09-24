@@ -25,9 +25,9 @@ pub use iced_runtime::futures;
 pub use iced_style as style;
 pub use iced_widget as widget;
 
-mod application;
 pub mod clipboard;
 pub mod conversion;
+mod program;
 pub mod settings;
 pub mod window;
 
@@ -38,11 +38,11 @@ mod error;
 mod position;
 mod proxy;
 
-#[cfg(feature = "trace")]
-pub use application::Profiler;
 pub use clipboard::Clipboard;
 pub use error::Error;
 pub use position::Position;
+#[cfg(feature = "trace")]
+pub use program::Profiler;
 pub use proxy::Proxy;
 use runtime::futures::Executor;
 use runtime::futures::Subscription;
@@ -190,7 +190,7 @@ where
     }
 }
 
-impl<A> crate::application::Application for Instance<A>
+impl<A> crate::program::Application for Instance<A>
 where
     A: Application,
 {

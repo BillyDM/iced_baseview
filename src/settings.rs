@@ -4,7 +4,7 @@ use std::{borrow::Cow, fmt::Debug};
 use baseview::WindowOpenOptions;
 
 /// The settings of an application.
-pub struct Settings<Flags> {
+pub struct Settings {
     // /// The identifier of the application.
     // ///
     // /// If provided, this identifier may be used to identify the application or
@@ -12,11 +12,6 @@ pub struct Settings<Flags> {
     // pub id: Option<String>,
     /// The [`Window`] settings.
     pub window: WindowOpenOptions,
-
-    /// The data needed to initialize an [`Application`].
-    ///
-    /// [`Application`]: crate::Application
-    pub flags: Flags,
 
     /// iced_baseview settings
     pub iced_baseview: IcedBaseviewSettings,

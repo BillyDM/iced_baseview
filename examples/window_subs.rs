@@ -12,7 +12,10 @@ use iced_baseview::{
     Application, Settings,
 };
 use iced_runtime::window::Action;
-use std::{sync::Arc, time::{Duration, Instant}};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 static COUNT_INTERVAL: Duration = Duration::from_millis(1000);
 

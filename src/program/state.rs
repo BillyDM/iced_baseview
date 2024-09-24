@@ -1,27 +1,28 @@
 use baseview::WindowScalePolicy;
+use iced_runtime::Program;
 
-use crate::application::Application;
-use crate::application::{self, StyleSheet as _};
 use crate::core;
 use crate::core::mouse;
 use crate::core::{Color, Size};
 use crate::graphics::Viewport;
+use crate::program::Application;
+use crate::program::{self, StyleSheet as _};
 use crate::runtime::Debug;
 
 use std::marker::PhantomData;
 
 /// The state of a windowed [`Application`].
 #[allow(missing_debug_implementations)]
-pub struct State<A: Application>
+pub struct State<P: Program>
 where
-    <A::Renderer as core::Renderer>::Theme: application::StyleSheet,
+    <A::Renderer as core::Renderer>::Theme: program::StyleSheet,
 {
     title: String,
     viewport: Viewport,
     viewport_version: usize,
     cursor_position: Option<iced_runtime::core::Point>,
     theme: <A::Renderer as core::Renderer>::Theme,
-    appearance: application::Appearance,
+    appearance: program::Appearance,
     application: PhantomData<A>,
 
     system_scale_factor: f64,
@@ -29,9 +30,9 @@ where
     modifiers: iced_runtime::core::keyboard::Modifiers,
 }
 
-impl<A: Application> State<A>
+impl<P: Program> State<A>
 where
-    <A::Renderer as core::Renderer>::Theme: application::StyleSheet,
+    <A::Renderer as core::Renderer>::Theme: program::StyleSheet,
 {
     /// Creates a new [`State`] for the provided [`Application`] and window.
     pub fn new(application: &A, viewport: Viewport) -> Self {

@@ -5,10 +5,12 @@ use iced_runtime::futures::futures::{
     self,
     channel::mpsc::{self, SendError},
 };
-use iced_style::application::StyleSheet;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
-use crate::{application::run, application::Application, Settings};
+use crate::{
+    program::{run, Application},
+    Settings,
+};
 
 pub enum RuntimeEvent<Message: 'static + Send> {
     Baseview((baseview::Event, bool)),
@@ -21,7 +23,6 @@ pub enum RuntimeEvent<Message: 'static + Send> {
 pub struct IcedWindow<A>
 where
     A: Application + Send + 'static,
-    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
     // E: Executor + 'static,
     // C: window::Compositor<Renderer = A::Renderer> + 'static,
 {
@@ -39,7 +40,6 @@ impl<A> IcedWindow<A>
 where
     A: Application + Send + 'static,
     <A as Application>::Flags: std::marker::Send,
-    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
 {
     /// There's no clone implementation, but this is fine.
     fn clone_window_options(window: &WindowOpenOptions) -> WindowOpenOptions {
@@ -78,8 +78,7 @@ where
     ) -> WindowHandle<A::Message>
     where
         E: iced_runtime::futures::Executor + 'static,
-        C: iced_graphics::Compositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
-            + 'static,
+        C: iced_graphics::Compositor<Renderer = A::Renderer> + 'static,
         P: HasRawWindowHandle,
     {
         let (sender, receiver) = mpsc::unbounded();
