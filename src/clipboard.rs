@@ -4,6 +4,8 @@ use std::cell::RefCell;
 
 use crate::core::clipboard::Kind as ClipboardKind;
 
+pub use crate::runtime::clipboard::{read, read_primary, write, write_primary};
+
 /// A buffer for short-term storage and transfer within and between
 /// applications.
 #[allow(missing_debug_implementations)]
@@ -72,10 +74,10 @@ impl Clipboard {
         match &mut self.state {
             State::Connected(clipboard) => match kind {
                 ClipboardKind::Primary => match clipboard.borrow_mut().write_primary(contents) {
-                    Ok(()) => {}
-                    Err(e) => {
+                    Some(Err(e)) => {
                         log::warn!("Failed to write to clipboard: {}", e);
                     }
+                    _ => {}
                 },
                 ClipboardKind::Standard => match clipboard.borrow_mut().write(contents) {
                     Ok(()) => {}

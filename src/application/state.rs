@@ -1,28 +1,25 @@
 use baseview::WindowScalePolicy;
-use iced_runtime::Program;
 
-use crate::core;
+use crate::application::{Appearance, Application, DefaultStyle};
 use crate::core::mouse;
 use crate::core::{Color, Size};
 use crate::graphics::Viewport;
-use crate::program::Application;
-use crate::program::{self, StyleSheet as _};
 use crate::runtime::Debug;
 
 use std::marker::PhantomData;
 
 /// The state of a windowed [`Application`].
 #[allow(missing_debug_implementations)]
-pub struct State<P: Program>
+pub struct State<A: Application>
 where
-    <A::Renderer as core::Renderer>::Theme: program::StyleSheet,
+    A::Theme: DefaultStyle,
 {
     title: String,
     viewport: Viewport,
     viewport_version: usize,
     cursor_position: Option<iced_runtime::core::Point>,
-    theme: <A::Renderer as core::Renderer>::Theme,
-    appearance: program::Appearance,
+    theme: A::Theme,
+    appearance: Appearance,
     application: PhantomData<A>,
 
     system_scale_factor: f64,
@@ -30,16 +27,16 @@ where
     modifiers: iced_runtime::core::keyboard::Modifiers,
 }
 
-impl<P: Program> State<A>
+impl<A: Application> State<A>
 where
-    <A::Renderer as core::Renderer>::Theme: program::StyleSheet,
+    A::Theme: DefaultStyle,
 {
     /// Creates a new [`State`] for the provided [`Application`] and window.
     pub fn new(application: &A, viewport: Viewport) -> Self {
         let title = application.title();
         let theme = application.theme();
+        let appearance = application.style(&theme);
         let scale_policy = application.scale_policy();
-        let appearance = theme.appearance(&application.style());
 
         Self {
             title,
@@ -86,7 +83,7 @@ where
     }
 
     /// Returns the current theme of the [`State`].
-    pub fn theme(&self) -> &<A::Renderer as core::Renderer>::Theme {
+    pub fn theme(&self) -> &A::Theme {
         &self.theme
     }
 
@@ -154,7 +151,7 @@ where
     /// Normally an [`Application`] should be synchronized with its [`State`]
     /// and window after calling [`Application::update`].
     ///
-    /// [`Application::update`]: crate::Program::update
+    /// [`Application::update`]: crate::Application::update
     pub fn synchronize(&mut self, application: &A) {
         // Update window title
         let new_title = application.title();
@@ -203,7 +200,7 @@ where
 
         // Update theme and appearance
         self.theme = application.theme();
-        self.appearance = self.theme.appearance(&application.style());
+        self.appearance = application.style(&self.theme);
     }
 
     pub(crate) fn modifiers_mut(&mut self) -> &mut iced_runtime::core::keyboard::Modifiers {

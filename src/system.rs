@@ -3,6 +3,8 @@ use crate::graphics::compositor;
 use crate::runtime::command::{self, Command};
 use crate::runtime::system::{Action, Information};
 
+pub use iced_runtime::system::Information;
+
 /// Query for available system information.
 pub fn fetch_information<Message>(
     f: impl Fn(Information) -> Message + Send + 'static,

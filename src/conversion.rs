@@ -7,6 +7,8 @@ use iced_runtime::core::Point;
 use iced_runtime::keyboard::Event as IcedKeyEvent;
 use iced_runtime::keyboard::Modifiers as IcedModifiers;
 use keyboard_types::Modifiers as BaseviewModifiers;
+use raw_window_handle::HasRawDisplayHandle;
+use raw_window_handle::HasRawWindowHandle;
 
 pub fn baseview_to_iced_events(
     event: BaseEvent,
@@ -117,8 +119,8 @@ pub fn baseview_to_iced_events(
             baseview::WindowEvent::Resized(window_info) => {
                 iced_events.push(IcedEvent::Window(IcedWindowEvent::Resized(
                     iced_runtime::core::Size {
-                        width: window_info.logical_size().width as u32,
-                        height: window_info.logical_size().height as u32,
+                        width: window_info.logical_size().width as f32,
+                        height: window_info.logical_size().height as f32,
                     },
                 )));
             }
@@ -219,7 +221,7 @@ fn baseview_to_iced_key(key: keyboard_types::Key) -> iced_runtime::core::keyboar
     use keyboard_types::Key as KKey;
 
     match key {
-        KKey::Character(s) => IKey::Character(s),
+        KKey::Character(s) => IKey::Character(s.into()),
 
         KKey::Alt => IKey::Named(IN::Alt),
         KKey::AltGraph => IKey::Named(IN::AltGraph),
@@ -287,7 +289,6 @@ fn baseview_to_iced_key(key: keyboard_types::Key) -> iced_runtime::core::keyboar
         KKey::CodeInput => IKey::Named(IN::CodeInput),
         KKey::Compose => IKey::Named(IN::Compose),
         KKey::Convert => IKey::Named(IN::Convert),
-        KKey::Dead => IKey::Named(IN::Dead),
         KKey::FinalMode => IKey::Named(IN::FinalMode),
         KKey::GroupFirst => IKey::Named(IN::GroupFirst),
         KKey::GroupLast => IKey::Named(IN::GroupLast),
@@ -526,43 +527,43 @@ fn baseview_to_iced_keycode(
     use keyboard_types::Code as KCode;
 
     match code {
-        KCode::Digit1 => Some(ICode::Key1),
-        KCode::Digit2 => Some(ICode::Key2),
-        KCode::Digit3 => Some(ICode::Key3),
-        KCode::Digit4 => Some(ICode::Key4),
-        KCode::Digit5 => Some(ICode::Key5),
-        KCode::Digit6 => Some(ICode::Key6),
-        KCode::Digit7 => Some(ICode::Key7),
-        KCode::Digit8 => Some(ICode::Key8),
-        KCode::Digit9 => Some(ICode::Key9),
-        KCode::Digit0 => Some(ICode::Key0),
+        KCode::Digit1 => Some(ICode::Numpad1),
+        KCode::Digit2 => Some(ICode::Numpad2),
+        KCode::Digit3 => Some(ICode::Numpad3),
+        KCode::Digit4 => Some(ICode::Numpad4),
+        KCode::Digit5 => Some(ICode::Numpad5),
+        KCode::Digit6 => Some(ICode::Numpad6),
+        KCode::Digit7 => Some(ICode::Numpad7),
+        KCode::Digit8 => Some(ICode::Numpad8),
+        KCode::Digit9 => Some(ICode::Numpad9),
+        KCode::Digit0 => Some(ICode::Numpad0),
 
-        KCode::KeyA => Some(ICode::A),
-        KCode::KeyB => Some(ICode::B),
-        KCode::KeyC => Some(ICode::C),
-        KCode::KeyD => Some(ICode::D),
-        KCode::KeyE => Some(ICode::E),
-        KCode::KeyF => Some(ICode::F),
-        KCode::KeyG => Some(ICode::G),
-        KCode::KeyH => Some(ICode::H),
-        KCode::KeyI => Some(ICode::I),
-        KCode::KeyJ => Some(ICode::J),
-        KCode::KeyK => Some(ICode::K),
-        KCode::KeyL => Some(ICode::L),
-        KCode::KeyM => Some(ICode::M),
-        KCode::KeyN => Some(ICode::N),
-        KCode::KeyO => Some(ICode::O),
-        KCode::KeyP => Some(ICode::P),
-        KCode::KeyQ => Some(ICode::Q),
-        KCode::KeyR => Some(ICode::R),
-        KCode::KeyS => Some(ICode::S),
-        KCode::KeyT => Some(ICode::T),
-        KCode::KeyU => Some(ICode::U),
-        KCode::KeyV => Some(ICode::V),
-        KCode::KeyW => Some(ICode::W),
-        KCode::KeyX => Some(ICode::X),
-        KCode::KeyY => Some(ICode::Y),
-        KCode::KeyZ => Some(ICode::Z),
+        KCode::KeyA => Some(ICode::KeyA),
+        KCode::KeyB => Some(ICode::KeyB),
+        KCode::KeyC => Some(ICode::KeyC),
+        KCode::KeyD => Some(ICode::KeyD),
+        KCode::KeyE => Some(ICode::KeyE),
+        KCode::KeyF => Some(ICode::KeyF),
+        KCode::KeyG => Some(ICode::KeyG),
+        KCode::KeyH => Some(ICode::KeyH),
+        KCode::KeyI => Some(ICode::KeyI),
+        KCode::KeyJ => Some(ICode::KeyJ),
+        KCode::KeyK => Some(ICode::KeyK),
+        KCode::KeyL => Some(ICode::KeyL),
+        KCode::KeyM => Some(ICode::KeyM),
+        KCode::KeyN => Some(ICode::KeyN),
+        KCode::KeyO => Some(ICode::KeyO),
+        KCode::KeyP => Some(ICode::KeyP),
+        KCode::KeyQ => Some(ICode::KeyQ),
+        KCode::KeyR => Some(ICode::KeyR),
+        KCode::KeyS => Some(ICode::KeyS),
+        KCode::KeyT => Some(ICode::KeyT),
+        KCode::KeyU => Some(ICode::KeyU),
+        KCode::KeyV => Some(ICode::KeyV),
+        KCode::KeyW => Some(ICode::KeyW),
+        KCode::KeyX => Some(ICode::KeyX),
+        KCode::KeyY => Some(ICode::KeyY),
+        KCode::KeyZ => Some(ICode::KeyZ),
 
         KCode::Escape => Some(ICode::Escape),
 
@@ -579,8 +580,8 @@ fn baseview_to_iced_keycode(
         KCode::F11 => Some(ICode::F11),
         KCode::F12 => Some(ICode::F12),
 
-        KCode::PrintScreen => Some(ICode::Snapshot),
-        KCode::ScrollLock => Some(ICode::Scroll),
+        KCode::PrintScreen => Some(ICode::PrintScreen),
+        KCode::ScrollLock => Some(ICode::ScrollLock),
         KCode::Pause => Some(ICode::Pause),
 
         KCode::Insert => Some(ICode::Insert),
@@ -590,16 +591,16 @@ fn baseview_to_iced_keycode(
         KCode::PageDown => Some(ICode::PageDown),
         KCode::PageUp => Some(ICode::PageUp),
 
-        KCode::ArrowLeft => Some(ICode::Left),
-        KCode::ArrowUp => Some(ICode::Up),
-        KCode::ArrowRight => Some(ICode::Right),
-        KCode::ArrowDown => Some(ICode::Down),
+        KCode::ArrowLeft => Some(ICode::ArrowLeft),
+        KCode::ArrowUp => Some(ICode::ArrowUp),
+        KCode::ArrowRight => Some(ICode::ArrowRight),
+        KCode::ArrowDown => Some(ICode::ArrowDown),
 
         KCode::Backspace => Some(ICode::Backspace),
         KCode::Enter => Some(ICode::Enter),
         KCode::Space => Some(ICode::Space),
 
-        KCode::NumLock => Some(ICode::Numlock),
+        KCode::NumLock => Some(ICode::NumLock),
         KCode::Numpad0 => Some(ICode::Numpad0),
         KCode::Numpad1 => Some(ICode::Numpad1),
         KCode::Numpad2 => Some(ICode::Numpad2),
@@ -615,34 +616,34 @@ fn baseview_to_iced_keycode(
         KCode::NumpadDecimal => Some(ICode::NumpadDecimal),
         KCode::NumpadComma => Some(ICode::NumpadComma),
         KCode::NumpadEnter => Some(ICode::NumpadEnter),
-        KCode::NumpadEqual => Some(ICode::NumpadEquals),
+        KCode::NumpadEqual => Some(ICode::NumpadEqual),
         KCode::NumpadMultiply => Some(ICode::NumpadMultiply),
         KCode::NumpadSubtract => Some(ICode::NumpadSubtract),
 
         //KCode::AbntC1 => Some(ICode::AbntC1),    // TODO ?
         //KCode::AbntC1 => Some(ICode::AbntC1),    // TODO ?
         KCode::Convert => Some(ICode::Convert),
-        KCode::KanaMode => Some(ICode::Kana),
+        KCode::KanaMode => Some(ICode::KanaMode),
         //KCode::Kanji => ICode::Kanji),    // TODO ?
-        KCode::NonConvert => Some(ICode::NoConvert),
-        KCode::IntlYen => Some(ICode::Yen),
+        KCode::NonConvert => Some(ICode::NonConvert),
+        KCode::IntlYen => Some(ICode::IntlYen),
 
-        KCode::AltLeft => Some(ICode::LAlt),
-        KCode::AltRight => Some(ICode::RAlt),
-        KCode::BracketLeft => Some(ICode::LBracket),
-        KCode::BracketRight => Some(ICode::RBracket),
-        KCode::ControlLeft => Some(ICode::LControl),
-        KCode::ControlRight => Some(ICode::RControl),
-        KCode::ShiftLeft => Some(ICode::LShift),
-        KCode::ShiftRight => Some(ICode::RShift),
-        KCode::MetaLeft => Some(ICode::LWin),
-        KCode::MetaRight => Some(ICode::RWin),
+        KCode::AltLeft => Some(ICode::AltLeft),
+        KCode::AltRight => Some(ICode::AltRight),
+        KCode::BracketLeft => Some(ICode::BracketLeft),
+        KCode::BracketRight => Some(ICode::BracketRight),
+        KCode::ControlLeft => Some(ICode::ControlLeft),
+        KCode::ControlRight => Some(ICode::ControlRight),
+        KCode::ShiftLeft => Some(ICode::ShiftLeft),
+        KCode::ShiftRight => Some(ICode::ShiftRight),
+        KCode::MetaLeft => Some(ICode::Meta),
+        KCode::MetaRight => Some(ICode::Meta),
 
         KCode::Minus => Some(ICode::Minus),
         KCode::Period => Some(ICode::Period),
         //KCode::Plus => Some(ICode::Plus),    // TODO ?
-        KCode::Equal => Some(ICode::Equals),
-        KCode::Quote => Some(ICode::Apostrophe),
+        KCode::Equal => Some(ICode::Equal),
+        KCode::Quote => Some(ICode::Quote),
         KCode::Comma => Some(ICode::Comma),
         //KCode::Grave => Some(ICode::Grave),    // TODO ?
         //KCode::Colon => Some(ICode::Colon),    // TODO ?
@@ -657,14 +658,43 @@ fn baseview_to_iced_keycode(
 
         KCode::MediaSelect => Some(ICode::MediaSelect),
         KCode::MediaStop => Some(ICode::MediaStop),
-        KCode::MediaPlayPause => Some(ICode::PlayPause),
-        KCode::AudioVolumeMute => Some(ICode::Mute),
-        KCode::AudioVolumeDown => Some(ICode::VolumeDown),
-        KCode::AudioVolumeUp => Some(ICode::VolumeUp),
-        KCode::MediaTrackNext => Some(ICode::NextTrack),
-        KCode::MediaTrackPrevious => Some(ICode::PrevTrack),
+        KCode::MediaPlayPause => Some(ICode::MediaPlayPause),
+        KCode::AudioVolumeMute => Some(ICode::AudioVolumeMute),
+        KCode::AudioVolumeDown => Some(ICode::AudioVolumeDown),
+        KCode::AudioVolumeUp => Some(ICode::AudioVolumeUp),
+        KCode::MediaTrackNext => Some(ICode::MediaTrackNext),
+        KCode::MediaTrackPrevious => Some(ICode::MediaTrackPrevious),
 
         _ => None,
+    }
+}
+
+pub fn convert_mouse_interaction(
+    interaction: crate::runtime::core::mouse::Interaction,
+) -> baseview::MouseCursor {
+    use crate::runtime::core::mouse::Interaction as ICursor;
+    use baseview::MouseCursor as BCursor;
+
+    match interaction {
+        ICursor::None => BCursor::Default,
+        ICursor::Idle => BCursor::Default,
+        ICursor::Pointer => BCursor::Hand,
+        ICursor::Grab => BCursor::HandGrabbing,
+        ICursor::Text => BCursor::Text,
+        ICursor::Crosshair => BCursor::Crosshair,
+        ICursor::Working => BCursor::Working,
+        ICursor::Grabbing => BCursor::HandGrabbing,
+        ICursor::ResizingHorizontally => BCursor::ColResize,
+        ICursor::ResizingVertically => BCursor::RowResize,
+        ICursor::ResizingDiagonallyUp => BCursor::NeswResize,
+        ICursor::ResizingDiagonallyDown => BCursor::NwseResize,
+        ICursor::NotAllowed => BCursor::NotAllowed,
+        ICursor::ZoomIn => BCursor::ZoomIn,
+        ICursor::ZoomOut => BCursor::ZoomOut,
+        ICursor::Cell => BCursor::Cell,
+        ICursor::Move => BCursor::Move,
+        ICursor::Copy => BCursor::Copy,
+        ICursor::Help => BCursor::Help,
     }
 }
 
@@ -744,3 +774,37 @@ pub fn convert_raw_window_handle(
         _ => todo!(),
     }
 }
+
+#[derive(Clone)]
+pub struct WindowWrapper {
+    window: raw_window_handle_06::RawWindowHandle,
+    display: raw_window_handle_06::RawDisplayHandle,
+}
+
+pub fn convert_window(window: &baseview::Window<'_>) -> WindowWrapper {
+    WindowWrapper {
+        window: convert_raw_window_handle(window.raw_window_handle()),
+        display: convert_raw_display_handle(window.raw_display_handle()),
+    }
+}
+
+impl raw_window_handle_06::HasWindowHandle for WindowWrapper {
+    fn window_handle(
+        &self,
+    ) -> Result<raw_window_handle_06::WindowHandle<'static>, raw_window_handle_06::HandleError>
+    {
+        Ok(unsafe { raw_window_handle_06::WindowHandle::borrow_raw(self.window) })
+    }
+}
+
+impl raw_window_handle_06::HasDisplayHandle for WindowWrapper {
+    fn display_handle(
+        &self,
+    ) -> Result<raw_window_handle_06::DisplayHandle<'static>, raw_window_handle_06::HandleError>
+    {
+        Ok(unsafe { raw_window_handle_06::DisplayHandle::borrow_raw(self.display) })
+    }
+}
+
+unsafe impl Send for WindowWrapper {}
+unsafe impl Sync for WindowWrapper {}
