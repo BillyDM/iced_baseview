@@ -3,6 +3,8 @@ use std::{borrow::Cow, fmt::Debug};
 
 use baseview::{Size, WindowOpenOptions, WindowScalePolicy};
 
+pub use crate::graphics::Settings as GraphicsSettings;
+
 /// The settings of an application.
 pub struct Settings {
     // /// The identifier of the application.
@@ -17,7 +19,7 @@ pub struct Settings {
     pub iced_baseview: IcedBaseviewSettings,
 
     /// The graphics settings.
-    pub graphics_settings: crate::graphics::Settings,
+    pub graphics_settings: GraphicsSettings,
 
     /// The fonts to load on boot.
     pub fonts: Vec<Cow<'static, [u8]>>,
@@ -32,7 +34,7 @@ impl Default for Settings {
                 scale: WindowScalePolicy::SystemScaleFactor,
             },
             iced_baseview: IcedBaseviewSettings::default(),
-            graphics_settings: crate::graphics::Settings::default(),
+            graphics_settings: GraphicsSettings::default(),
             fonts: Default::default(),
         }
     }

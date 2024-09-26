@@ -1,9 +1,7 @@
 use iced_baseview::{
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
-    core::{Alignment, Element, Length},
-    settings::IcedBaseviewSettings,
     widget::{Column, Container, Rule, Text},
-    Application, Renderer, Settings, Task,
+    Alignment, Application, Element, Length, Renderer, Settings, Task, Theme,
 };
 
 fn main() {
@@ -12,13 +10,6 @@ fn main() {
             title: String::from("iced_baseview hello world"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
-        },
-        graphics_settings: iced_graphics::Settings {
-            ..Default::default()
-        },
-        iced_baseview: IcedBaseviewSettings {
-            always_redraw: true,
-            ..Default::default()
         },
         ..Default::default()
     };
@@ -31,7 +22,7 @@ struct MyProgram;
 impl Application for MyProgram {
     type Message = ();
     type Flags = ();
-    type Theme = iced_baseview::Theme;
+    type Theme = Theme;
     type Executor = iced_baseview::executor::Default;
 
     fn new(_flags: ()) -> (Self, Task<Self::Message>) {
@@ -61,6 +52,6 @@ impl Application for MyProgram {
     }
 
     fn theme(&self) -> Self::Theme {
-        iced_baseview::Theme::Light
+        Theme::Dark
     }
 }

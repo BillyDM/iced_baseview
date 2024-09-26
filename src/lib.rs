@@ -62,8 +62,9 @@ pub use position::Position;
 pub use program::Profiler;
 pub use proxy::Proxy;
 pub use renderer::Renderer;
-pub use settings::Settings;
+pub use settings::{GraphicsSettings, IcedBaseviewSettings, Settings};
 pub use task::Task;
+pub use window::WindowSubs;
 
 pub mod baseview {
     pub use baseview::{Size, WindowOpenOptions, WindowScalePolicy};

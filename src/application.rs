@@ -519,12 +519,19 @@ async fn run_instance<A, C>(
                     );
 
                     if new_mouse_interaction != mouse_interaction {
-                        // window.set_cursor_icon(conversion::mouse_interaction(
-                        //     new_mouse_interaction,
-                        // ));
+                        // TODO: Set mouse cursor for MacOS once baseview supports it.
+                        #[cfg(not(target_os = "macos"))]
+                        if let Err(_) = window_queue.set_mouse_cursor(
+                            crate::conversion::convert_mouse_interaction(new_mouse_interaction),
+                        ) {
+                            debug.log_message(
+                                &"could not send set_mouse_cursor command".to_string(),
+                            );
+                        }
 
                         mouse_interaction = new_mouse_interaction;
                     }
+
                     debug.draw_finished();
 
                     compositor.configure_surface(
@@ -582,32 +589,6 @@ async fn run_instance<A, C>(
                     }
                     continue;
                 }
-
-                debug.event_processing_started();
-
-                let (interface_state, statuses) = user_interface.update(
-                    &events,
-                    state.cursor(),
-                    &mut renderer,
-                    &mut clipboard,
-                    &mut messages,
-                );
-                // Will trigger an update when the next frame gets drawn
-                needs_update |= matches!(interface_state, user_interface::State::Outdated);
-
-                if do_send_status {
-                    let mut final_status = EventStatus::Ignored;
-                    for status in &statuses {
-                        if let crate::core::event::Status::Captured = status {
-                            final_status = EventStatus::Captured;
-                            break;
-                        }
-                    }
-
-                    *event_status.borrow_mut() = final_status;
-                }
-
-                debug.event_processing_finished();
 
                 did_process_event = true;
             }

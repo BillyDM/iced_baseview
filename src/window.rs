@@ -2,12 +2,17 @@ use std::{cell::RefCell, pin::Pin, rc::Rc, sync::Arc};
 
 use iced_graphics::Compositor;
 pub use iced_runtime::core::window::Id;
+pub use iced_runtime::window::{
+    close_events, close_requests, events, open_events, resize_events, Action,
+};
 
 use baseview::{Event, EventStatus, Window, WindowHandler, WindowOpenOptions};
 use iced_runtime::futures::futures::{
     self,
     channel::mpsc::{self, SendError},
 };
+use iced_runtime::Task;
+use iced_widget::core::Size;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
 use crate::{
@@ -194,6 +199,26 @@ where
 
         status
     }
+}
+
+/// Closes the application window.
+pub fn close<T>() -> Task<T> {
+    iced_runtime::window::close(Id::unique())
+}
+
+/// Resize the application window to the given logical dimensions.
+pub fn resize<T>(new_size: Size) -> Task<T> {
+    iced_runtime::window::resize(Id::unique(), new_size)
+}
+
+/// Brings the application window to the front and sets input focus. Has no effect if the window
+/// is already in focus, minimized, or not visible.
+///
+/// This [`Task`] steals input focus from other applications. Do not use this method unless
+/// you are certain that's what the user wants. Focus stealing can cause an extremely disruptive
+/// user experience.
+pub fn gain_focus<T>() -> Task<T> {
+    iced_runtime::window::gain_focus(Id::unique())
 }
 
 /// Returns true if the provided event should cause an [`Application`] to

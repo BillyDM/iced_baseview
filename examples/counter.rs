@@ -1,15 +1,14 @@
 use iced_baseview::{
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
-    core::Element,
     settings::IcedBaseviewSettings,
     widget::{button, column, text},
-    Application, Center, Renderer, Settings, Task,
+    Application, Center, Element, Renderer, Settings, Task, Theme,
 };
 
 fn main() {
     let settings = Settings {
         window: WindowOpenOptions {
-            title: String::from("iced_baseview hello world"),
+            title: String::from("iced_baseview counter demo"),
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
         },
@@ -17,7 +16,6 @@ fn main() {
             ..Default::default()
         },
         iced_baseview: IcedBaseviewSettings {
-            always_redraw: true,
             ..Default::default()
         },
         ..Default::default()
@@ -44,7 +42,7 @@ struct MyProgram {
 impl Application for MyProgram {
     type Message = Message;
     type Flags = Flags;
-    type Theme = iced_baseview::Theme;
+    type Theme = Theme;
     type Executor = iced_baseview::executor::Default;
 
     fn new(flags: Flags) -> (Self, Task<Self::Message>) {
@@ -83,6 +81,6 @@ impl Application for MyProgram {
     }
 
     fn theme(&self) -> Self::Theme {
-        iced_baseview::Theme::Light
+        Theme::Dark
     }
 }

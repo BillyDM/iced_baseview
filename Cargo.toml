@@ -1,6 +1,6 @@
 [package]
 name = "iced_baseview"
-version = "0.0.3"
+version = "0.1.0"
 authors = [
   "Billy Messenger <BillyDM@protonmail.com>",
   "Robbert van der Helm <mail@robbertvanderhelm.nl>",
@@ -15,14 +15,17 @@ keywords = ["gui", "ui", "graphics", "interface", "widgets"]
 categories = ["gui"]
 
 [features]
+default = ["wgpu"]
 # Enables a debug view in native platforms (press F12)
 debug = ["iced_runtime/debug"]
 # Enable the wgu renderer
-wgpu = ["iced_renderer/wgpu"]
-image = ["iced_widget/image"]
-svg = ["iced_widget/svg"]
+wgpu = ["iced_renderer/wgpu", "iced_widget/wgpu"]
+image = ["iced_graphics/image", "iced_widget/image", "iced_renderer/image"]
+svg = ["iced_graphics/svg", "iced_widget/svg", "iced_renderer/svg"]
+geometry = ["iced_graphics/geometry", "iced_renderer/geometry"]
+web-colors = ["iced_graphics/web-colors", "iced_renderer/web-colors"]
 canvas = ["iced_widget/canvas"]
-system = []
+system = ["dep:sysinfo"]
 trace = []
 
 [dependencies]
@@ -38,3 +41,4 @@ log = "0.4"
 raw-window-handle = "0.5"
 raw-window-handle-06 = { package = "raw-window-handle", version = "0.6" }
 thiserror = "1.0"
+sysinfo = { version = "0.30", optional = true }

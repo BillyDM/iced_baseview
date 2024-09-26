@@ -1,17 +1,10 @@
 use iced_baseview::{
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
     core::{Alignment, Element, Length},
-    open_blocking,
-    runtime::{futures::Subscription, Command},
-    settings::IcedBaseviewSettings,
-    widget::Button,
-    widget::Column,
-    widget::Container,
-    widget::Text,
-    window::WindowSubs,
-    Application, Settings,
+    futures::Subscription,
+    widget::{Button, Column, Container, Space, Text},
+    window, Application, Renderer, Settings, Task, Theme, WindowSubs,
 };
-use iced_runtime::window::Action;
 use std::{
     sync::Arc,
     time::{Duration, Instant},
@@ -26,15 +19,10 @@ fn main() {
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
         },
-        iced_baseview: IcedBaseviewSettings {
-            ignore_non_modifier_keys: false,
-            always_redraw: true,
-        },
-        flags: (),
-        fonts: Default::default(),
+        ..Default::default()
     };
 
-    open_blocking::<MyProgram>(settings);
+    iced_baseview::open_blocking::<MyProgram>((), settings);
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -50,18 +38,18 @@ struct MyProgram {
 }
 
 impl Application for MyProgram {
-    type Executor = iced_baseview::executor::Default;
     type Message = Message;
     type Flags = ();
-    type Theme = iced_baseview::style::Theme;
+    type Theme = Theme;
+    type Executor = iced_baseview::executor::Default;
 
-    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
+    fn new(_flags: ()) -> (Self, Task<Self::Message>) {
         (
             Self {
                 next_interval: Instant::now() + COUNT_INTERVAL,
                 count: 0,
             },
-            Command::none(),
+            Task::none(),
         )
     }
 
@@ -71,7 +59,7 @@ impl Application for MyProgram {
         Subscription::none()
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         match message {
             Message::OnFrame => {
                 let now = Instant::now();
@@ -85,34 +73,29 @@ impl Application for MyProgram {
             }
             Message::CloseWindow => {
                 println!("Request to manually close the window.");
-                return Command::single(iced_runtime::command::Action::Window(Action::Close));
+                return window::close();
             }
         }
 
-        Command::none()
+        Task::none()
     }
 
-    fn view(
-        &self,
-    ) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
+    fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
         let content = Column::new()
             .width(Length::Fill)
-            .align_items(Alignment::Center)
-            .push(Text::new(format!("{}", self.count)))
+            .align_x(Alignment::Center)
+            .push(Text::new(format!("{}", self.count)).size(50))
+            .push(Space::new(20.0, 20.0))
             .push(Button::new(Text::new("Close window")).on_press(Message::CloseWindow));
 
         Container::new(content)
             .width(Length::Fill)
             .height(Length::Fill)
-            .center_x()
-            .center_y()
+            .center(Length::Fill)
             .into()
-    }
-    fn title(&self) -> String {
-        "Window subs".into()
     }
 
     fn theme(&self) -> Self::Theme {
-        Default::default()
+        Theme::Dark
     }
 }
