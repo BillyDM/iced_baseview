@@ -1,14 +1,7 @@
 use iced_baseview::{
     baseview::{Size, WindowOpenOptions, WindowScalePolicy},
-    core::{Alignment, Element, Length},
-    open_blocking,
-    runtime::Command,
-    settings::IcedBaseviewSettings,
-    widget::Column,
-    widget::Container,
-    widget::Rule,
-    widget::Text,
-    Application, Settings,
+    widget::{Column, Container, Rule, Text},
+    Alignment, Application, Element, Length, Renderer, Settings, Task, Theme,
 };
 
 fn main() {
@@ -18,56 +11,47 @@ fn main() {
             size: Size::new(500.0, 300.0),
             scale: WindowScalePolicy::SystemScaleFactor,
         },
-        iced_baseview: IcedBaseviewSettings {
-            ignore_non_modifier_keys: false,
-            always_redraw: true,
-        },
-        flags: (),
-        fonts: Default::default(),
+        ..Default::default()
     };
 
-    open_blocking::<MyProgram>(settings);
+    iced_baseview::open_blocking::<MyProgram>((), settings);
 }
 
 struct MyProgram;
 
 impl Application for MyProgram {
-    type Executor = iced_baseview::executor::Default;
     type Message = ();
-    type Theme = iced_baseview::style::Theme;
     type Flags = ();
+    type Theme = Theme;
+    type Executor = iced_baseview::executor::Default;
 
-    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
-        (Self {}, Command::none())
+    fn new(_flags: ()) -> (Self, Task<Self::Message>) {
+        (Self {}, Task::none())
     }
+
     fn title(&self) -> String {
         "Hello World!".into()
     }
-    fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
-        Command::none()
+
+    fn update(&mut self, _message: Self::Message) -> Task<Self::Message> {
+        Task::none()
     }
 
-    fn view(
-        &self,
-    ) -> Element<'_, Self::Message, iced_baseview::widget::renderer::Renderer<Self::Theme>> {
+    fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
         let content = Column::new()
             .width(Length::Fill)
-            .align_items(Alignment::Center)
+            .align_x(Alignment::Center)
             .push(Text::new("Hello World!"))
             .push(Rule::horizontal(10));
 
         Container::new(content)
             .width(Length::Fill)
             .height(Length::Fill)
-            .center_x()
-            .center_y()
+            .center(Length::Fill)
             .into()
     }
 
-    fn renderer_settings() -> iced_renderer::Settings {
-        iced_renderer::Settings {
-            antialiasing: Some(iced_graphics::Antialiasing::MSAAx4),
-            ..Default::default()
-        }
+    fn theme(&self) -> Self::Theme {
+        Theme::Dark
     }
 }

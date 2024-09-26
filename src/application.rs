@@ -4,9 +4,14 @@ mod profiler;
 mod state;
 
 use baseview::EventStatus;
+use iced_runtime::Action;
+use iced_runtime::Task;
+use iced_widget::core::Color;
+use iced_widget::core::Element;
+use iced_widget::Theme;
+use raw_window_handle::HasRawDisplayHandle;
 pub use state::State;
 
-use crate::core;
 use crate::core::mouse;
 use crate::core::renderer;
 use crate::core::widget::operation;
@@ -15,12 +20,10 @@ use crate::futures::futures;
 use crate::futures::{Executor, Runtime, Subscription};
 use crate::graphics::compositor::{self, Compositor};
 use crate::runtime::clipboard;
-use crate::runtime::program::Program;
 use crate::runtime::user_interface::{self, UserInterface};
-use crate::runtime::{Command, Debug};
-use crate::style::application::{Appearance, StyleSheet};
+use crate::runtime::Debug;
 use crate::window::{IcedWindow, RuntimeEvent, WindowQueue, WindowSubs};
-use crate::{Clipboard, Error, Proxy, Settings};
+use crate::{Clipboard, Error, Proxy, Renderer, Settings};
 
 use futures::channel::mpsc;
 
@@ -44,10 +47,25 @@ use tracing::{info_span, instrument::Instrument};
 ///
 /// When using an [`Application`] with the `debug` feature enabled, a debug view
 /// can be toggled by pressing `F12`.
-pub trait Application: Program
+pub trait Application
 where
-    <Self::Renderer as core::Renderer>::Theme: StyleSheet,
+    Self: Sized,
+    Self::Theme: DefaultStyle,
 {
+    /// The type of __messages__ your [`Application`] will produce.
+    type Message: std::fmt::Debug + Send + 'static;
+
+    /// The theme used to draw the [`Application`].
+    type Theme: Default + DefaultStyle;
+
+    /// The [`Executor`] that will run commands and subscriptions.
+    ///
+    /// The [default executor] can be a good starting point!
+    ///
+    /// [`Executor`]: Self::Executor
+    /// [default executor]: crate::futures::backend::default::Executor
+    type Executor: Executor;
+
     /// The data needed to initialize your [`Application`].
     type Flags;
 
@@ -56,23 +74,40 @@ where
     ///
     /// Here is where you should return the initial state of your app.
     ///
-    /// Additionally, you can return a [`Command`] if you need to perform some
+    /// Additionally, you can return a [`Task`] if you need to perform some
     /// async action in the background on startup. This is useful if you want to
     /// load state from a file, perform an initial HTTP request, etc.
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
     /// Returns the current title of the [`Application`].
     ///
     /// This title can be dynamic! The runtime will automatically update the
     /// title of your application when necessary.
-    fn title(&self) -> String;
+    fn title(&self) -> String {
+        "iced_baseview".into()
+    }
+
+    /// Handles a __message__ and updates the state of the [`Application`].
+    ///
+    /// This is where you define your __update logic__. All the __messages__,
+    /// produced by either user interactions or commands, will be handled by
+    /// this method.
+    ///
+    /// Any [`Task`] returned will be executed immediately in the background by the
+    /// runtime.
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message>;
+
+    /// Returns the widgets to display in the [`Application`] for the main window.
+    ///
+    /// These widgets can produce __messages__ based on user interaction.
+    fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer>;
 
     /// Returns the current `Theme` of the [`Application`].
-    fn theme(&self) -> <Self::Renderer as core::Renderer>::Theme;
+    fn theme(&self) -> Self::Theme;
 
     /// Returns the `Style` variation of the `Theme`.
-    fn style(&self) -> <<Self::Renderer as core::Renderer>::Theme as StyleSheet>::Style {
-        Default::default()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        theme.default_style()
     }
 
     /// Returns the event `Subscription` for the current state of the
@@ -91,12 +126,6 @@ where
         Subscription::none()
     }
 
-    /// Ignore non-modifier keyboard keys. Overrides the field in
-    /// `IcedBaseviewSettings` if set
-    fn ignore_non_modifier_keys(&self) -> Option<bool> {
-        None
-    }
-
     /// Returns the [`WindowScalePolicy`] that the [`Application`] should use.
     ///
     /// By default, it returns `WindowScalePolicy::SystemScaleFactor`.
@@ -107,23 +136,60 @@ where
         baseview::WindowScalePolicy::SystemScaleFactor
     }
 
-    fn renderer_settings() -> crate::renderer::Settings;
+    /// Ignore non-modifier keyboard keys. Overrides the field in
+    /// `IcedBaseviewSettings` if set
+    fn ignore_non_modifier_keys(&self) -> Option<bool> {
+        None
+    }
+
+    //fn renderer_settings() -> crate::renderer::Settings;
+}
+
+/// The appearance of a application.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Appearance {
+    /// The background [`Color`] of the application.
+    pub background_color: Color,
+
+    /// The default text [`Color`] of the application.
+    pub text_color: Color,
+}
+
+/// The default style of an [`Application`].
+pub trait DefaultStyle {
+    /// Returns the default style of an [`Application`].
+    fn default_style(&self) -> Appearance;
+}
+
+impl DefaultStyle for Theme {
+    fn default_style(&self) -> Appearance {
+        default(self)
+    }
+}
+
+/// The default [`Appearance`] of an [`Application`] with the built-in [`Theme`].
+pub fn default(theme: &Theme) -> Appearance {
+    let palette = theme.extended_palette();
+
+    Appearance {
+        background_color: palette.background.base.color,
+        text_color: palette.background.base.text,
+    }
 }
 
 /// Runs an [`Application`] with an executor, compositor, and the provided
 /// settings.
-pub fn run<A, E, C>(
+pub(crate) fn run<A, C>(
     window: &mut baseview::Window<'_>,
-    settings: Settings<A::Flags>,
-    // compositor_settings: C::Settings,
+    flags: A::Flags,
+    settings: Settings,
     event_sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
     event_receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
 ) -> Result<IcedWindow<A>, Error>
 where
     A: Application + 'static + Send,
-    E: Executor + 'static,
-    C: Compositor<Renderer = A::Renderer, Settings = crate::renderer::Settings> + 'static,
-    <A::Renderer as core::Renderer>::Theme: StyleSheet,
+    C: Compositor<Renderer = Renderer> + 'static,
+    A::Theme: DefaultStyle,
 {
     use futures::task;
 
@@ -151,33 +217,45 @@ where
         iced_graphics::Viewport::with_physical_size(physical_size, scale)
     };
 
-    let (runtime_tx, runtime_rx) = mpsc::unbounded::<A::Message>();
+    let (runtime_tx, runtime_rx) = mpsc::unbounded::<Action<A::Message>>();
 
-    let runtime = {
+    let mut runtime = {
         let proxy = Proxy::new(runtime_tx);
-        let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
+        let executor = A::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
     };
 
-    let (application, init_command) = {
-        let flags = settings.flags;
+    let (application, init_task) = runtime.enter(|| A::new(flags));
 
-        runtime.enter(|| A::new(flags))
-    };
+    if let Some(stream) = crate::runtime::task::into_stream(init_task) {
+        runtime.run(stream);
+    }
 
-    let compositor_settings = A::renderer_settings();
-    let (mut compositor, mut renderer) = C::new(compositor_settings, Some(window))?;
+    let mut window_subs = WindowSubs::default();
+
+    runtime.track(crate::futures::subscription::into_recipes(runtime.enter(
+        || {
+            application
+                .subscription(&mut window_subs)
+                .map(Action::Output)
+        },
+    )));
+
+    let window06 = crate::conversion::convert_window(window);
+
+    let graphics_settings = settings.graphics_settings;
+    let mut compositor =
+        crate::futures::futures::executor::block_on(C::new(graphics_settings, window06.clone()))?;
     let surface = compositor.create_surface(
-        window,
+        window06,
         viewport.physical_width(),
         viewport.physical_height(),
     );
+    let renderer = compositor.create_renderer();
 
     for font in settings.fonts {
-        use crate::core::text::Renderer;
-
-        renderer.load_font(font);
+        compositor.load_font(font);
     }
 
     let (window_queue, window_queue_rx) = WindowQueue::new();
@@ -185,15 +263,19 @@ where
 
     let state = State::new(&application, viewport);
 
+    let display_handle = crate::conversion::convert_raw_display_handle(window.raw_display_handle());
+    let clipboard = Clipboard::new(display_handle);
+
     let instance = Box::pin({
-        let run_instance = run_instance::<A, E, C>(
+        let run_instance = run_instance::<A, C>(
             application,
             compositor,
             renderer,
-            runtime,
             debug,
+            runtime,
             event_receiver,
-            init_command,
+            clipboard,
+            window_subs,
             settings.iced_baseview,
             surface,
             event_status.clone(),
@@ -221,14 +303,15 @@ where
     })
 }
 
-async fn run_instance<A, E, C>(
+async fn run_instance<A, C>(
     mut application: A,
     mut compositor: C,
-    mut renderer: A::Renderer,
-    mut runtime: Runtime<E, Proxy<A::Message>, A::Message>,
+    mut renderer: Renderer,
     mut debug: Debug,
+    mut runtime: Runtime<A::Executor, Proxy<A::Message>, iced_runtime::Action<A::Message>>,
     mut event_receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
-    init_command: Command<A::Message>,
+    mut clipboard: Clipboard,
+    mut window_subs: WindowSubs<<A as Application>::Message>,
 
     settings: crate::settings::IcedBaseviewSettings,
     mut surface: C::Surface,
@@ -236,31 +319,18 @@ async fn run_instance<A, E, C>(
     mut state: State<A>,
     mut window_queue: WindowQueue,
 ) where
+    // What an absolute monstrosity of generics.
+    C: Compositor<Renderer = Renderer> + 'static,
     A: Application + 'static,
-    E: Executor + 'static,
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    <A::Renderer as core::Renderer>::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     use futures::stream::StreamExt;
 
     let mut viewport_version = state.viewport_version();
 
-    let mut clipboard = Clipboard::new();
-    let mut cache = user_interface::Cache::default();
-    let mut window_subs = WindowSubs::default();
-
-    run_command(
-        &application,
-        &mut cache,
-        &state,
-        &mut renderer,
-        init_command,
-        &mut runtime,
-        &mut clipboard,
-        &mut debug,
-        &mut window_queue,
-    );
-    runtime.track(application.subscription(&mut window_subs).into_recipes());
+    let cache = user_interface::Cache::default();
+    let mut events = Vec::new();
+    let mut messages = Vec::new();
 
     let mut user_interface = ManuallyDrop::new(build_user_interface(
         &application,
@@ -271,8 +341,6 @@ async fn run_instance<A, E, C>(
     ));
 
     let mut mouse_interaction = mouse::Interaction::default();
-    let mut events = Vec::new();
-    let mut messages = Vec::new();
 
     // Triggered whenever a baseview event gets sent
     let mut redraw_requested = true;
@@ -283,7 +351,20 @@ async fn run_instance<A, E, C>(
 
     debug.startup_finished();
 
-    while let Some(event) = event_receiver.next().await {
+    let window_id = crate::window::Id::unique();
+
+    loop {
+        // Empty the queue if possible
+        let event = if let Ok(event) = event_receiver.try_next() {
+            event
+        } else {
+            event_receiver.next().await
+        };
+
+        let Some(event) = event else {
+            break;
+        };
+
         match event {
             RuntimeEvent::MainEventsCleared => {
                 if let Some(message) = &window_subs.on_frame {
@@ -317,7 +398,11 @@ async fn run_instance<A, E, C>(
                     debug.event_processing_finished();
 
                     for (event, status) in events.drain(..).zip(statuses.into_iter()) {
-                        runtime.broadcast(event, status);
+                        runtime.broadcast(crate::futures::subscription::Event::Interaction {
+                            window: window_id,
+                            event,
+                            status,
+                        });
                     }
                 }
 
@@ -327,20 +412,16 @@ async fn run_instance<A, E, C>(
                 if needs_update {
                     needs_update = false;
 
-                    let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
+                    let cache = ManuallyDrop::into_inner(user_interface).into_cache();
 
                     // Update application
                     update(
                         &mut application,
-                        &mut cache,
-                        &state,
-                        &mut renderer,
                         &mut runtime,
-                        &mut clipboard,
                         &mut debug,
                         &mut messages,
                         &mut window_subs,
-                        &mut window_queue,
+                        //&mut window_queue,
                     );
 
                     // Update window
@@ -373,10 +454,13 @@ async fn run_instance<A, E, C>(
                 debug.draw_finished();
 
                 if new_mouse_interaction != mouse_interaction {
-                    // TODO
-                    // window.set_cursor_icon(conversion::mouse_interaction(
-                    //     new_mouse_interaction,
-                    // ));
+                    // TODO: Set mouse cursor for MacOS once baseview supports it.
+                    #[cfg(not(target_os = "macos"))]
+                    if let Err(_) = window_queue.set_mouse_cursor(
+                        crate::conversion::convert_mouse_interaction(new_mouse_interaction),
+                    ) {
+                        debug.log_message(&"could not send set_mouse_cursor command".to_string());
+                    }
 
                     mouse_interaction = new_mouse_interaction;
                 }
@@ -384,7 +468,16 @@ async fn run_instance<A, E, C>(
                 redraw_requested = true;
             }
             RuntimeEvent::UserEvent(message) => {
-                messages.push(message);
+                run_action::<A, C>(
+                    message,
+                    &mut compositor,
+                    &mut renderer,
+                    &mut messages,
+                    &mut clipboard,
+                    &mut user_interface,
+                    &mut debug,
+                    &mut window_queue,
+                );
             }
             RuntimeEvent::RedrawRequested => {
                 #[cfg(feature = "trace")]
@@ -426,12 +519,19 @@ async fn run_instance<A, E, C>(
                     );
 
                     if new_mouse_interaction != mouse_interaction {
-                        // window.set_cursor_icon(conversion::mouse_interaction(
-                        //     new_mouse_interaction,
-                        // ));
+                        // TODO: Set mouse cursor for MacOS once baseview supports it.
+                        #[cfg(not(target_os = "macos"))]
+                        if let Err(_) = window_queue.set_mouse_cursor(
+                            crate::conversion::convert_mouse_interaction(new_mouse_interaction),
+                        ) {
+                            debug.log_message(
+                                &"could not send set_mouse_cursor command".to_string(),
+                            );
+                        }
 
                         mouse_interaction = new_mouse_interaction;
                     }
+
                     debug.draw_finished();
 
                     compositor.configure_surface(
@@ -490,36 +590,6 @@ async fn run_instance<A, E, C>(
                     continue;
                 }
 
-                debug.event_processing_started();
-
-                let (interface_state, statuses) = user_interface.update(
-                    &events,
-                    state.cursor(),
-                    &mut renderer,
-                    &mut clipboard,
-                    &mut messages,
-                );
-                // Will trigger an update when the next frame gets drawn
-                needs_update |= matches!(interface_state, user_interface::State::Outdated,);
-
-                if do_send_status {
-                    let mut final_status = EventStatus::Ignored;
-                    for status in &statuses {
-                        if let crate::core::event::Status::Captured = status {
-                            final_status = EventStatus::Captured;
-                            break;
-                        }
-                    }
-
-                    *event_status.borrow_mut() = final_status;
-                }
-
-                debug.event_processing_finished();
-
-                for (event, status) in events.drain(..).zip(statuses.into_iter()) {
-                    runtime.broadcast(event, status);
-                }
-
                 did_process_event = true;
             }
             RuntimeEvent::WillClose => {
@@ -529,19 +599,14 @@ async fn run_instance<A, E, C>(
                     if let Some(message) = message() {
                         messages.push(message);
                     }
-                    let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
+                    let cache = ManuallyDrop::into_inner(user_interface).into_cache();
 
                     update(
                         &mut application,
-                        &mut cache,
-                        &state,
-                        &mut renderer,
                         &mut runtime,
-                        &mut clipboard,
                         &mut debug,
                         &mut messages,
                         &mut window_subs,
-                        &mut window_queue,
                     );
 
                     // Update window
@@ -562,7 +627,7 @@ async fn run_instance<A, E, C>(
     }
 
     // Manually drop the user interface
-    drop(ManuallyDrop::into_inner(user_interface));
+    let _ = ManuallyDrop::into_inner(user_interface);
 }
 
 /// Builds a [`UserInterface`] for the provided [`Application`], logging
@@ -570,12 +635,12 @@ async fn run_instance<A, E, C>(
 pub fn build_user_interface<'a, A: Application>(
     application: &'a A,
     cache: user_interface::Cache,
-    renderer: &mut A::Renderer,
+    renderer: &mut Renderer,
     size: Size,
     debug: &mut Debug,
-) -> UserInterface<'a, A::Message, A::Renderer>
+) -> UserInterface<'a, A::Message, A::Theme, Renderer>
 where
-    <A::Renderer as core::Renderer>::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     #[cfg(feature = "trace")]
     let view_span = info_span!("Application", "VIEW").entered();
@@ -604,120 +669,124 @@ where
 /// resulting [`Command`], and tracking its [`Subscription`].
 pub fn update<A: Application, E: Executor>(
     application: &mut A,
-    cache: &mut user_interface::Cache,
-    state: &State<A>,
-    renderer: &mut A::Renderer,
-    runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
-    clipboard: &mut Clipboard,
+    runtime: &mut Runtime<E, Proxy<A::Message>, iced_runtime::Action<A::Message>>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-
     window_subs: &mut WindowSubs<A::Message>,
-    window_queue: &mut WindowQueue,
+    //window_queue: &mut WindowQueue,
 ) where
-    <A::Renderer as core::Renderer>::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     for message in messages.drain(..) {
         #[cfg(feature = "trace")]
         let update_span = info_span!("Application", "UPDATE").entered();
 
         debug.log_message(&message);
-
         debug.update_started();
-        let command = runtime.enter(|| application.update(message));
+
+        let task = runtime.enter(|| application.update(message));
 
         #[cfg(feature = "trace")]
         let _ = update_span.exit();
         debug.update_finished();
 
-        run_command(
-            application,
-            cache,
-            state,
-            renderer,
-            command,
-            runtime,
-            clipboard,
-            debug,
-            window_queue,
-        );
+        if let Some(stream) = crate::runtime::task::into_stream(task) {
+            runtime.run(stream);
+        }
     }
 
-    let subscription = application.subscription(window_subs);
-    runtime.track(subscription.into_recipes());
+    let subscription = runtime.enter(|| application.subscription(window_subs));
+    runtime.track(crate::futures::subscription::into_recipes(
+        subscription.map(Action::Output),
+    ));
 }
 
 /// Runs the actions of a [`Command`].
-pub fn run_command<A, E>(
-    application: &A,
-    cache: &mut user_interface::Cache,
-    state: &State<A>,
-    renderer: &mut A::Renderer,
-    command: Command<A::Message>,
-    runtime: &mut Runtime<E, Proxy<A::Message>, A::Message>,
+pub fn run_action<A, C>(
+    action: Action<A::Message>,
+    compositor: &mut C,
+    renderer: &Renderer,
+    messages: &mut Vec<A::Message>,
     clipboard: &mut Clipboard,
+    interface: &mut UserInterface<'_, A::Message, A::Theme, Renderer>,
     debug: &mut Debug,
     window_queue: &mut WindowQueue,
 ) where
-    A: Application,
-    E: Executor,
-    <A::Renderer as core::Renderer>::Theme: StyleSheet,
+    C: Compositor<Renderer = Renderer> + 'static,
+    A: Application + 'static,
+    A::Theme: DefaultStyle,
 {
-    use crate::runtime::command;
+    use iced_runtime::window::Action as IWindowAction;
 
-    for action in command.actions() {
-        match action {
-            command::Action::Future(future) => {
-                runtime.spawn(future);
+    match action {
+        Action::Output(message) => {
+            messages.push(message);
+        }
+        Action::Clipboard(action) => match action {
+            clipboard::Action::Read { target, channel } => {
+                let _ = channel.send(clipboard.read(target));
             }
-            command::Action::Clipboard(action) => match action {
-                clipboard::Action::Read(set_clipboard) => {
-                    let message = set_clipboard(clipboard.read());
-
-                    // TODO: Is this what you're supposed to do? The winit example sends an event to
-                    //       the window which would end up doing the same thing.
-                    runtime.spawn(Box::pin(futures::future::ready(message)));
+            clipboard::Action::Write { target, contents } => {
+                clipboard.write(target, contents);
+            }
+        },
+        Action::Window(action) => match action {
+            IWindowAction::Close(_) => {
+                if let Err(_) = window_queue.close_window() {
+                    debug.log_message(&"could not send close_window command".to_string());
                 }
-                clipboard::Action::Write(contents) => {
-                    clipboard.write(contents);
+            }
+            IWindowAction::Resize(_, size) => {
+                if let Err(_) = window_queue.resize_window(size) {
+                    debug.log_message(&"could not send resize_window command".to_string());
                 }
-            },
-            command::Action::Widget(action) => {
-                let mut current_cache = std::mem::take(cache);
-                let mut current_operation = Some(action);
+            }
+            IWindowAction::GainFocus(_) => {
+                if let Err(_) = window_queue.focus() {
+                    debug.log_message(&"could not send get_window command".to_string());
+                }
+            }
+            _ => {}
+        },
+        Action::System(action) => match action {
+            crate::runtime::system::Action::QueryInformation(_channel) => {
+                #[cfg(feature = "system")]
+                {
+                    let graphics_info = compositor.fetch_information();
 
-                let mut user_interface = build_user_interface(
-                    application,
-                    current_cache,
-                    renderer,
-                    state.logical_size(),
-                    debug,
-                );
+                    let _ = std::thread::spawn(move || {
+                        let information = crate::system::information(graphics_info);
 
-                while let Some(mut operation) = current_operation.take() {
-                    user_interface.operate(renderer, operation.as_mut());
+                        let _ = _channel.send(information);
+                    });
+                }
+            }
+        },
+        Action::Widget(operation) => {
+            let mut current_operation = Some(operation);
 
-                    match operation.finish() {
-                        operation::Outcome::None => {}
-                        operation::Outcome::Some(message) => {
-                            runtime.spawn(Box::pin(futures::future::ready(message)));
-                        }
-                        operation::Outcome::Chain(next) => {
-                            current_operation = Some(next);
-                        }
+            while let Some(mut operation) = current_operation.take() {
+                interface.operate(renderer, operation.as_mut());
+
+                match operation.finish() {
+                    operation::Outcome::None => {}
+                    operation::Outcome::Some(()) => {}
+                    operation::Outcome::Chain(next) => {
+                        current_operation = Some(next);
                     }
                 }
+            }
+        }
+        Action::LoadFont { bytes, channel } => {
+            // TODO: Error handling (?)
+            compositor.load_font(bytes.clone());
 
-                current_cache = user_interface.into_cache();
-                *cache = current_cache;
+            let _ = channel.send(Ok(()));
+        }
+        Action::Exit => {
+            if let Err(_) = window_queue.close_window() {
+                debug.log_message(&"could not send exit command".to_string());
             }
-            command::Action::Window(iced_runtime::window::Action::Close) => {
-                if let Err(_) = window_queue.close_window() {
-                    debug.log_message(&"could not send close_window command".to_string())
-                }
-            }
-            // Currently not supported
-            _ => {}
         }
     }
 }

@@ -1,35 +1,44 @@
 use std::{cell::RefCell, pin::Pin, rc::Rc, sync::Arc};
 
+use iced_graphics::Compositor;
+pub use iced_runtime::core::window::Id;
+pub use iced_runtime::window::{
+    close_events, close_requests, events, open_events, resize_events, Action,
+};
+
 use baseview::{Event, EventStatus, Window, WindowHandler, WindowOpenOptions};
 use iced_runtime::futures::futures::{
     self,
     channel::mpsc::{self, SendError},
 };
-use iced_style::application::StyleSheet;
+use iced_runtime::Task;
+use iced_widget::core::Size;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
-use crate::{application::run, application::Application, Settings};
+use crate::{
+    application::{run, Application, DefaultStyle},
+    Renderer, Settings,
+};
 
 pub enum RuntimeEvent<Message: 'static + Send> {
     Baseview((baseview::Event, bool)),
-    UserEvent(Message),
+    UserEvent(iced_runtime::Action<Message>),
     MainEventsCleared,
     RedrawRequested,
     WillClose,
 }
 
-pub struct IcedWindow<A>
+pub(crate) struct IcedWindow<A>
 where
     A: Application + Send + 'static,
-    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
     // E: Executor + 'static,
     // C: window::Compositor<Renderer = A::Renderer> + 'static,
 {
     pub sender: mpsc::UnboundedSender<RuntimeEvent<A::Message>>,
     pub instance: Pin<Box<dyn futures::Future<Output = ()>>>,
     pub runtime_context: futures::task::Context<'static>,
-    pub runtime_rx: mpsc::UnboundedReceiver<A::Message>,
-    pub window_queue_rx: mpsc::UnboundedReceiver<WindowQueueMessage>,
+    pub runtime_rx: mpsc::UnboundedReceiver<iced_runtime::Action<A::Message>>,
+    pub window_queue_rx: mpsc::UnboundedReceiver<WindowCommand>,
     pub event_status: Rc<RefCell<EventStatus>>,
 
     pub processed_close_signal: bool,
@@ -38,8 +47,9 @@ where
 impl<A> IcedWindow<A>
 where
     A: Application + Send + 'static,
+    <A as Application>::Theme: DefaultStyle,
+    <A as Application>::Executor: iced_runtime::futures::Executor + 'static,
     <A as Application>::Flags: std::marker::Send,
-    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
 {
     /// There's no clone implementation, but this is fine.
     fn clone_window_options(window: &WindowOpenOptions) -> WindowOpenOptions {
@@ -52,18 +62,16 @@ where
     /// Open a new window that blocks the current thread until the window is destroyed.
     ///
     /// * `settings` - The settings of the window.
-    pub fn open_blocking<E, C>(#[allow(unused_mut)] mut settings: Settings<A::Flags>)
+    pub fn open_blocking<C>(flags: A::Flags, settings: Settings)
     where
-        E: iced_runtime::futures::Executor + 'static,
-        C: iced_graphics::Compositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
-            + 'static,
+        C: Compositor<Renderer = Renderer> + 'static,
     {
         let (sender, receiver) = mpsc::unbounded();
 
         Window::open_blocking(
             Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                run::<A, E, C>(window, settings, sender, receiver).expect("Launch window")
+                run::<A, C>(window, flags, settings, sender, receiver).expect("Launch window")
             },
         );
     }
@@ -72,15 +80,14 @@ where
     ///
     /// * `parent` - The parent window.
     /// * `settings` - The settings of the window.
-    pub fn open_parented<E, C, P>(
-        parent: &P,
-        #[allow(unused_mut)] mut settings: Settings<A::Flags>,
+    pub fn open_parented<W, C>(
+        parent: &W,
+        flags: A::Flags,
+        settings: Settings,
     ) -> WindowHandle<A::Message>
     where
-        E: iced_runtime::futures::Executor + 'static,
-        C: iced_graphics::Compositor<Renderer = A::Renderer, Settings = crate::renderer::Settings>
-            + 'static,
-        P: HasRawWindowHandle,
+        W: HasRawWindowHandle,
+        C: Compositor<Renderer = Renderer> + 'static,
     {
         let (sender, receiver) = mpsc::unbounded();
         let sender_clone = sender.clone();
@@ -89,18 +96,42 @@ where
             parent,
             Self::clone_window_options(&settings.window),
             move |window: &mut baseview::Window<'_>| -> IcedWindow<A> {
-                run::<A, E, C>(window, settings, sender_clone, receiver).expect("Launch window")
+                run::<A, C>(window, flags, settings, sender_clone, receiver).expect("Launch window")
             },
         );
 
         WindowHandle::new(bv_handle, sender)
+    }
+
+    fn drain_window_commands(&mut self, window: &mut Window<'_>) {
+        while let Ok(Some(cmd)) = self.window_queue_rx.try_next() {
+            match cmd {
+                WindowCommand::CloseWindow => {
+                    window.close();
+                }
+                WindowCommand::ResizeWindow(size) => {
+                    window.resize(baseview::Size {
+                        width: size.width as f64,
+                        height: size.height as f64,
+                    });
+                }
+                WindowCommand::Focus => {
+                    window.focus();
+                }
+                WindowCommand::SetCursorIcon(cursor) => {
+                    window.set_mouse_cursor(cursor);
+                }
+            }
+        }
     }
 }
 
 impl<A> WindowHandler for IcedWindow<A>
 where
     A: Application + Send + 'static,
-    <A::Renderer as iced_runtime::core::Renderer>::Theme: StyleSheet,
+    <A as Application>::Theme: DefaultStyle,
+    <A as Application>::Executor: iced_runtime::futures::Executor + 'static,
+    <A as Application>::Flags: std::marker::Send,
 {
     fn on_frame(&mut self, window: &mut Window<'_>) {
         if self.processed_close_signal {
@@ -130,13 +161,7 @@ where
         // Flush all messages. This will block until the instance is finished.
         let _ = self.instance.as_mut().poll(&mut self.runtime_context);
 
-        while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
-            match msg {
-                WindowQueueMessage::CloseWindow => {
-                    window.close();
-                }
-            }
-        }
+        self.drain_window_commands(window);
     }
 
     fn on_event(&mut self, window: &mut Window<'_>, event: Event) -> EventStatus {
@@ -169,17 +194,31 @@ where
         };
 
         if !self.processed_close_signal {
-            while let Ok(Some(msg)) = self.window_queue_rx.try_next() {
-                match msg {
-                    WindowQueueMessage::CloseWindow => {
-                        window.close();
-                    }
-                }
-            }
+            self.drain_window_commands(window);
         }
 
         status
     }
+}
+
+/// Closes the application window.
+pub fn close<T>() -> Task<T> {
+    iced_runtime::window::close(Id::unique())
+}
+
+/// Resize the application window to the given logical dimensions.
+pub fn resize<T>(new_size: Size) -> Task<T> {
+    iced_runtime::window::resize(Id::unique(), new_size)
+}
+
+/// Brings the application window to the front and sets input focus. Has no effect if the window
+/// is already in focus, minimized, or not visible.
+///
+/// This [`Task`] steals input focus from other applications. Do not use this method unless
+/// you are certain that's what the user wants. Focus stealing can cause an extremely disruptive
+/// user experience.
+pub fn gain_focus<T>() -> Task<T> {
+    iced_runtime::window::gain_focus(Id::unique())
 }
 
 /// Returns true if the provided event should cause an [`Application`] to
@@ -236,7 +275,8 @@ impl<Message: 'static + Send> WindowHandle<Message> {
     /// used to send events from the audio thread. Use a realtime-safe ring
     /// buffer instead.
     pub fn send_message(&mut self, msg: Message) -> Result<(), SendError> {
-        self.tx.start_send(RuntimeEvent::UserEvent(msg))
+        self.tx
+            .start_send(RuntimeEvent::UserEvent(iced_runtime::Action::Output(msg)))
     }
 
     /// Signal the window to close.
@@ -257,26 +297,43 @@ unsafe impl<Message: 'static + Send> HasRawWindowHandle for WindowHandle<Message
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum WindowQueueMessage {
+#[derive(Debug, Clone)]
+pub enum WindowCommand {
     CloseWindow,
+    ResizeWindow(crate::core::Size),
+    Focus,
+    SetCursorIcon(baseview::MouseCursor),
 }
 
 /// Used to request things from the `baseview` window.
 pub struct WindowQueue {
-    tx: mpsc::UnboundedSender<WindowQueueMessage>,
+    tx: mpsc::UnboundedSender<WindowCommand>,
 }
 
 impl WindowQueue {
-    pub fn new() -> (Self, mpsc::UnboundedReceiver<WindowQueueMessage>) {
+    pub fn new() -> (Self, mpsc::UnboundedReceiver<WindowCommand>) {
         let (tx, rx) = mpsc::unbounded();
 
         (Self { tx }, rx)
     }
 
+    /// Resize the current application window.
+    pub fn resize_window(&mut self, size: crate::core::Size) -> Result<(), SendError> {
+        self.tx.start_send(WindowCommand::ResizeWindow(size))
+    }
+
     /// Quit the current application and close the window.
     pub fn close_window(&mut self) -> Result<(), SendError> {
-        self.tx.start_send(WindowQueueMessage::CloseWindow)
+        self.tx.start_send(WindowCommand::CloseWindow)
+    }
+
+    /// Request to focus the application window.
+    pub fn focus(&mut self) -> Result<(), SendError> {
+        self.tx.start_send(WindowCommand::Focus)
+    }
+
+    pub fn set_mouse_cursor(&mut self, cursor: baseview::MouseCursor) -> Result<(), SendError> {
+        self.tx.start_send(WindowCommand::SetCursorIcon(cursor))
     }
 }
 
