@@ -41,7 +41,7 @@ impl Default for Settings {
 }
 
 /// Any settings specific to `iced_baseview`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct IcedBaseviewSettings {
     /// Ignore key inputs, except for modifier keys such as SHIFT and ALT
     pub ignore_non_modifier_keys: bool,
@@ -52,13 +52,4 @@ pub struct IcedBaseviewSettings {
     /// reopening the editor) and an iced limitation where it's not possible to have animations
     /// without using an asynchronous timer stream to send redraw messages to the application.
     pub always_redraw: bool,
-}
-
-impl Default for IcedBaseviewSettings {
-    fn default() -> Self {
-        Self {
-            ignore_non_modifier_keys: false,
-            always_redraw: false,
-        }
-    }
 }

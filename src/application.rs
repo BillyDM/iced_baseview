@@ -4,6 +4,8 @@ mod profiler;
 mod state;
 
 use baseview::EventStatus;
+
+use iced_debug::Span;
 use iced_runtime::Action;
 use iced_runtime::Task;
 use iced_widget::core::Color;
@@ -12,7 +14,6 @@ use iced_widget::Theme;
 use raw_window_handle::HasRawDisplayHandle;
 pub use state::State;
 
-use crate::core::mouse;
 use crate::core::renderer;
 use crate::core::widget::operation;
 use crate::core::Size;
@@ -21,7 +22,6 @@ use crate::futures::{Executor, Runtime, Subscription};
 use crate::graphics::compositor::{self, Compositor};
 use crate::runtime::clipboard;
 use crate::runtime::user_interface::{self, UserInterface};
-use crate::runtime::Debug;
 use crate::window::{IcedWindow, RuntimeEvent, WindowQueue, WindowSubs};
 use crate::{Clipboard, Error, Proxy, Renderer, Settings};
 
@@ -196,8 +196,7 @@ where
     #[cfg(feature = "trace")]
     let _guard = Profiler::init();
 
-    let mut debug = Debug::new();
-    debug.startup_started();
+    let boot_trace = iced_debug::boot();
 
     #[cfg(feature = "trace")]
     let _ = info_span!("Application", "RUN").entered();
@@ -245,8 +244,7 @@ where
     let window06 = crate::conversion::convert_window(window);
 
     let graphics_settings = settings.graphics_settings;
-    let mut compositor =
-        crate::futures::futures::executor::block_on(C::new(graphics_settings, window06.clone()))?;
+    let mut compositor = runtime.block_on(C::new(graphics_settings, window06.clone()))?;
     let surface = compositor.create_surface(
         window06,
         viewport.physical_width(),
@@ -271,7 +269,6 @@ where
             application,
             compositor,
             renderer,
-            debug,
             runtime,
             event_receiver,
             clipboard,
@@ -281,6 +278,7 @@ where
             event_status.clone(),
             state,
             window_queue,
+            boot_trace,
         );
 
         #[cfg(feature = "trace")]
@@ -303,11 +301,11 @@ where
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_instance<A, C>(
     mut application: A,
     mut compositor: C,
     mut renderer: Renderer,
-    mut debug: Debug,
     mut runtime: Runtime<A::Executor, Proxy<A::Message>, iced_runtime::Action<A::Message>>,
     mut event_receiver: mpsc::UnboundedReceiver<RuntimeEvent<A::Message>>,
     mut clipboard: Clipboard,
@@ -318,6 +316,7 @@ async fn run_instance<A, C>(
     event_status: Rc<RefCell<baseview::EventStatus>>,
     mut state: State<A>,
     mut window_queue: WindowQueue,
+    boot_trace: Span,
 ) where
     // What an absolute monstrosity of generics.
     C: Compositor<Renderer = Renderer> + 'static,
@@ -332,15 +331,15 @@ async fn run_instance<A, C>(
     let mut events = Vec::new();
     let mut messages = Vec::new();
 
+    let window_id = crate::window::Id::unique();
+
     let mut user_interface = ManuallyDrop::new(build_user_interface(
         &application,
         cache,
         &mut renderer,
         state.logical_size(),
-        &mut debug,
+        window_id,
     ));
-
-    let mut mouse_interaction = mouse::Interaction::default();
 
     // Triggered whenever a baseview event gets sent
     let mut redraw_requested = true;
@@ -349,9 +348,9 @@ async fn run_instance<A, C>(
     let mut needs_update = true;
     let mut did_process_event = false;
 
-    debug.startup_finished();
+    boot_trace.finish();
 
-    let window_id = crate::window::Id::unique();
+    let mut render_span = None;
 
     loop {
         // Empty the queue if possible
@@ -383,8 +382,7 @@ async fn run_instance<A, C>(
                 did_process_event = false;
 
                 if !events.is_empty() {
-                    debug.event_processing_started();
-
+                    let interact_time = iced_debug::interact(window_id);
                     let (interface_state, statuses) = user_interface.update(
                         &events,
                         state.cursor(),
@@ -395,8 +393,6 @@ async fn run_instance<A, C>(
 
                     needs_update |= matches!(interface_state, user_interface::State::Outdated,);
 
-                    debug.event_processing_finished();
-
                     for (event, status) in events.drain(..).zip(statuses.into_iter()) {
                         runtime.broadcast(crate::futures::subscription::Event::Interaction {
                             window: window_id,
@@ -404,6 +400,7 @@ async fn run_instance<A, C>(
                             status,
                         });
                     }
+                    interact_time.finish();
                 }
 
                 // The user interface update may have pushed a new message onto the stack
@@ -418,7 +415,6 @@ async fn run_instance<A, C>(
                     update(
                         &mut application,
                         &mut runtime,
-                        &mut debug,
                         &mut messages,
                         &mut window_subs,
                         //&mut window_queue,
@@ -434,7 +430,7 @@ async fn run_instance<A, C>(
                         cache,
                         &mut renderer,
                         state.logical_size(),
-                        &mut debug,
+                        window_id,
                     ));
 
                     if should_exit {
@@ -442,8 +438,8 @@ async fn run_instance<A, C>(
                     }
                 }
 
-                debug.draw_started();
-                let new_mouse_interaction = user_interface.draw(
+                render_span = Some(iced_debug::draw(window_id));
+                user_interface.draw(
                     &mut renderer,
                     state.theme(),
                     &iced_runtime::core::renderer::Style {
@@ -451,19 +447,6 @@ async fn run_instance<A, C>(
                     },
                     state.cursor(),
                 );
-                debug.draw_finished();
-
-                if new_mouse_interaction != mouse_interaction {
-                    // TODO: Set mouse cursor for MacOS once baseview supports it.
-                    #[cfg(not(target_os = "macos"))]
-                    if let Err(_) = window_queue.set_mouse_cursor(
-                        crate::conversion::convert_mouse_interaction(new_mouse_interaction),
-                    ) {
-                        debug.log_message(&"could not send set_mouse_cursor command".to_string());
-                    }
-
-                    mouse_interaction = new_mouse_interaction;
-                }
 
                 redraw_requested = true;
             }
@@ -471,11 +454,10 @@ async fn run_instance<A, C>(
                 run_action::<A, C>(
                     message,
                     &mut compositor,
-                    &mut renderer,
+                    &renderer,
                     &mut messages,
                     &mut clipboard,
                     &mut user_interface,
-                    &mut debug,
                     &mut window_queue,
                 );
             }
@@ -495,21 +477,20 @@ async fn run_instance<A, C>(
                     continue;
                 }
 
-                debug.render_started();
                 let current_viewport_version = state.viewport_version();
 
                 if viewport_version != current_viewport_version {
                     let logical_size = state.logical_size();
 
-                    debug.layout_started();
+                    let layout_span = iced_debug::layout(window_id);
                     user_interface = ManuallyDrop::new(
                         ManuallyDrop::into_inner(user_interface)
                             .relayout(logical_size, &mut renderer),
                     );
-                    debug.layout_finished();
+                    layout_span.finish();
 
-                    debug.draw_started();
-                    let new_mouse_interaction = user_interface.draw(
+                    let draw_span = iced_debug::draw(window_id);
+                    user_interface.draw(
                         &mut renderer,
                         state.theme(),
                         &renderer::Style {
@@ -517,22 +498,7 @@ async fn run_instance<A, C>(
                         },
                         state.cursor(),
                     );
-
-                    if new_mouse_interaction != mouse_interaction {
-                        // TODO: Set mouse cursor for MacOS once baseview supports it.
-                        #[cfg(not(target_os = "macos"))]
-                        if let Err(_) = window_queue.set_mouse_cursor(
-                            crate::conversion::convert_mouse_interaction(new_mouse_interaction),
-                        ) {
-                            debug.log_message(
-                                &"could not send set_mouse_cursor command".to_string(),
-                            );
-                        }
-
-                        mouse_interaction = new_mouse_interaction;
-                    }
-
-                    debug.draw_finished();
+                    draw_span.finish();
 
                     compositor.configure_surface(
                         &mut surface,
@@ -548,13 +514,15 @@ async fn run_instance<A, C>(
                     &mut surface,
                     state.viewport(),
                     state.background_color(),
-                    &debug.overlay(),
+                    || {},
                 ) {
                     Ok(()) => {
-                        debug.render_finished();
-
                         // TODO: Handle animations!
                         // Maybe we can use `ControlFlow::WaitUntil` for this.
+                        if let Some(span) = render_span {
+                            span.finish();
+                            render_span = None;
+                        }
                     }
                     Err(error) => match error {
                         // This is an unrecoverable error.
@@ -562,15 +530,13 @@ async fn run_instance<A, C>(
                             panic!("{error:?}");
                         }
                         _ => {
-                            debug.render_finished();
-
                             redraw_requested = true;
                         }
                     },
                 }
             }
             RuntimeEvent::Baseview((event, do_send_status)) => {
-                state.update(&event, &mut debug);
+                state.update(&event);
 
                 let ignore_non_modifier_keys = application
                     .ignore_non_modifier_keys()
@@ -604,7 +570,6 @@ async fn run_instance<A, C>(
                     update(
                         &mut application,
                         &mut runtime,
-                        &mut debug,
                         &mut messages,
                         &mut window_subs,
                     );
@@ -613,11 +578,11 @@ async fn run_instance<A, C>(
                     state.synchronize(&application);
 
                     user_interface = ManuallyDrop::new(build_user_interface(
-                        &mut application,
+                        &application,
                         cache,
                         &mut renderer,
                         state.logical_size(),
-                        &mut debug,
+                        window_id,
                     ));
                 }
 
@@ -637,7 +602,7 @@ pub fn build_user_interface<'a, A: Application>(
     cache: user_interface::Cache,
     renderer: &mut Renderer,
     size: Size,
-    debug: &mut Debug,
+    window_id: crate::window::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, Renderer>
 where
     A::Theme: DefaultStyle,
@@ -645,22 +610,22 @@ where
     #[cfg(feature = "trace")]
     let view_span = info_span!("Application", "VIEW").entered();
 
-    debug.view_started();
+    let view_span = iced_debug::view(window_id);
     let view = application.view();
+    view_span.finish();
 
     #[cfg(feature = "trace")]
     let _ = view_span.exit();
-    debug.view_finished();
 
     #[cfg(feature = "trace")]
     let layout_span = info_span!("Application", "LAYOUT").entered();
 
-    debug.layout_started();
+    let layout_span = iced_debug::layout(window_id);
     let user_interface = UserInterface::build(view, size, cache, renderer);
+    layout_span.finish();
 
     #[cfg(feature = "trace")]
     let _ = layout_span.exit();
-    debug.layout_finished();
 
     user_interface
 }
@@ -670,7 +635,6 @@ where
 pub fn update<A: Application, E: Executor>(
     application: &mut A,
     runtime: &mut Runtime<E, Proxy<A::Message>, iced_runtime::Action<A::Message>>,
-    debug: &mut Debug,
     messages: &mut Vec<A::Message>,
     window_subs: &mut WindowSubs<A::Message>,
     //window_queue: &mut WindowQueue,
@@ -681,14 +645,10 @@ pub fn update<A: Application, E: Executor>(
         #[cfg(feature = "trace")]
         let update_span = info_span!("Application", "UPDATE").entered();
 
-        debug.log_message(&message);
-        debug.update_started();
-
         let task = runtime.enter(|| application.update(message));
 
         #[cfg(feature = "trace")]
         let _ = update_span.exit();
-        debug.update_finished();
 
         if let Some(stream) = crate::runtime::task::into_stream(task) {
             runtime.run(stream);
@@ -709,7 +669,6 @@ pub fn run_action<A, C>(
     messages: &mut Vec<A::Message>,
     clipboard: &mut Clipboard,
     interface: &mut UserInterface<'_, A::Message, A::Theme, Renderer>,
-    debug: &mut Debug,
     window_queue: &mut WindowQueue,
 ) where
     C: Compositor<Renderer = Renderer> + 'static,
@@ -732,19 +691,13 @@ pub fn run_action<A, C>(
         },
         Action::Window(action) => match action {
             IWindowAction::Close(_) => {
-                if let Err(_) = window_queue.close_window() {
-                    debug.log_message(&"could not send close_window command".to_string());
-                }
+                let _ = window_queue.close_window();
             }
             IWindowAction::Resize(_, size) => {
-                if let Err(_) = window_queue.resize_window(size) {
-                    debug.log_message(&"could not send resize_window command".to_string());
-                }
+                let _ = window_queue.resize_window(size);
             }
             IWindowAction::GainFocus(_) => {
-                if let Err(_) = window_queue.focus() {
-                    debug.log_message(&"could not send get_window command".to_string());
-                }
+                let _ = window_queue.focus();
             }
             _ => {}
         },
@@ -784,9 +737,9 @@ pub fn run_action<A, C>(
             let _ = channel.send(Ok(()));
         }
         Action::Exit => {
-            if let Err(_) = window_queue.close_window() {
-                debug.log_message(&"could not send exit command".to_string());
-            }
+            // ignore errors when closing
+            let _ = window_queue.close_window();
         }
+        Action::Reload => todo!(),
     }
 }

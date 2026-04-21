@@ -4,7 +4,6 @@ use crate::application::{Appearance, Application, DefaultStyle};
 use crate::core::mouse;
 use crate::core::{Color, Size};
 use crate::graphics::Viewport;
-use crate::runtime::Debug;
 
 use std::marker::PhantomData;
 
@@ -25,6 +24,9 @@ where
     system_scale_factor: f64,
     scale_policy: WindowScalePolicy,
     modifiers: iced_runtime::core::keyboard::Modifiers,
+
+    #[cfg(feature = "toggle_debug")]
+    debug_enabled: bool,
 }
 
 impl<A: Application> State<A>
@@ -50,6 +52,8 @@ where
             system_scale_factor: 1.0,
             scale_policy,
             modifiers: Default::default(),
+            #[cfg(feature = "toggle_debug")]
+            debug_enabled: false,
         }
     }
 
@@ -99,7 +103,7 @@ where
 
     /// Processes the provided window event and updates the [`State`]
     /// accordingly.
-    pub fn update(&mut self, event: &baseview::Event, _debug: &mut Debug) {
+    pub fn update(&mut self, event: &baseview::Event) {
         match event {
             baseview::Event::Window(baseview::WindowEvent::Resized(window_info)) => {
                 // Cache system window info in case users changes their scale policy in the future.
@@ -133,11 +137,17 @@ where
             }
             #[allow(unused_variables)]
             baseview::Event::Keyboard(event) => {
-                #[cfg(feature = "debug")]
+                #[cfg(feature = "toggle_debug")]
                 {
                     use keyboard_types::{Key, KeyState};
                     if event.key == Key::F12 && event.state == KeyState::Down {
-                        _debug.toggle();
+                        if self.debug_enabled {
+                            iced_debug::enable();
+                            self.debug_enabled = true;
+                        } else {
+                            iced_debug::disable();
+                            self.debug_enabled = true;
+                        }
                     }
                 }
             }

@@ -35,7 +35,7 @@ impl<Message: 'static> Sink<Action<Message>> for Proxy<Message> {
     }
 
     fn start_send(mut self: Pin<&mut Self>, message: Action<Message>) -> Result<(), Self::Error> {
-        let _ = self.sender.start_send(message)?;
+        self.sender.start_send(message)?;
 
         Ok(())
     }

@@ -83,21 +83,20 @@ pub fn baseview_to_iced_events(
             let key = baseview_to_iced_key(event.key);
             let location = baseview_key_location_to_iced(event.location);
 
+            let physical_key = if let Some(code) = baseview_to_iced_keycode(event.code) {
+                iced_runtime::core::keyboard::key::Physical::Code(code)
+            } else {
+                iced_runtime::core::keyboard::key::Physical::Unidentified(
+                    iced_runtime::core::keyboard::key::NativeCode::Unidentified,
+                )
+            };
+
             if is_down {
                 let text = if let iced_runtime::core::keyboard::Key::Character(s) = &key {
                     Some(s.clone())
                 } else {
                     None
                 };
-
-                let physical_key = if let Some(code) = baseview_to_iced_keycode(event.code) {
-                    iced_runtime::core::keyboard::key::Physical::Code(code)
-                } else {
-                    iced_runtime::core::keyboard::key::Physical::Unidentified(
-                        iced_runtime::core::keyboard::key::NativeCode::Unidentified,
-                    )
-                };
-
                 iced_events.push(IcedEvent::Keyboard(IcedKeyEvent::KeyPressed {
                     key: key.clone(),
                     modified_key: key,
@@ -108,9 +107,11 @@ pub fn baseview_to_iced_events(
                 }));
             } else {
                 iced_events.push(IcedEvent::Keyboard(IcedKeyEvent::KeyReleased {
-                    key,
+                    key: key.clone(),
                     location,
                     modifiers: *iced_modifiers,
+                    modified_key: key,
+                    physical_key,
                 }));
             }
         }

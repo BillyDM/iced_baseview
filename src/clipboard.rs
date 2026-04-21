@@ -73,18 +73,16 @@ impl Clipboard {
     pub fn write(&mut self, kind: ClipboardKind, contents: String) {
         match &mut self.state {
             State::Connected(clipboard) => match kind {
-                ClipboardKind::Primary => match clipboard.borrow_mut().write_primary(contents) {
-                    Some(Err(e)) => {
+                ClipboardKind::Primary => {
+                    if let Some(Err(e)) = clipboard.borrow_mut().write_primary(contents) {
                         log::warn!("Failed to write to clipboard: {}", e);
                     }
-                    _ => {}
-                },
-                ClipboardKind::Standard => match clipboard.borrow_mut().write(contents) {
-                    Ok(()) => {}
-                    Err(e) => {
+                }
+                ClipboardKind::Standard => {
+                    if let Err(e) = clipboard.borrow_mut().write(contents) {
                         log::warn!("Failed to write to clipboard: {}", e);
                     }
-                },
+                }
             },
             State::Unavailable => {}
         }

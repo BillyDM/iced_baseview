@@ -16,8 +16,6 @@ categories = ["gui"]
 
 [features]
 default = ["wgpu"]
-# Enables a debug view in native platforms (press F12)
-debug = ["iced_runtime/debug"]
 # Enable the wgu renderer
 wgpu = ["iced_renderer/wgpu", "iced_widget/wgpu"]
 image = ["iced_graphics/image", "iced_widget/image", "iced_renderer/image"]
@@ -27,15 +25,20 @@ web-colors = ["iced_graphics/web-colors", "iced_renderer/web-colors"]
 canvas = ["iced_widget/canvas"]
 system = ["dep:sysinfo"]
 trace = []
+toggle_debug = []
 
 [dependencies]
 baseview = { git = "https://github.com/RustAudio/baseview.git", rev = "579130ecb4f9f315ae52190af42f0ea46aeaa4a2" }
 cfg-if = "1"
 window_clipboard = "0.4.1"
-iced_runtime = "0.13"
-iced_renderer = "0.13"
-iced_graphics = "0.13"
-iced_widget = "0.13"
+iced_runtime = { git = "https://github.com/iced-rs/iced", branch = "master" }
+iced_renderer = { git = "https://github.com/iced-rs/iced", branch = "master" }
+iced_graphics = { git = "https://github.com/iced-rs/iced", branch = "master" }
+iced_widget = { git = "https://github.com/iced-rs/iced", branch = "master" }
+iced_debug = { git = "https://github.com/iced-rs/iced", branch = "master" }
+iced_futures = { git = "https://github.com/iced-rs/iced", branch = "master", features = [
+  "smol",
+] }
 keyboard-types = { version = "0.6", default-features = false }
 log = "0.4"
 raw-window-handle = "0.5"
